@@ -68,6 +68,9 @@ export function renderSvg(req: ChartRequest): string {
   const fg = params.theme === 'dark' ? '#ffffff' : '#111111';
   const line = params.theme === 'dark' ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)';
   const constLine = params.theme === 'dark' ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)';
+  const labelFill = params.theme === 'dark' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)';
+  const labelStroke = params.theme === 'dark' ? 'rgba(0,0,0,0.0)' : 'rgba(255,255,255,0.9)';
+  const labelStrokeWidth = params.theme === 'dark' ? 0 : 3;
 
   const edges: [number, number][] = (constellationsData as any).edges;
   const constellationList: { label: string; hips: number[] }[] = (constellationsData as any).constellations;
@@ -212,7 +215,9 @@ export function renderSvg(req: ChartRequest): string {
       const dx = mx - chartCx;
       const dy = my - chartCy;
       if (dx * dx + dy * dy > (chartR * 0.92) * (chartR * 0.92)) continue;
-      labels.push(`<text x="${mx.toFixed(2)}" y="${my.toFixed(2)}" font-size="10" fill="rgba(0,0,0,0.45)" text-anchor="middle" dominant-baseline="middle">${svgEscape(c.label)}</text>`);
+      labels.push(
+        `<text x="${mx.toFixed(2)}" y="${my.toFixed(2)}" font-size="10" fill="${labelFill}" stroke="${labelStroke}" stroke-width="${labelStrokeWidth}" paint-order="stroke" text-anchor="middle" dominant-baseline="middle">${svgEscape(c.label)}</text>`
+      );
     }
   }
 
