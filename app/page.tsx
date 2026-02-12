@@ -243,6 +243,7 @@ function encodeStateToQuery(input: {
   locationLabelOverride: string;
   params: RenderParams;
   poster: PosterParams;
+  metaAuto: boolean;
   view: 'poster' | 'chart';
 }) {
   const sp = new URLSearchParams();
@@ -310,6 +311,7 @@ function encodeStateToQuery(input: {
   sp.set('pmls', String(po.metaLetterSpacing));
   sp.set('pmlh', String(po.metaLineSpacing));
   sp.set('pmu', po.metaUppercase ? '1' : '0');
+  sp.set('pma', input.metaAuto ? '1' : '0');
   return sp.toString();
 }
 
@@ -322,6 +324,7 @@ function decodeStateFromQuery(): Partial<{
   locationLabelOverride: string;
   params: RenderParams;
   poster: PosterParams;
+  metaAuto: boolean;
   view: 'poster' | 'chart';
 }> {
   const sp = new URLSearchParams(window.location.search);
@@ -419,6 +422,7 @@ function decodeStateFromQuery(): Partial<{
     locationLabelOverride: sp.get('label') ?? undefined,
     params,
     poster,
+    metaAuto: sp.get('pma') === null ? undefined : parseBool(sp.get('pma'), true),
     view: view === 'chart' ? 'chart' : view === 'poster' ? 'poster' : undefined
   };
 }
@@ -445,6 +449,7 @@ export default function Page() {
   const [error, setError] = useState<string>('');
   const [shareLink, setShareLink] = useState<string>('');
   const [metaAuto, setMetaAuto] = useState(true);
+  const [lastAutoMetaText, setLastAutoMetaText] = useState('');
 
   function formatCoordsLine(latitude: number, longitude: number): string {
     const latStr = `${Math.abs(latitude).toFixed(4)}°${latitude >= 0 ? 'N' : 'S'}`;
@@ -569,8 +574,13 @@ export default function Page() {
         showCoordinates: poster.showCoordinates,
         showTime: poster.showTime
       });
-      const posterForReq = shouldAutoMeta ? { ...poster, metaText: nextMetaText } : poster;
-      if (shouldAutoMeta) setPoster((p) => ({ ...p, metaText: nextMetaText }));
+      const shouldWriteMeta =
+        metaAuto || poster.metaText.trim().length === 0 || poster.metaText.trim() === lastAutoMetaText.trim();
+      const posterForReq = shouldWriteMeta ? { ...poster, metaText: nextMetaText } : poster;
+      if (shouldWriteMeta) {
+        setPoster((p) => ({ ...p, metaText: nextMetaText }));
+        setLastAutoMetaText(nextMetaText);
+      }
 
       const chartReq = fetch('/api/chart', {
         method: 'POST',
@@ -599,6 +609,7 @@ export default function Page() {
         locationLabelOverride,
         params,
         poster: posterForReq,
+        metaAuto,
         view: viewMode
       });
       const url = `${window.location.origin}${window.location.pathname}?${qs}`;
@@ -620,9 +631,11 @@ export default function Page() {
     if (decoded.dateTime) setDateTime(decoded.dateTime);
     if (decoded.locationLabelOverride) setLocationLabelOverride(decoded.locationLabelOverride);
     if (decoded.params) setParams(decoded.params);
+    const initialMetaAuto = typeof decoded.metaAuto === 'boolean' ? decoded.metaAuto : true;
+    setMetaAuto(initialMetaAuto);
     if (decoded.poster) {
       setPoster(decoded.poster);
-      if (decoded.poster.metaText && decoded.poster.metaText.trim().length > 0) setMetaAuto(false);
+      setLastAutoMetaText(initialMetaAuto ? decoded.poster.metaText ?? '' : '');
     }
     if (decoded.view) setViewMode(decoded.view);
 
