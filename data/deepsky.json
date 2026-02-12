@@ -1,0 +1,23 @@
+[
+  { "id": "M31", "name": "Andromeda (M31)", "kind": "galaxy", "ra_deg": 10.6847, "dec_deg": 41.2690 },
+  { "id": "M33", "name": "Triangulum (M33)", "kind": "galaxy", "ra_deg": 23.4621, "dec_deg": 30.6602 },
+  { "id": "M42", "name": "Orion Nebula (M42)", "kind": "nebula", "ra_deg": 83.8210, "dec_deg": -5.3911 },
+  { "id": "M45", "name": "Pleiades (M45)", "kind": "cluster", "ra_deg": 56.7500, "dec_deg": 24.1167 },
+  { "id": "M44", "name": "Beehive (M44)", "kind": "cluster", "ra_deg": 130.1000, "dec_deg": 19.6667 },
+  { "id": "M13", "name": "Hercules (M13)", "kind": "globular", "ra_deg": 250.4230, "dec_deg": 36.4613 },
+  { "id": "M57", "name": "Ring (M57)", "kind": "nebula", "ra_deg": 283.3960, "dec_deg": 33.0300 },
+  { "id": "M27", "name": "Dumbbell (M27)", "kind": "nebula", "ra_deg": 299.9010, "dec_deg": 22.7210 },
+  { "id": "M8", "name": "Lagoon (M8)", "kind": "nebula", "ra_deg": 270.9250, "dec_deg": -24.3810 },
+  { "id": "M20", "name": "Trifid (M20)", "kind": "nebula", "ra_deg": 270.6330, "dec_deg": -23.0200 },
+  { "id": "M16", "name": "Eagle (M16)", "kind": "nebula", "ra_deg": 274.7000, "dec_deg": -13.8060 },
+  { "id": "M17", "name": "Omega (M17)", "kind": "nebula", "ra_deg": 275.2000, "dec_deg": -16.1710 },
+  { "id": "M51", "name": "Whirlpool (M51)", "kind": "galaxy", "ra_deg": 202.4690, "dec_deg": 47.1950 },
+  { "id": "M81", "name": "Bode (M81)", "kind": "galaxy", "ra_deg": 148.8880, "dec_deg": 69.0650 },
+  { "id": "M82", "name": "Cigar (M82)", "kind": "galaxy", "ra_deg": 148.9680, "dec_deg": 69.6790 },
+  { "id": "M104", "name": "Sombrero (M104)", "kind": "galaxy", "ra_deg": 189.9970, "dec_deg": -11.6230 },
+  { "id": "NGC5139", "name": "Omega Cen", "kind": "globular", "ra_deg": 201.6970, "dec_deg": -47.4790 },
+  { "id": "NGC104", "name": "47 Tuc", "kind": "globular", "ra_deg": 6.0230, "dec_deg": -72.0810 },
+  { "id": "LMC", "name": "Large Magellanic Cloud", "kind": "galaxy", "ra_deg": 80.8940, "dec_deg": -69.7560 },
+  { "id": "SMC", "name": "Small Magellanic Cloud", "kind": "galaxy", "ra_deg": 13.1580, "dec_deg": -72.8000 }
+]
+

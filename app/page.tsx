@@ -1,12 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type RenderParams = {
   theme: 'light' | 'dark';
   showAzimuthScale: boolean;
   labelConstellations: boolean;
   labelBrightStars?: boolean;
+  labelSolarSystem: boolean;
+  mirrorHorizontal: boolean;
+  showSolarSystem: boolean;
+  showDeepSky: boolean;
+  labelDeepSky: boolean;
   starMode: 'none' | 'constellations' | 'all';
   magnitudeLimit: number;
   minStarSize: number;
@@ -22,12 +27,50 @@ type RenderParams = {
   constellationLineWidth: number;
   constellationLineAlpha: number;
   eclipticAlpha: number;
+  azimuthRingInnerWidth: number;
+  azimuthRingOuterWidth: number;
+};
+
+type PosterParams = {
+  size: 'a4' | 'square' | '16x20' | '20x20';
+  palette: 'classic-black' | 'navy-gold' | 'cream-ink' | 'midnight';
+  inkColor: string;
+  border: boolean;
+  borderWidth: number;
+  borderInset: number;
+  chartDiameter: number;
+  title: string;
+  subtitle: string;
+  dedication: string;
+  showCoordinates: boolean;
+  showTime: boolean;
+  includeAzimuthScale: boolean;
+  showCardinals: boolean;
+  ringInnerWidth: number;
+  ringGap: number;
+  ringOuterWidth: number;
+  titleFont: 'serif' | 'sans' | 'mono' | 'prata';
+  titleFontSize: number;
+  namesFont: 'serif' | 'sans' | 'cursive' | 'jimmy-script';
+  namesFontSize: number;
+  metaFont: 'sans' | 'serif' | 'mono' | 'signika';
+  metaFontSize: number;
+  metaText: string;
+  metaFontWeight: 400 | 500 | 700;
+  metaLetterSpacing: number;
+  metaLineSpacing: number;
+  metaUppercase: boolean;
 };
 
 const defaultParams: RenderParams = {
   theme: 'light',
   showAzimuthScale: true,
   labelConstellations: true,
+  labelSolarSystem: true,
+  mirrorHorizontal: true,
+  showSolarSystem: true,
+  showDeepSky: false,
+  labelDeepSky: true,
   starMode: 'all',
   magnitudeLimit: 6.0,
   minStarSize: 1.1,
@@ -42,8 +85,107 @@ const defaultParams: RenderParams = {
   vertexAlpha: 0.95,
   constellationLineWidth: 0.6,
   constellationLineAlpha: 0.7,
-  eclipticAlpha: 0.35
+  eclipticAlpha: 0.35,
+  azimuthRingInnerWidth: 1.2,
+  azimuthRingOuterWidth: 0.8
 };
+
+const defaultPoster: PosterParams = {
+  size: '16x20',
+  palette: 'navy-gold',
+  inkColor: '#d9d9d9',
+  border: true,
+  borderWidth: 2,
+  borderInset: 14,
+  chartDiameter: 12.8 * 72,
+  title: 'THE NIGHT OUR STORY BEGAN',
+  subtitle: '',
+  dedication: '',
+  showCoordinates: true,
+  showTime: false,
+  includeAzimuthScale: true,
+  showCardinals: false,
+  ringInnerWidth: 13,
+  ringGap: 6,
+  ringOuterWidth: 7,
+  titleFont: 'prata',
+  titleFontSize: 45,
+  namesFont: 'jimmy-script',
+  namesFontSize: 65,
+  metaFont: 'signika',
+  metaFontSize: 23,
+  metaText: '',
+  metaFontWeight: 500,
+  metaLetterSpacing: 5.8,
+  metaLineSpacing: 1.5,
+  metaUppercase: true
+};
+
+const posterSizePresets: Record<PosterParams['size'], Partial<PosterParams>> = {
+  a4: {
+    chartDiameter: 520,
+    ringInnerWidth: 1.2,
+    ringGap: 18,
+    ringOuterWidth: 0.8,
+    titleFontSize: 40,
+    namesFontSize: 22,
+    metaFontSize: 12,
+    metaLetterSpacing: 0,
+    metaLineSpacing: 1.35
+  },
+  square: {
+    chartDiameter: 760,
+    ringInnerWidth: 1.2,
+    ringGap: 18,
+    ringOuterWidth: 0.8,
+    titleFontSize: 56,
+    namesFontSize: 28,
+    metaFontSize: 12,
+    metaLetterSpacing: 0,
+    metaLineSpacing: 1.35
+  },
+  '16x20': {
+    chartDiameter: 12.8 * 72,
+    ringInnerWidth: 13,
+    ringGap: 6,
+    ringOuterWidth: 7,
+    titleFont: 'prata',
+    titleFontSize: 45,
+    namesFont: 'jimmy-script',
+    namesFontSize: 65,
+    metaFont: 'signika',
+    metaFontSize: 23,
+    metaLetterSpacing: 5.8,
+    metaLineSpacing: 1.5,
+    includeAzimuthScale: true,
+    showCardinals: false,
+    metaUppercase: true
+  },
+  '20x20': {
+    chartDiameter: 14.3 * 72,
+    ringInnerWidth: 14,
+    ringGap: 7,
+    ringOuterWidth: 8,
+    titleFont: 'prata',
+    titleFontSize: 40,
+    namesFont: 'jimmy-script',
+    namesFontSize: 60,
+    metaFont: 'signika',
+    metaFontSize: 21,
+    metaLetterSpacing: 5.3,
+    metaLineSpacing: 1.5,
+    includeAzimuthScale: true,
+    showCardinals: false,
+    metaUppercase: true
+  }
+};
+
+const posterPalettes: { key: PosterParams['palette']; label: string; bg: string; ink: string }[] = [
+  { key: 'classic-black', label: 'Classic', bg: '#0b0b0d', ink: '#f6f6f7' },
+  { key: 'midnight', label: 'Midnight', bg: '#0b1020', ink: '#ffffff' },
+  { key: 'navy-gold', label: 'Navy/Gold', bg: '#151c2d', ink: '#f4c25b' },
+  { key: 'cream-ink', label: 'Cream/Ink', bg: '#fbf5ea', ink: '#1b1b1b' }
+];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -69,6 +211,11 @@ function parseNum(v: string | null, fallback: number) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function parseEnum<T extends string>(v: string | null, allowed: readonly T[], fallback: T): T {
+  if (!v) return fallback;
+  return (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
+}
+
 function encodeStateToQuery(input: {
   locationMode: 'city' | 'latlon';
   cityQuery: string;
@@ -77,6 +224,8 @@ function encodeStateToQuery(input: {
   dateTime: string;
   locationLabelOverride: string;
   params: RenderParams;
+  poster: PosterParams;
+  view: 'poster' | 'chart';
 }) {
   const sp = new URLSearchParams();
   sp.set('mode', input.locationMode);
@@ -90,6 +239,11 @@ function encodeStateToQuery(input: {
   sp.set('theme', p.theme);
   sp.set('az', p.showAzimuthScale ? '1' : '0');
   sp.set('cl', p.labelConstellations ? '1' : '0');
+  sp.set('psl', p.labelSolarSystem ? '1' : '0');
+  sp.set('mh', p.mirrorHorizontal ? '1' : '0');
+  sp.set('ss', p.showSolarSystem ? '1' : '0');
+  sp.set('dso', p.showDeepSky ? '1' : '0');
+  sp.set('dsl', p.labelDeepSky ? '1' : '0');
   sp.set('sm', p.starMode);
   sp.set('ml', String(p.magnitudeLimit));
   sp.set('mss', String(p.minStarSize));
@@ -105,6 +259,39 @@ function encodeStateToQuery(input: {
   sp.set('lw', String(p.constellationLineWidth));
   sp.set('la', String(p.constellationLineAlpha));
   sp.set('ea', String(p.eclipticAlpha));
+  sp.set('aiw', String(p.azimuthRingInnerWidth));
+  sp.set('aow', String(p.azimuthRingOuterWidth));
+
+  const po = input.poster;
+  sp.set('view', input.view);
+  sp.set('ps', po.size);
+  sp.set('pp', po.palette);
+  sp.set('pic', po.inkColor);
+  sp.set('pb', po.border ? '1' : '0');
+  sp.set('pbw', String(po.borderWidth));
+  sp.set('pbi', String(po.borderInset));
+  sp.set('pcd', String(po.chartDiameter));
+  sp.set('pt', po.title);
+  sp.set('pst', po.subtitle);
+  sp.set('pd', po.dedication);
+  sp.set('pc', po.showCoordinates ? '1' : '0');
+  sp.set('ptime', po.showTime ? '1' : '0');
+  sp.set('paz', po.includeAzimuthScale ? '1' : '0');
+  sp.set('psc', po.showCardinals ? '1' : '0');
+  sp.set('pri', String(po.ringInnerWidth));
+  sp.set('prg', String(po.ringGap));
+  sp.set('pro', String(po.ringOuterWidth));
+  sp.set('ptf', po.titleFont);
+  sp.set('ptfs', String(po.titleFontSize));
+  sp.set('pnf', po.namesFont);
+  sp.set('pnfs', String(po.namesFontSize));
+  sp.set('pmf', po.metaFont);
+  sp.set('pmfs', String(po.metaFontSize));
+  sp.set('pmt', po.metaText);
+  sp.set('pmw', String(po.metaFontWeight));
+  sp.set('pmls', String(po.metaLetterSpacing));
+  sp.set('pmlh', String(po.metaLineSpacing));
+  sp.set('pmu', po.metaUppercase ? '1' : '0');
   return sp.toString();
 }
 
@@ -116,17 +303,25 @@ function decodeStateFromQuery(): Partial<{
   dateTime: string;
   locationLabelOverride: string;
   params: RenderParams;
+  poster: PosterParams;
+  view: 'poster' | 'chart';
 }> {
   const sp = new URLSearchParams(window.location.search);
   const mode = sp.get('mode');
   const theme = sp.get('theme');
   const sm = sp.get('sm');
+  const view = sp.get('view');
 
-  const params: RenderParams = {
+	  const params: RenderParams = {
     ...defaultParams,
     theme: theme === 'dark' ? 'dark' : 'light',
     showAzimuthScale: parseBool(sp.get('az'), defaultParams.showAzimuthScale),
     labelConstellations: parseBool(sp.get('cl'), defaultParams.labelConstellations),
+    labelSolarSystem: parseBool(sp.get('psl'), defaultParams.labelSolarSystem),
+    mirrorHorizontal: parseBool(sp.get('mh'), defaultParams.mirrorHorizontal),
+    showSolarSystem: parseBool(sp.get('ss'), defaultParams.showSolarSystem),
+    showDeepSky: parseBool(sp.get('dso'), defaultParams.showDeepSky),
+    labelDeepSky: parseBool(sp.get('dsl'), defaultParams.labelDeepSky),
     starMode: sm === 'none' || sm === 'constellations' || sm === 'all' ? sm : defaultParams.starMode,
     magnitudeLimit: parseNum(sp.get('ml'), defaultParams.magnitudeLimit),
     minStarSize: parseNum(sp.get('mss'), defaultParams.minStarSize),
@@ -138,11 +333,54 @@ function decodeStateFromQuery(): Partial<{
     vertexSizeMin: parseNum(sp.get('vsmin'), defaultParams.vertexSizeMin),
     vertexSizeMax: parseNum(sp.get('vsmax'), defaultParams.vertexSizeMax),
     vertexSizeGamma: parseNum(sp.get('vsg'), defaultParams.vertexSizeGamma),
-    vertexAlpha: parseNum(sp.get('va'), defaultParams.vertexAlpha),
-    constellationLineWidth: parseNum(sp.get('lw'), defaultParams.constellationLineWidth),
-    constellationLineAlpha: parseNum(sp.get('la'), defaultParams.constellationLineAlpha),
-    eclipticAlpha: parseNum(sp.get('ea'), defaultParams.eclipticAlpha)
-  };
+	    vertexAlpha: parseNum(sp.get('va'), defaultParams.vertexAlpha),
+	    constellationLineWidth: parseNum(sp.get('lw'), defaultParams.constellationLineWidth),
+	    constellationLineAlpha: parseNum(sp.get('la'), defaultParams.constellationLineAlpha),
+	    eclipticAlpha: parseNum(sp.get('ea'), defaultParams.eclipticAlpha),
+	    azimuthRingInnerWidth: parseNum(sp.get('aiw'), defaultParams.azimuthRingInnerWidth),
+	    azimuthRingOuterWidth: parseNum(sp.get('aow'), defaultParams.azimuthRingOuterWidth)
+	  };
+
+  const ps = sp.get('ps');
+  const pp = sp.get('pp');
+	  const poster: PosterParams = {
+    ...defaultPoster,
+    size: ps === '20x20' ? '20x20' : ps === '16x20' ? '16x20' : ps === 'square' ? 'square' : 'a4',
+    palette:
+      pp === 'classic-black' || pp === 'navy-gold' || pp === 'cream-ink' || pp === 'midnight'
+        ? pp
+        : defaultPoster.palette,
+    inkColor: sp.get('pic') ?? defaultPoster.inkColor,
+    border: parseBool(sp.get('pb'), defaultPoster.border),
+    borderWidth: parseNum(sp.get('pbw'), defaultPoster.borderWidth),
+    borderInset: parseNum(sp.get('pbi'), defaultPoster.borderInset),
+    chartDiameter: parseNum(sp.get('pcd'), defaultPoster.chartDiameter),
+    title: sp.get('pt') ?? defaultPoster.title,
+    subtitle: sp.get('pst') ?? defaultPoster.subtitle,
+	    dedication: sp.get('pd') ?? defaultPoster.dedication,
+	    showCoordinates: parseBool(sp.get('pc'), defaultPoster.showCoordinates),
+	    showTime: parseBool(sp.get('ptime'), defaultPoster.showTime),
+	    includeAzimuthScale: parseBool(sp.get('paz'), defaultPoster.includeAzimuthScale),
+	    showCardinals: parseBool(sp.get('psc'), defaultPoster.showCardinals),
+	    ringInnerWidth: parseNum(sp.get('pri'), defaultPoster.ringInnerWidth),
+	    ringGap: parseNum(sp.get('prg'), defaultPoster.ringGap),
+	    ringOuterWidth: parseNum(sp.get('pro'), defaultPoster.ringOuterWidth),
+	    titleFont: parseEnum(sp.get('ptf'), ['serif', 'sans', 'mono', 'prata'] as const, defaultPoster.titleFont),
+	    titleFontSize: parseNum(sp.get('ptfs'), defaultPoster.titleFontSize),
+	    namesFont: parseEnum(sp.get('pnf'), ['serif', 'sans', 'cursive', 'jimmy-script'] as const, defaultPoster.namesFont),
+	    namesFontSize: parseNum(sp.get('pnfs'), defaultPoster.namesFontSize),
+	    metaFont: parseEnum(sp.get('pmf'), ['sans', 'serif', 'mono', 'signika'] as const, defaultPoster.metaFont),
+	    metaFontSize: parseNum(sp.get('pmfs'), defaultPoster.metaFontSize),
+	    metaText: sp.get('pmt') ?? defaultPoster.metaText,
+	    metaFontWeight: (parseNum(sp.get('pmw'), defaultPoster.metaFontWeight) === 700
+	      ? 700
+	      : parseNum(sp.get('pmw'), defaultPoster.metaFontWeight) === 400
+	        ? 400
+	        : 500),
+	    metaLetterSpacing: parseNum(sp.get('pmls'), defaultPoster.metaLetterSpacing),
+	    metaLineSpacing: parseNum(sp.get('pmlh'), defaultPoster.metaLineSpacing),
+	    metaUppercase: parseBool(sp.get('pmu'), defaultPoster.metaUppercase)
+	  };
 
   return {
     locationMode: mode === 'latlon' ? 'latlon' : mode === 'city' ? 'city' : undefined,
@@ -151,33 +389,48 @@ function decodeStateFromQuery(): Partial<{
     lon: sp.get('lon') ? parseNum(sp.get('lon'), 0) : undefined,
     dateTime: sp.get('dt') ?? undefined,
     locationLabelOverride: sp.get('label') ?? undefined,
-    params
+    params,
+    poster,
+    view: view === 'chart' ? 'chart' : view === 'poster' ? 'poster' : undefined
   };
 }
 
 export default function Page() {
+  const [leftOpen, setLeftOpen] = useState(true);
   const [locationMode, setLocationMode] = useState<'city' | 'latlon'>('city');
   const [cityQuery, setCityQuery] = useState('Istanbul, Turkey');
   const [lat, setLat] = useState(0);
   const [lon, setLon] = useState(0);
   const [dateTime, setDateTime] = useState('2026-02-12T11:50');
+  const [timeZone, setTimeZone] = useState<string>('');
+  const [timeUtcIso, setTimeUtcIso] = useState<string>('');
+  const [timeOffset, setTimeOffset] = useState<string>('');
   const [locationLabelOverride, setLocationLabelOverride] = useState('');
   const [params, setParams] = useState<RenderParams>(defaultParams);
-  const [svg, setSvg] = useState<string>('');
+  const [poster, setPoster] = useState<PosterParams>(defaultPoster);
+  const [chartSvg, setChartSvg] = useState<string>('');
+  const [posterSvg, setPosterSvg] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'poster' | 'chart'>('poster');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>('');
   const [shareLink, setShareLink] = useState<string>('');
-
-  const timeUtcIso = useMemo(() => {
-    const iso = dateTime.length === 16 ? `${dateTime}:00Z` : `${dateTime}Z`;
-    return iso;
-  }, [dateTime]);
 
   async function geocode(): Promise<{ lat: number; lon: number; label: string } | null> {
     const res = await fetch(`/api/geocode?q=${encodeURIComponent(cityQuery)}`);
     if (!res.ok) return null;
     const data = (await res.json()) as { lat: number; lon: number; label: string }[];
     return data[0] ?? null;
+  }
+
+  async function normalizeTime(latitude: number, longitude: number): Promise<{ timeUtcIso: string; timeZone: string; offset: string }> {
+    const res = await fetch('/api/normalize-time', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ latitude, longitude, localDateTime: dateTime })
+    });
+    if (!res.ok) throw new Error((await res.text()) || 'Time normalization failed');
+    const data = (await res.json()) as { timeUtcIso: string; timeZone: string; offset: string };
+    return data;
   }
 
   async function generate() {
@@ -198,23 +451,28 @@ export default function Page() {
         setLon(longitude);
       }
 
-      const res = await fetch('/api/chart', {
+      const { timeUtcIso, timeZone: tz, offset } = await normalizeTime(latitude, longitude);
+      setTimeZone(tz);
+      setTimeUtcIso(timeUtcIso);
+      setTimeOffset(offset);
+
+      const chartReq = fetch('/api/chart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          latitude,
-          longitude,
-          timeUtcIso,
-          locationLabel: label,
-          params
-        })
+        body: JSON.stringify({ latitude, longitude, timeUtcIso, timeZone: tz, timeLocal: dateTime, locationLabel: label, params })
       });
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || 'Chart generation failed');
-      }
-      const svgText = await res.text();
-      setSvg(svgText);
+      const posterReq = fetch('/api/poster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude, longitude, timeUtcIso, timeZone: tz, timeLocal: dateTime, locationLabel: label, params, poster })
+      });
+
+      const [chartRes, posterRes] = await Promise.all([chartReq, posterReq]);
+      if (!chartRes.ok) throw new Error((await chartRes.text()) || 'Chart generation failed');
+      if (!posterRes.ok) throw new Error((await posterRes.text()) || 'Poster generation failed');
+
+      setChartSvg(await chartRes.text());
+      setPosterSvg(await posterRes.text());
 
       const qs = encodeStateToQuery({
         locationMode,
@@ -223,7 +481,9 @@ export default function Page() {
         lon: longitude,
         dateTime,
         locationLabelOverride,
-        params
+        params,
+        poster,
+        view: viewMode
       });
       const url = `${window.location.origin}${window.location.pathname}?${qs}`;
       window.history.replaceState(null, '', url);
@@ -244,22 +504,52 @@ export default function Page() {
     if (decoded.dateTime) setDateTime(decoded.dateTime);
     if (decoded.locationLabelOverride) setLocationLabelOverride(decoded.locationLabelOverride);
     if (decoded.params) setParams(decoded.params);
+    if (decoded.poster) setPoster(decoded.poster);
+    if (decoded.view) setViewMode(decoded.view);
 
     // generate after state is applied
     setTimeout(() => generate(), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function downloadSvg() {
-    const blob = new Blob([svg], { type: 'image/svg+xml' });
+  function downloadSvg(svgText: string, filename: string) {
+    const blob = new Blob([svgText], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'sky-chart.svg';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  }
+
+  async function downloadPng(svgText: string, filename: string, scale: number) {
+    const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.decoding = 'async';
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('PNG conversion failed'));
+      img.src = svgUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(img.width * scale);
+    canvas.height = Math.floor(img.height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas unavailable');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(svgUrl);
+    const pngBlob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b as Blob), 'image/png'));
+    const pngUrl = URL.createObjectURL(pngBlob);
+    const a = document.createElement('a');
+    a.href = pngUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(pngUrl);
   }
 
   async function copyLink() {
@@ -273,10 +563,28 @@ export default function Page() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', minHeight: '100vh' }}>
-      <div style={{ padding: 18, borderRight: '1px solid #e5e7eb', background: '#fafafa' }}>
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>Sky Chart</div>
+    <div style={{ display: 'grid', gridTemplateColumns: `${leftOpen ? 420 : 56}px 1fr 360px`, minHeight: '100vh' }}>
+      <div style={{ padding: leftOpen ? 18 : 10, borderRight: '1px solid #e5e7eb', background: '#fafafa', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: leftOpen ? 10 : 0 }}>
+          {leftOpen ? <div style={{ fontSize: 18, fontWeight: 700 }}>Sky Chart</div> : null}
+          <button
+            onClick={() => setLeftOpen((v) => !v)}
+            title={leftOpen ? 'Menüyü gizle' : 'Menüyü göster'}
+            aria-label={leftOpen ? 'Menüyü gizle' : 'Menüyü göster'}
+            style={{
+              padding: '8px 10px',
+              border: '1px solid #ddd',
+              background: '#fff',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {leftOpen ? 'Hide' : 'Show'}
+          </button>
+        </div>
 
+        {!leftOpen ? null : (
+          <>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button
             onClick={() => setLocationMode('city')}
@@ -320,9 +628,15 @@ export default function Page() {
         )}
 
         <div style={{ height: 12 }} />
-        <Field label="Tarih/Saat (UTC)">
+        <Field label="Tarih/Saat (lokal)">
           <input type="datetime-local" value={dateTime} onChange={(e) => setDateTime(e.target.value)} style={{ padding: 10, border: '1px solid #ddd' }} />
         </Field>
+        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
+          {timeZone ? `Timezone: ${timeZone} (UTC${timeOffset || ''})` : 'Timezone: (Generate ile otomatik bulunur)'}
+          {timeUtcIso ? (
+            <div style={{ marginTop: 2 }}>UTC: {timeUtcIso.replace('.000Z', 'Z')}</div>
+          ) : null}
+        </div>
 
         <div style={{ height: 12 }} />
         <Field label="Etiket (opsiyonel)">
@@ -367,11 +681,85 @@ export default function Page() {
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
             <input
               type="checkbox"
+              checked={params.showSolarSystem}
+              onChange={(e) => setParams((p) => ({ ...p, showSolarSystem: e.target.checked }))}
+            />
+            Güneş / Ay / Gezegenler
+          </label>
+
+          {params.showSolarSystem ? (
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, paddingLeft: 22 }}>
+              <input
+                type="checkbox"
+                checked={params.labelSolarSystem}
+                onChange={(e) => setParams((p) => ({ ...p, labelSolarSystem: e.target.checked }))}
+              />
+              Gezegen isimleri
+            </label>
+          ) : null}
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={params.showDeepSky}
+              onChange={(e) => setParams((p) => ({ ...p, showDeepSky: e.target.checked }))}
+            />
+            Önemli gökcisimleri (M31, M42…)
+          </label>
+
+          {params.showDeepSky ? (
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, paddingLeft: 22 }}>
+              <input
+                type="checkbox"
+                checked={params.labelDeepSky}
+                onChange={(e) => setParams((p) => ({ ...p, labelDeepSky: e.target.checked }))}
+              />
+              Gökcismi isimleri
+            </label>
+          ) : null}
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={params.mirrorHorizontal}
+              onChange={(e) => setParams((p) => ({ ...p, mirrorHorizontal: e.target.checked }))}
+            />
+            Gözlemci görünümü (Doğu/Batı aynala)
+          </label>
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input
+              type="checkbox"
               checked={params.showAzimuthScale}
               onChange={(e) => setParams((p) => ({ ...p, showAzimuthScale: e.target.checked }))}
             />
             Azimut ölçeği (dış halka)
           </label>
+
+          {params.showAzimuthScale ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <Field label={`Ring inner: ${params.azimuthRingInnerWidth.toFixed(2)}`}>
+                <input
+                  type="range"
+                  min={0.2}
+                  max={12.0}
+                  step={0.05}
+                  value={params.azimuthRingInnerWidth}
+                  onChange={(e) => setParams((p) => ({ ...p, azimuthRingInnerWidth: Number(e.target.value) }))}
+                />
+              </Field>
+              <Field label={`Ring outer: ${params.azimuthRingOuterWidth.toFixed(2)}`}>
+                <input
+                  type="range"
+                  min={0.2}
+                  max={12.0}
+                  step={0.05}
+                  value={params.azimuthRingOuterWidth}
+                  onChange={(e) => setParams((p) => ({ ...p, azimuthRingOuterWidth: Number(e.target.value) }))}
+                />
+              </Field>
+            </div>
+          ) : null}
 
           <Field label={`Magnitude limit: ${params.magnitudeLimit.toFixed(1)} (düşür: daha az yıldız)`}>
             <input
@@ -548,11 +936,18 @@ export default function Page() {
             {busy ? 'Üretiliyor…' : 'Generate'}
           </button>
           <button
-            onClick={downloadSvg}
-            disabled={!svg}
+            onClick={() => downloadSvg(viewMode === 'poster' ? posterSvg : chartSvg, viewMode === 'poster' ? 'star-poster.svg' : 'sky-chart.svg')}
+            disabled={viewMode === 'poster' ? !posterSvg : !chartSvg}
             style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
           >
             Download SVG
+          </button>
+          <button
+            onClick={() => downloadPng(viewMode === 'poster' ? posterSvg : chartSvg, viewMode === 'poster' ? 'star-poster.png' : 'sky-chart.png', 3)}
+            disabled={viewMode === 'poster' ? !posterSvg : !chartSvg}
+            style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
+          >
+            Download PNG
           </button>
           <button
             onClick={copyLink}
@@ -563,14 +958,365 @@ export default function Page() {
         </div>
 
         {error ? <div style={{ marginTop: 10, color: '#b91c1c', fontSize: 13 }}>{error}</div> : null}
+          </>
+        )}
       </div>
 
       <div style={{ padding: 18, overflow: 'auto', background: '#fff' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <div style={{ border: '1px solid #e5e7eb', background: '#fff' }} dangerouslySetInnerHTML={{ __html: svg }} />
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
-            Not: Zaman girdisi UTC olarak yorumlanır. PDF için tarayıcıdan yazdır (Print) kullanabilirsin.
+          <div style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'center' }}>
+            <button
+              onClick={() => setViewMode('poster')}
+              style={{
+                padding: '8px 10px',
+                border: '1px solid #ddd',
+                background: viewMode === 'poster' ? '#111' : '#fff',
+                color: viewMode === 'poster' ? '#fff' : '#111'
+              }}
+            >
+              Poster
+            </button>
+            <button
+              onClick={() => setViewMode('chart')}
+              style={{
+                padding: '8px 10px',
+                border: '1px solid #ddd',
+                background: viewMode === 'chart' ? '#111' : '#fff',
+                color: viewMode === 'chart' ? '#fff' : '#111'
+              }}
+            >
+              Chart
+            </button>
+            <div style={{ fontSize: 12, color: '#6b7280' }}>Preview</div>
           </div>
+
+          <div
+            style={{ border: '1px solid #e5e7eb', background: '#fff' }}
+            dangerouslySetInnerHTML={{ __html: viewMode === 'poster' ? posterSvg : chartSvg }}
+          />
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
+            Not: Zaman girdisi seçilen konumun lokal saatine göre yorumlanır. PDF için tarayıcıdan yazdır (Print) kullanabilirsin.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: 18, borderLeft: '1px solid #e5e7eb', background: '#fafafa' }}>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Poster Tasarimi</div>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <Field label="Poster boyutu">
+            <select
+              value={poster.size}
+              onChange={(e) => {
+                const v = e.target.value as PosterParams['size'];
+                setPoster((p) => ({ ...p, ...posterSizePresets[v], size: v }));
+              }}
+              style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+            >
+              <option value="a4">A4 (595x842)</option>
+              <option value="square">Square (1024x1024)</option>
+              <option value="16x20">16x20 in (1152x1440)</option>
+              <option value="20x20">20x20 in (1440x1440)</option>
+            </select>
+          </Field>
+
+          <Field label="Yazi / cizgi rengi (hex)">
+            <input
+              value={poster.inkColor}
+              onChange={(e) => setPoster((p) => ({ ...p, inkColor: e.target.value }))}
+              placeholder="#d9d9d9"
+              style={{ padding: 10, border: '1px solid #ddd' }}
+            />
+          </Field>
+
+          <Field
+            label={`Yıldız haritası çapı: ${(poster.chartDiameter / 72).toFixed(1)} in (${poster.chartDiameter.toFixed(0)}u)`}
+          >
+            <input
+              type="range"
+              min={300}
+              max={1200}
+              step={1}
+              value={poster.chartDiameter}
+              onChange={(e) => setPoster((p) => ({ ...p, chartDiameter: Number(e.target.value) }))}
+            />
+          </Field>
+
+          <Field label="Renk paleti">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+              {posterPalettes.map((p) => {
+                const active = poster.palette === p.key;
+                return (
+                  <button
+                    key={p.key}
+                    onClick={() => setPoster((s) => ({ ...s, palette: p.key }))}
+                    title={p.label}
+                    style={{
+                      height: 44,
+                      border: active ? '2px solid #111' : '1px solid #ddd',
+                      background: p.bg,
+                      cursor: 'pointer',
+                      position: 'relative'
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: 'absolute',
+                        inset: 6,
+                        border: `1px solid ${p.ink}`,
+                        opacity: 0.65
+                      }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 12, color: '#6b7280' }}>
+              Seçili: {posterPalettes.find((p) => p.key === poster.palette)?.label ?? poster.palette}
+            </div>
+          </Field>
+
+          <Field label="Baslik (Title)">
+            <input value={poster.title} onChange={(e) => setPoster((p) => ({ ...p, title: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="Title font">
+              <select
+                value={poster.titleFont}
+                onChange={(e) => setPoster((p) => ({ ...p, titleFont: e.target.value as PosterParams['titleFont'] }))}
+                style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+              >
+                <option value="prata">Prata</option>
+                <option value="serif">Serif</option>
+                <option value="sans">Sans</option>
+                <option value="mono">Mono</option>
+              </select>
+            </Field>
+            <Field label={`Title size: ${poster.titleFontSize.toFixed(0)}`}>
+              <input
+                type="range"
+                min={18}
+                max={80}
+                step={1}
+                value={poster.titleFontSize}
+                onChange={(e) => setPoster((p) => ({ ...p, titleFontSize: Number(e.target.value) }))}
+              />
+            </Field>
+          </div>
+
+          <Field label="Kisi isimleri (satir satir)">
+            <textarea
+              value={poster.subtitle}
+              onChange={(e) => setPoster((p) => ({ ...p, subtitle: e.target.value }))}
+              rows={2}
+              style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+            />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="Isimler font">
+              <select
+                value={poster.namesFont}
+                onChange={(e) => setPoster((p) => ({ ...p, namesFont: e.target.value as PosterParams['namesFont'] }))}
+                style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+              >
+                <option value="jimmy-script">Jimmy Script</option>
+                <option value="serif">Serif</option>
+                <option value="sans">Sans</option>
+                <option value="cursive">Cursive</option>
+              </select>
+            </Field>
+            <Field label={`Isimler size: ${poster.namesFontSize.toFixed(0)}`}>
+              <input
+                type="range"
+                min={10}
+                max={48}
+                step={1}
+                value={poster.namesFontSize}
+                onChange={(e) => setPoster((p) => ({ ...p, namesFontSize: Number(e.target.value) }))}
+              />
+            </Field>
+          </div>
+
+          <Field label="Ek satirlar (opsiyonel, satir satir)">
+            <textarea
+              value={poster.dedication}
+              onChange={(e) => setPoster((p) => ({ ...p, dedication: e.target.value }))}
+              rows={4}
+              style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+            />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="Alt bilgi font">
+              <select
+                value={poster.metaFont}
+                onChange={(e) => setPoster((p) => ({ ...p, metaFont: e.target.value as PosterParams['metaFont'] }))}
+                style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+              >
+                <option value="signika">Signika</option>
+                <option value="sans">Sans</option>
+                <option value="serif">Serif</option>
+                <option value="mono">Mono</option>
+              </select>
+            </Field>
+            <Field label={`Alt bilgi size: ${poster.metaFontSize.toFixed(0)}`}>
+              <input
+                type="range"
+                min={9}
+                max={22}
+                step={1}
+                value={poster.metaFontSize}
+                onChange={(e) => setPoster((p) => ({ ...p, metaFontSize: Number(e.target.value) }))}
+              />
+            </Field>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="Alt bilgi weight">
+              <select
+                value={poster.metaFontWeight}
+                onChange={(e) => setPoster((p) => ({ ...p, metaFontWeight: Number(e.target.value) as any }))}
+                style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+              >
+                <option value={400}>Regular</option>
+                <option value={500}>Medium</option>
+                <option value={700}>Bold</option>
+              </select>
+            </Field>
+            <Field label={`Letter spacing: ${poster.metaLetterSpacing.toFixed(1)}`}>
+              <input
+                type="range"
+                min={-1.0}
+                max={20.0}
+                step={0.1}
+                value={poster.metaLetterSpacing}
+                onChange={(e) => setPoster((p) => ({ ...p, metaLetterSpacing: Number(e.target.value) }))}
+              />
+            </Field>
+          </div>
+
+          <Field label={`Line spacing: ${poster.metaLineSpacing.toFixed(2)}`}>
+            <input
+              type="range"
+              min={1.0}
+              max={2.0}
+              step={0.05}
+              value={poster.metaLineSpacing}
+              onChange={(e) => setPoster((p) => ({ ...p, metaLineSpacing: Number(e.target.value) }))}
+            />
+          </Field>
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input type="checkbox" checked={poster.metaUppercase} onChange={(e) => setPoster((p) => ({ ...p, metaUppercase: e.target.checked }))} />
+            Alt bilgi UPPERCASE
+          </label>
+
+          <Field label="Alt bilgi metni (opsiyonel, satir satir)">
+            <textarea
+              value={poster.metaText}
+              onChange={(e) => setPoster((p) => ({ ...p, metaText: e.target.value }))}
+              rows={4}
+              placeholder={
+                '{location}\n{coords}\n{datetime}\n\nTokens: {location} {coords} {date} {datetime} {utc_offset}'
+              }
+              style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+            />
+          </Field>
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input type="checkbox" checked={poster.border} onChange={(e) => setPoster((p) => ({ ...p, border: e.target.checked }))} />
+            Cerceve (border)
+          </label>
+
+          {poster.border ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <Field label={`Border width: ${poster.borderWidth.toFixed(1)}`}>
+                <input
+                  type="range"
+                  min={0.5}
+	                  max={6}
+	                  step={0.5}
+	                  value={poster.borderWidth}
+	                  onChange={(e) => setPoster((p) => ({ ...p, borderWidth: Number(e.target.value) }))}
+	                />
+	              </Field>
+	              <Field label={`Border inset: ${poster.borderInset.toFixed(0)}`}>
+	                <input
+	                  type="range"
+	                  min={0}
+	                  max={40}
+	                  step={1}
+	                  value={poster.borderInset}
+	                  onChange={(e) => setPoster((p) => ({ ...p, borderInset: Number(e.target.value) }))}
+	                />
+	              </Field>
+	            </div>
+	          ) : null}
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input type="checkbox" checked={poster.showCoordinates} onChange={(e) => setPoster((p) => ({ ...p, showCoordinates: e.target.checked }))} />
+            Koordinatlar (lat/lon)
+          </label>
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input type="checkbox" checked={poster.showTime} onChange={(e) => setPoster((p) => ({ ...p, showTime: e.target.checked }))} />
+            Saat goster (UTC)
+          </label>
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input type="checkbox" checked={poster.includeAzimuthScale} onChange={(e) => setPoster((p) => ({ ...p, includeAzimuthScale: e.target.checked }))} />
+            Azimut olcegi (poster)
+          </label>
+
+          {poster.includeAzimuthScale ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                <input type="checkbox" checked={poster.showCardinals} onChange={(e) => setPoster((p) => ({ ...p, showCardinals: e.target.checked }))} />
+                N / E / S / W harfleri
+              </label>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <Field label={`Ring inner: ${poster.ringInnerWidth.toFixed(2)}`}>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={20.0}
+                    step={0.05}
+                    value={poster.ringInnerWidth}
+                    onChange={(e) => setPoster((p) => ({ ...p, ringInnerWidth: Number(e.target.value) }))}
+                  />
+                </Field>
+                <Field label={`Ring gap: ${poster.ringGap.toFixed(1)}`}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={30}
+                    step={0.5}
+                    value={poster.ringGap}
+                    onChange={(e) => setPoster((p) => ({ ...p, ringGap: Number(e.target.value) }))}
+                  />
+                </Field>
+                <Field label={`Ring outer: ${poster.ringOuterWidth.toFixed(2)}`}>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={20.0}
+                    step={0.05}
+                    value={poster.ringOuterWidth}
+                    onChange={(e) => setPoster((p) => ({ ...p, ringOuterWidth: Number(e.target.value) }))}
+                  />
+                </Field>
+              </div>
+            </div>
+          ) : null}
+
+          <button
+            onClick={generate}
+            disabled={busy}
+            style={{ padding: '10px 12px', border: '1px solid #111', background: '#fff', cursor: 'pointer' }}
+          >
+            {busy ? 'Üretiliyor…' : 'Update Poster'}
+          </button>
         </div>
       </div>
     </div>
