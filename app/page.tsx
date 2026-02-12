@@ -458,6 +458,44 @@ export default function Page() {
     return `${datePart}  ${timePart} (UTC ${off})`;
   }
 
+  function patchMetaText(input: {
+    current: string;
+    label: string;
+    latitude: number;
+    longitude: number;
+    utcIso: string;
+    tz: string;
+    offset: string;
+    showCoordinates: boolean;
+    showTime: boolean;
+  }): string {
+    const coordsLine = formatCoordsLine(input.latitude, input.longitude);
+    const dateLine = formatMetaDateLine(input.utcIso, input.tz, input.offset, input.showTime);
+    const lines = input.current
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    if (lines.length === 0) return buildDefaultMetaText(input);
+
+    // Ensure first line exists (keep user's first line, fallback to resolved label).
+    if (!lines[0]) lines[0] = input.label;
+
+    // Coordinates line heuristics: if showCoordinates, keep/insert as 2nd line; if not, remove if 2nd line looks like coords.
+    const looksLikeCoords = (s: string) => /\d+\.\d+°[NS]\s+\d+\.\d+°[EW]/.test(s);
+    if (input.showCoordinates) {
+      if (lines.length < 2) lines.push(coordsLine);
+      else if (looksLikeCoords(lines[1])) lines[1] = coordsLine;
+      else lines.splice(1, 0, coordsLine);
+    } else {
+      if (lines.length >= 2 && looksLikeCoords(lines[1])) lines.splice(1, 1);
+    }
+
+    // Replace last line with date/time line.
+    lines[lines.length - 1] = dateLine;
+    return lines.join('\n');
+  }
+
   function buildDefaultMetaText(input: {
     label: string;
     latitude: number;
@@ -1228,7 +1266,7 @@ export default function Page() {
               <input
                 type="range"
                 min={18}
-                max={80}
+                max={160}
                 step={1}
                 value={poster.titleFontSize}
                 onChange={(e) => setPoster((p) => ({ ...p, titleFontSize: Number(e.target.value) }))}
@@ -1262,7 +1300,7 @@ export default function Page() {
               <input
                 type="range"
                 min={10}
-                max={48}
+                max={160}
                 step={1}
                 value={poster.namesFontSize}
                 onChange={(e) => setPoster((p) => ({ ...p, namesFontSize: Number(e.target.value) }))}
@@ -1296,7 +1334,7 @@ export default function Page() {
               <input
                 type="range"
                 min={9}
-                max={22}
+                max={80}
                 step={1}
                 value={poster.metaFontSize}
                 onChange={(e) => setPoster((p) => ({ ...p, metaFontSize: Number(e.target.value) }))}
@@ -1414,12 +1452,56 @@ export default function Page() {
 	          ) : null}
 
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
-            <input type="checkbox" checked={poster.showCoordinates} onChange={(e) => setPoster((p) => ({ ...p, showCoordinates: e.target.checked }))} />
+            <input
+              type="checkbox"
+              checked={poster.showCoordinates}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setPoster((p) => {
+                  if (!timeUtcIso || !timeZone) return { ...p, showCoordinates: v };
+                  const label = resolvedLabel || locationLabelOverride || cityQuery;
+                  const nextMetaText = patchMetaText({
+                    current: p.metaText || '',
+                    label,
+                    latitude: lat,
+                    longitude: lon,
+                    utcIso: timeUtcIso,
+                    tz: timeZone,
+                    offset: timeOffset,
+                    showCoordinates: v,
+                    showTime: p.showTime
+                  });
+                  return { ...p, showCoordinates: v, metaText: nextMetaText };
+                });
+              }}
+            />
             Koordinatlar (lat/lon)
           </label>
 
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
-            <input type="checkbox" checked={poster.showTime} onChange={(e) => setPoster((p) => ({ ...p, showTime: e.target.checked }))} />
+            <input
+              type="checkbox"
+              checked={poster.showTime}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setPoster((p) => {
+                  if (!timeUtcIso || !timeZone) return { ...p, showTime: v };
+                  const label = resolvedLabel || locationLabelOverride || cityQuery;
+                  const nextMetaText = patchMetaText({
+                    current: p.metaText || '',
+                    label,
+                    latitude: lat,
+                    longitude: lon,
+                    utcIso: timeUtcIso,
+                    tz: timeZone,
+                    offset: timeOffset,
+                    showCoordinates: p.showCoordinates,
+                    showTime: v
+                  });
+                  return { ...p, showTime: v, metaText: nextMetaText };
+                });
+              }}
+            />
             Saat goster (UTC)
           </label>
 

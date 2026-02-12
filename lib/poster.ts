@@ -211,7 +211,7 @@ export function renderPosterSvg(req: PosterRequest): string {
         .filter((l) => l.length > 0)
     : defaultMetaTextLines;
 
-  const scale = size === 'square' ? 1.25 : 1.0;
+  const scale = 1.0;
   const titleFontKey = (poster.titleFont ?? 'serif') as PosterRequest['poster']['titleFont'];
   const namesFontKey = (poster.namesFont ?? 'serif') as PosterRequest['poster']['namesFont'];
   const metaFontKey = (poster.metaFont ?? 'sans') as PosterRequest['poster']['metaFont'];
