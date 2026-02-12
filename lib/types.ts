@@ -46,6 +46,7 @@ export type PosterParams = {
     | 'midnight'
     | 'navy-gold'
     | 'cream-ink'
+    | 'night-gold'
     | 'forest'
     | 'emerald'
     | 'plum'

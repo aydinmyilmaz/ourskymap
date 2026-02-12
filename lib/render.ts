@@ -22,6 +22,19 @@ function moonIlluminatedPath(cx: number, cy: number, r: number, phaseDeg: number
   return `M ${x0} ${yTop} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 ${outerSweep} ${x0} ${yBot} A ${rx.toFixed(2)} ${r.toFixed(2)} 0 ${largeArc} ${outerSweep} ${x0} ${yTop} Z`;
 }
 
+function sunburstPath(cx: number, cy: number, r: number, rays = 12, innerRatio = 0.55): string {
+  const pts: string[] = [];
+  const n = rays * 2;
+  for (let i = 0; i < n; i++) {
+    const ang = (i * Math.PI * 2) / n - Math.PI / 2;
+    const rr = i % 2 === 0 ? r : r * innerRatio;
+    const x = cx + rr * Math.cos(ang);
+    const y = cy + rr * Math.sin(ang);
+    pts.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
+  }
+  return `M ${pts[0]} L ${pts.slice(1).join(' L ')} Z`;
+}
+
 function buildAzimuthScale(opts: {
   chartCx: number;
   chartCy: number;
@@ -140,6 +153,16 @@ export function renderSvg(req: ChartRequest): string {
               const labelFill = params.theme === 'dark' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)';
               const lx = (o.x + o.r + 4).toFixed(2);
               const ly = (o.y + 3).toFixed(2);
+              if (o.kind === 'sun') {
+                const p = sunburstPath(o.x, o.y, o.r * 1.15, 12, 0.52);
+                return [
+                  `<path d="${p}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round"/>`,
+                  `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${(o.r * 0.45).toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2"/>`,
+                  params.labelSolarSystem
+                    ? `<text x="${lx}" y="${ly}" font-size="10" fill="${labelFill}" stroke="${stroke}" stroke-width="3" paint-order="stroke" text-anchor="start" dominant-baseline="middle">${svgEscape(o.label)}</text>`
+                    : ''
+                ].join('');
+              }
               if (o.kind === 'moon' && typeof o.moonPhaseDeg === 'number') {
                 const path = moonIlluminatedPath(o.x, o.y, o.r, o.moonPhaseDeg, params.mirrorHorizontal);
                 return [

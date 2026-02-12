@@ -38,6 +38,7 @@ type PosterParams = {
     | 'midnight'
     | 'navy-gold'
     | 'cream-ink'
+    | 'night-gold'
     | 'forest'
     | 'emerald'
     | 'plum'
@@ -194,6 +195,7 @@ const posterPalettes: { key: PosterParams['palette']; label: string; bg: string;
   { key: 'classic-black', label: 'Classic', bg: '#0b0b0d', ink: '#f6f6f7' },
   { key: 'midnight', label: 'Midnight', bg: '#0b1020', ink: '#ffffff' },
   { key: 'navy-gold', label: 'Navy/Gold', bg: '#151c2d', ink: '#f4c25b' },
+  { key: 'night-gold', label: 'Night/Gold', bg: '#24283a', ink: '#fbab29' },
   { key: 'cream-ink', label: 'Cream', bg: '#fbf5ea', ink: '#1b1b1b' },
   { key: 'slate', label: 'Slate', bg: '#111827', ink: '#d9d9d9' },
   { key: 'forest', label: 'Forest', bg: '#0e1f16', ink: '#d9d9d9' },
@@ -366,6 +368,7 @@ function decodeStateFromQuery(): Partial<{
       pp === 'classic-black' ||
       pp === 'midnight' ||
       pp === 'navy-gold' ||
+      pp === 'night-gold' ||
       pp === 'cream-ink' ||
       pp === 'slate' ||
       pp === 'forest' ||
@@ -1217,7 +1220,13 @@ export default function Page() {
                 return (
                   <button
                     key={p.key}
-                    onClick={() => setPoster((s) => ({ ...s, palette: p.key }))}
+                    onClick={() =>
+                      setPoster((s) => ({
+                        ...s,
+                        palette: p.key,
+                        inkColor: s.inkColor === defaultPoster.inkColor ? p.ink : s.inkColor
+                      }))
+                    }
                     title={p.label}
                     style={{
                       height: 48,

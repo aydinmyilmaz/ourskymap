@@ -20,6 +20,19 @@ function moonIlluminatedPath(cx: number, cy: number, r: number, phaseDeg: number
   return `M ${x0} ${yTop} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 ${outerSweep} ${x0} ${yBot} A ${rx.toFixed(2)} ${r.toFixed(2)} 0 ${largeArc} ${outerSweep} ${x0} ${yTop} Z`;
 }
 
+function sunburstPath(cx: number, cy: number, r: number, rays = 12, innerRatio = 0.55): string {
+  const pts: string[] = [];
+  const n = rays * 2;
+  for (let i = 0; i < n; i++) {
+    const ang = (i * Math.PI * 2) / n - Math.PI / 2;
+    const rr = i % 2 === 0 ? r : r * innerRatio;
+    const x = cx + rr * Math.cos(ang);
+    const y = cy + rr * Math.sin(ang);
+    pts.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
+  }
+  return `M ${pts[0]} L ${pts.slice(1).join(' L ')} Z`;
+}
+
 type Palette = {
   bg: string;
   ink: string;
@@ -36,12 +49,29 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   return { r, g, b };
 }
 
+function relativeLuminance(rgb: { r: number; g: number; b: number }): number {
+  const toLin = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const r = toLin(rgb.r);
+  const g = toLin(rgb.g);
+  const b = toLin(rgb.b);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function rgba(rgb: { r: number; g: number; b: number }, a: number): string {
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
+}
+
 function getPalette(name: PosterRequest['poster']['palette']): Palette {
   switch (name) {
     case 'classic-black':
       return { bg: '#0b0b0d', ink: '#f6f6f7', mutedInk: 'rgba(246,246,247,0.55)', accent: '#f6f6f7' };
     case 'navy-gold':
       return { bg: '#151c2d', ink: '#f4c25b', mutedInk: 'rgba(244,194,91,0.35)', accent: '#f4c25b' };
+    case 'night-gold':
+      return { bg: '#24283a', ink: '#fbab29', mutedInk: 'rgba(251,171,41,0.35)', accent: '#fbab29' };
     case 'cream-ink':
       return { bg: '#fbf5ea', ink: '#1b1b1b', mutedInk: 'rgba(27,27,27,0.35)', accent: '#1b1b1b' };
     case 'slate':
@@ -94,7 +124,20 @@ export function renderPosterSvg(req: PosterRequest): string {
   if (inkRgb) {
     palette.ink = `#${poster.inkColor.trim().replace(/^#/, '').toLowerCase()}`;
     palette.accent = palette.ink;
-    palette.mutedInk = `rgba(${inkRgb.r},${inkRgb.g},${inkRgb.b},0.40)`;
+    palette.mutedInk = rgba(inkRgb, 0.40);
+  }
+
+  // Improve readability on light backgrounds by making "muted" ink less transparent.
+  const bgRgb = hexToRgb(palette.bg);
+  const effectiveInkRgb = hexToRgb(palette.ink) || inkRgb;
+  if (bgRgb && effectiveInkRgb) {
+    const bgLum = relativeLuminance(bgRgb);
+    const inkLum = relativeLuminance(effectiveInkRgb);
+    const bgIsLight = bgLum > 0.62;
+    const inkIsDark = inkLum < 0.45;
+    if (bgIsLight && inkIsDark) {
+      palette.mutedInk = rgba(effectiveInkRgb, 0.58);
+    }
   }
 
   // Poster layout regions
@@ -311,6 +354,17 @@ export function renderPosterSvg(req: PosterRequest): string {
             ? geom.solarSystem
                 .map((o) => {
                   const stroke = palette.bg;
+                  if (o.kind === 'sun') {
+                    const p = sunburstPath(o.x, o.y, o.r * 1.15, 12, 0.52);
+                    const fill = palette.ink;
+                    return [
+                      `<path d="${p}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" opacity="0.95"/>`,
+                      `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${(o.r * 0.45).toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
+                      params.labelSolarSystem
+                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${palette.ink}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="ui-sans-serif, system-ui">${svgEscape(o.label)}</text>`
+                        : ''
+                    ].join('');
+                  }
                   if (o.kind === 'moon' && typeof o.moonPhaseDeg === 'number') {
                     const fill = palette.ink;
                     const path = moonIlluminatedPath(o.x, o.y, o.r, o.moonPhaseDeg, params.mirrorHorizontal);
@@ -322,7 +376,7 @@ export function renderPosterSvg(req: PosterRequest): string {
                         : ''
                     ].join('');
                   }
-                  const fill = o.kind === 'sun' ? '#FDB813' : o.kind === 'moon' ? palette.mutedInk : palette.ink;
+                  const fill = o.kind === 'moon' ? palette.mutedInk : palette.ink;
                   return [
                     `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
                     params.labelSolarSystem
