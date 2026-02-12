@@ -41,7 +41,17 @@ export type ChartRequest = {
 
 export type PosterParams = {
   size: 'a4' | 'square' | '16x20' | '20x20';
-  palette: 'classic-black' | 'navy-gold' | 'cream-ink' | 'midnight';
+  palette:
+    | 'classic-black'
+    | 'midnight'
+    | 'navy-gold'
+    | 'cream-ink'
+    | 'forest'
+    | 'emerald'
+    | 'plum'
+    | 'burgundy'
+    | 'slate'
+    | 'sand';
   inkColor: string;
   border: boolean;
   borderWidth: number;

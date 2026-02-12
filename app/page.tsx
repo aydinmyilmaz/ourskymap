@@ -33,7 +33,17 @@ type RenderParams = {
 
 type PosterParams = {
   size: 'a4' | 'square' | '16x20' | '20x20';
-  palette: 'classic-black' | 'navy-gold' | 'cream-ink' | 'midnight';
+  palette:
+    | 'classic-black'
+    | 'midnight'
+    | 'navy-gold'
+    | 'cream-ink'
+    | 'forest'
+    | 'emerald'
+    | 'plum'
+    | 'burgundy'
+    | 'slate'
+    | 'sand';
   inkColor: string;
   border: boolean;
   borderWidth: number;
@@ -184,7 +194,13 @@ const posterPalettes: { key: PosterParams['palette']; label: string; bg: string;
   { key: 'classic-black', label: 'Classic', bg: '#0b0b0d', ink: '#f6f6f7' },
   { key: 'midnight', label: 'Midnight', bg: '#0b1020', ink: '#ffffff' },
   { key: 'navy-gold', label: 'Navy/Gold', bg: '#151c2d', ink: '#f4c25b' },
-  { key: 'cream-ink', label: 'Cream/Ink', bg: '#fbf5ea', ink: '#1b1b1b' }
+  { key: 'cream-ink', label: 'Cream', bg: '#fbf5ea', ink: '#1b1b1b' },
+  { key: 'slate', label: 'Slate', bg: '#111827', ink: '#d9d9d9' },
+  { key: 'forest', label: 'Forest', bg: '#0e1f16', ink: '#d9d9d9' },
+  { key: 'emerald', label: 'Emerald', bg: '#0b3d2e', ink: '#d9d9d9' },
+  { key: 'plum', label: 'Plum', bg: '#1c1230', ink: '#d9d9d9' },
+  { key: 'burgundy', label: 'Burgundy', bg: '#2a0f1a', ink: '#d9d9d9' },
+  { key: 'sand', label: 'Sand', bg: '#f7f3e8', ink: '#1b1b1b' }
 ];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -347,7 +363,16 @@ function decodeStateFromQuery(): Partial<{
     ...defaultPoster,
     size: ps === '20x20' ? '20x20' : ps === '16x20' ? '16x20' : ps === 'square' ? 'square' : 'a4',
     palette:
-      pp === 'classic-black' || pp === 'navy-gold' || pp === 'cream-ink' || pp === 'midnight'
+      pp === 'classic-black' ||
+      pp === 'midnight' ||
+      pp === 'navy-gold' ||
+      pp === 'cream-ink' ||
+      pp === 'slate' ||
+      pp === 'forest' ||
+      pp === 'emerald' ||
+      pp === 'plum' ||
+      pp === 'burgundy' ||
+      pp === 'sand'
         ? pp
         : defaultPoster.palette,
     inkColor: sp.get('pic') ?? defaultPoster.inkColor,
@@ -397,6 +422,7 @@ function decodeStateFromQuery(): Partial<{
 
 export default function Page() {
   const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
   const [locationMode, setLocationMode] = useState<'city' | 'latlon'>('city');
   const [cityQuery, setCityQuery] = useState('Istanbul, Turkey');
   const [lat, setLat] = useState(0);
@@ -405,6 +431,7 @@ export default function Page() {
   const [timeZone, setTimeZone] = useState<string>('');
   const [timeUtcIso, setTimeUtcIso] = useState<string>('');
   const [timeOffset, setTimeOffset] = useState<string>('');
+  const [resolvedLabel, setResolvedLabel] = useState<string>('');
   const [locationLabelOverride, setLocationLabelOverride] = useState('');
   const [params, setParams] = useState<RenderParams>(defaultParams);
   const [poster, setPoster] = useState<PosterParams>(defaultPoster);
@@ -414,6 +441,39 @@ export default function Page() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>('');
   const [shareLink, setShareLink] = useState<string>('');
+  const [metaAuto, setMetaAuto] = useState(true);
+
+  function formatCoordsLine(latitude: number, longitude: number): string {
+    const latStr = `${Math.abs(latitude).toFixed(4)}°${latitude >= 0 ? 'N' : 'S'}`;
+    const lonStr = `${Math.abs(longitude).toFixed(4)}°${longitude >= 0 ? 'E' : 'W'}`;
+    return `${latStr} ${lonStr}`;
+  }
+
+  function formatMetaDateLine(utcIso: string, tz: string, offset: string, showTime: boolean): string {
+    const d = new Date(utcIso);
+    const datePart = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: tz }).format(d);
+    if (!showTime) return datePart;
+    const timePart = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(d);
+    const off = offset || '+00:00';
+    return `${datePart}  ${timePart} (UTC ${off})`;
+  }
+
+  function buildDefaultMetaText(input: {
+    label: string;
+    latitude: number;
+    longitude: number;
+    utcIso: string;
+    tz: string;
+    offset: string;
+    showCoordinates: boolean;
+    showTime: boolean;
+  }): string {
+    const lines: string[] = [];
+    lines.push(input.label);
+    if (input.showCoordinates) lines.push(formatCoordsLine(input.latitude, input.longitude));
+    lines.push(formatMetaDateLine(input.utcIso, input.tz, input.offset, input.showTime));
+    return lines.join('\n');
+  }
 
   async function geocode(): Promise<{ lat: number; lon: number; label: string } | null> {
     const res = await fetch(`/api/geocode?q=${encodeURIComponent(cityQuery)}`);
@@ -455,6 +515,21 @@ export default function Page() {
       setTimeZone(tz);
       setTimeUtcIso(timeUtcIso);
       setTimeOffset(offset);
+      setResolvedLabel(label);
+
+      const shouldAutoMeta = metaAuto || !poster.metaText.trim();
+      const nextMetaText = buildDefaultMetaText({
+        label,
+        latitude,
+        longitude,
+        utcIso: timeUtcIso,
+        tz,
+        offset,
+        showCoordinates: poster.showCoordinates,
+        showTime: poster.showTime
+      });
+      const posterForReq = shouldAutoMeta ? { ...poster, metaText: nextMetaText } : poster;
+      if (shouldAutoMeta) setPoster((p) => ({ ...p, metaText: nextMetaText }));
 
       const chartReq = fetch('/api/chart', {
         method: 'POST',
@@ -464,7 +539,7 @@ export default function Page() {
       const posterReq = fetch('/api/poster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude, longitude, timeUtcIso, timeZone: tz, timeLocal: dateTime, locationLabel: label, params, poster })
+        body: JSON.stringify({ latitude, longitude, timeUtcIso, timeZone: tz, timeLocal: dateTime, locationLabel: label, params, poster: posterForReq })
       });
 
       const [chartRes, posterRes] = await Promise.all([chartReq, posterReq]);
@@ -482,7 +557,7 @@ export default function Page() {
         dateTime,
         locationLabelOverride,
         params,
-        poster,
+        poster: posterForReq,
         view: viewMode
       });
       const url = `${window.location.origin}${window.location.pathname}?${qs}`;
@@ -504,7 +579,10 @@ export default function Page() {
     if (decoded.dateTime) setDateTime(decoded.dateTime);
     if (decoded.locationLabelOverride) setLocationLabelOverride(decoded.locationLabelOverride);
     if (decoded.params) setParams(decoded.params);
-    if (decoded.poster) setPoster(decoded.poster);
+    if (decoded.poster) {
+      setPoster(decoded.poster);
+      if (decoded.poster.metaText && decoded.poster.metaText.trim().length > 0) setMetaAuto(false);
+    }
     if (decoded.view) setViewMode(decoded.view);
 
     // generate after state is applied
@@ -563,25 +641,43 @@ export default function Page() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `${leftOpen ? 420 : 56}px 1fr 360px`, minHeight: '100vh' }}>
-      <div style={{ padding: leftOpen ? 18 : 10, borderRight: '1px solid #e5e7eb', background: '#fafafa', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: leftOpen ? 10 : 0 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `${leftOpen ? 420 : 64}px 1fr ${rightOpen ? 380 : 64}px`, minHeight: '100vh' }}>
+      <div
+        style={{
+          padding: leftOpen ? 18 : 8,
+          borderRight: '1px solid #e5e7eb',
+          background: '#fafafa',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: leftOpen ? 'space-between' : 'center', gap: 10, marginBottom: leftOpen ? 12 : 6 }}>
           {leftOpen ? <div style={{ fontSize: 18, fontWeight: 700 }}>Sky Chart</div> : null}
           <button
             onClick={() => setLeftOpen((v) => !v)}
-            title={leftOpen ? 'Menüyü gizle' : 'Menüyü göster'}
-            aria-label={leftOpen ? 'Menüyü gizle' : 'Menüyü göster'}
+            title={leftOpen ? 'Kontrolleri gizle' : 'Kontrolleri göster'}
+            aria-label={leftOpen ? 'Kontrolleri gizle' : 'Kontrolleri göster'}
             style={{
-              padding: '8px 10px',
-              border: '1px solid #ddd',
+              width: 40,
+              height: 40,
+              border: '1px solid #cbd5e1',
               background: '#fff',
               cursor: 'pointer',
-              whiteSpace: 'nowrap'
+              borderRadius: 10,
+              fontSize: 18,
+              lineHeight: '40px'
             }}
           >
-            {leftOpen ? 'Hide' : 'Show'}
+            {leftOpen ? '‹' : '›'}
           </button>
         </div>
+
+        {!leftOpen ? (
+          <div style={{ display: 'flex', justifyContent: 'center', color: '#6b7280', fontSize: 11, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+            Kontroller
+          </div>
+        ) : null}
 
         {!leftOpen ? null : (
           <>
@@ -1000,9 +1096,44 @@ export default function Page() {
         </div>
       </div>
 
-      <div style={{ padding: 18, borderLeft: '1px solid #e5e7eb', background: '#fafafa' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Poster Tasarimi</div>
-        <div style={{ display: 'grid', gap: 10 }}>
+      <div
+        style={{
+          padding: rightOpen ? 18 : 8,
+          borderLeft: '1px solid #e5e7eb',
+          background: '#fafafa',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: rightOpen ? 'space-between' : 'center', gap: 10, marginBottom: rightOpen ? 12 : 6 }}>
+          {rightOpen ? <div style={{ fontSize: 14, fontWeight: 700 }}>Poster Tasarimi</div> : null}
+          <button
+            onClick={() => setRightOpen((v) => !v)}
+            title={rightOpen ? 'Tasarımı gizle' : 'Tasarımı göster'}
+            aria-label={rightOpen ? 'Tasarımı gizle' : 'Tasarımı göster'}
+            style={{
+              width: 40,
+              height: 40,
+              border: '1px solid #cbd5e1',
+              background: '#fff',
+              cursor: 'pointer',
+              borderRadius: 10,
+              fontSize: 18,
+              lineHeight: '40px'
+            }}
+          >
+            {rightOpen ? '›' : '‹'}
+          </button>
+        </div>
+
+        {!rightOpen ? (
+          <div style={{ display: 'flex', justifyContent: 'center', color: '#6b7280', fontSize: 11, writingMode: 'vertical-rl' }}>
+            Tasarım
+          </div>
+        ) : null}
+
+        {!rightOpen ? null : <div style={{ display: 'grid', gap: 10 }}>
           <Field label="Poster boyutu">
             <select
               value={poster.size}
@@ -1042,7 +1173,7 @@ export default function Page() {
           </Field>
 
           <Field label="Renk paleti">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
               {posterPalettes.map((p) => {
                 const active = poster.palette === p.key;
                 return (
@@ -1051,9 +1182,9 @@ export default function Page() {
                     onClick={() => setPoster((s) => ({ ...s, palette: p.key }))}
                     title={p.label}
                     style={{
-                      height: 44,
-                      border: active ? '2px solid #111' : '1px solid #ddd',
-                      background: p.bg,
+                      height: 48,
+                      border: active ? '2px solid #111' : '1px solid #cbd5e1',
+                      background: `linear-gradient(135deg, ${p.bg} 0%, ${p.bg} 72%, ${p.ink} 72%, ${p.ink} 100%)`,
                       cursor: 'pointer',
                       position: 'relative'
                     }}
@@ -1062,8 +1193,9 @@ export default function Page() {
                       style={{
                         position: 'absolute',
                         inset: 6,
-                        border: `1px solid ${p.ink}`,
-                        opacity: 0.65
+                        border: `2px solid ${p.ink}`,
+                        opacity: 0.75,
+                        boxShadow: active ? '0 0 0 3px rgba(17,24,39,0.12)' : undefined
                       }}
                     />
                   </button>
@@ -1212,14 +1344,41 @@ export default function Page() {
             Alt bilgi UPPERCASE
           </label>
 
-          <Field label="Alt bilgi metni (opsiyonel, satir satir)">
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={metaAuto}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setMetaAuto(v);
+                if (v && timeUtcIso && timeZone) {
+                  const label = resolvedLabel || locationLabelOverride || cityQuery;
+                  const nextMetaText = buildDefaultMetaText({
+                    label,
+                    latitude: lat,
+                    longitude: lon,
+                    utcIso: timeUtcIso,
+                    tz: timeZone,
+                    offset: timeOffset,
+                    showCoordinates: poster.showCoordinates,
+                    showTime: poster.showTime
+                  });
+                  setPoster((p) => ({ ...p, metaText: nextMetaText }));
+                }
+              }}
+            />
+            Alt bilgi otomatik güncellensin
+          </label>
+
+          <Field label="Alt bilgi metni (ekranda gorunecek, satir satir)">
             <textarea
               value={poster.metaText}
-              onChange={(e) => setPoster((p) => ({ ...p, metaText: e.target.value }))}
+              onChange={(e) => {
+                setMetaAuto(false);
+                setPoster((p) => ({ ...p, metaText: e.target.value }));
+              }}
               rows={4}
-              placeholder={
-                '{location}\n{coords}\n{datetime}\n\nTokens: {location} {coords} {date} {datetime} {utc_offset}'
-              }
+              placeholder={'Örn:\nIstanbul, Turkey\n41.0082°N 28.9784°E\nFebruary 12, 2026  23:00 (UTC +03:00)'}
               style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
             />
           </Field>
@@ -1317,7 +1476,7 @@ export default function Page() {
           >
             {busy ? 'Üretiliyor…' : 'Update Poster'}
           </button>
-        </div>
+        </div>}
       </div>
     </div>
   );

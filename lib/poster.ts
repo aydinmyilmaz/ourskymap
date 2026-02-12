@@ -44,6 +44,18 @@ function getPalette(name: PosterRequest['poster']['palette']): Palette {
       return { bg: '#151c2d', ink: '#f4c25b', mutedInk: 'rgba(244,194,91,0.35)', accent: '#f4c25b' };
     case 'cream-ink':
       return { bg: '#fbf5ea', ink: '#1b1b1b', mutedInk: 'rgba(27,27,27,0.35)', accent: '#1b1b1b' };
+    case 'slate':
+      return { bg: '#111827', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
+    case 'forest':
+      return { bg: '#0e1f16', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
+    case 'emerald':
+      return { bg: '#0b3d2e', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
+    case 'plum':
+      return { bg: '#1c1230', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
+    case 'burgundy':
+      return { bg: '#2a0f1a', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
+    case 'sand':
+      return { bg: '#f7f3e8', ink: '#1b1b1b', mutedInk: 'rgba(27,27,27,0.35)', accent: '#1b1b1b' };
     case 'midnight':
     default:
       return { bg: '#0b1020', ink: '#ffffff', mutedInk: 'rgba(255,255,255,0.40)', accent: '#ffffff' };
@@ -150,7 +162,7 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   const transform = `matrix(${sx.toFixed(6)} 0 0 ${sy.toFixed(6)} ${tx.toFixed(3)} ${ty.toFixed(3)})`;
 
-  const labelFill = poster.palette.includes('gold') ? palette.ink : palette.mutedInk;
+  const labelFill = palette.mutedInk;
 
   const frame = poster.border
     ? `<rect x="${margin + frameInset}" y="${margin + frameInset}" width="${W - 2 * (margin + frameInset)}" height="${H - 2 * (margin + frameInset)}" fill="none" stroke="${palette.ink}" stroke-width="${borderW}" opacity="0.9"/>`
@@ -191,19 +203,11 @@ export function renderPosterSvg(req: PosterRequest): string {
   if (coordsLine) defaultMetaTextLines.push(coordsLine);
   defaultMetaTextLines.push(dateLine);
 
-  const expandMetaLine = (line: string) => {
-    return line
-      .replaceAll('{location}', locationLabel)
-      .replaceAll('{coords}', coordsLine)
-      .replaceAll('{date}', formatDate(date, false, req.timeZone))
-      .replaceAll('{datetime}', dateLine)
-      .replaceAll('{utc_offset}', utcOffset);
-  };
-
+  // metaText is treated as literal, user-edited content.
   const metaTextLines: string[] = (poster.metaText || '').trim()
     ? poster.metaText
         .split('\n')
-        .map((l) => expandMetaLine(l.trim()))
+        .map((l) => l.trim())
         .filter((l) => l.length > 0)
     : defaultMetaTextLines;
 
