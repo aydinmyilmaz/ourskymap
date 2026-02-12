@@ -1219,12 +1219,41 @@ export default function Page() {
           </Field>
 
           <Field label="Yazi / cizgi rengi (hex)">
-            <input
-              value={poster.inkColor}
-              onChange={(e) => setPoster((p) => ({ ...p, inkColor: e.target.value }))}
-              placeholder="#d9d9d9"
-              style={{ padding: 10, border: '1px solid #ddd' }}
-            />
+            <div style={{ display: 'grid', gap: 8 }}>
+              <input
+                value={poster.inkColor}
+                onChange={(e) => setPoster((p) => ({ ...p, inkColor: e.target.value }))}
+                placeholder="#d9d9d9"
+                style={{ padding: 10, border: '1px solid #ddd' }}
+              />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                {[
+                  { label: '#d9d9d9', v: '#d9d9d9' },
+                  { label: '#fbab29', v: '#fbab29' },
+                  { label: '#f4c25b', v: '#f4c25b' },
+                  { label: '#ffffff', v: '#ffffff' },
+                  { label: '#1b1b1b', v: '#1b1b1b' }
+                ].map((c) => {
+                  const active = poster.inkColor.trim().toLowerCase() === c.v;
+                  return (
+                    <button
+                      key={c.v}
+                      onClick={() => setPoster((p) => ({ ...p, inkColor: c.v }))}
+                      title={c.label}
+                      style={{
+                        width: 34,
+                        height: 28,
+                        borderRadius: 8,
+                        border: active ? '2px solid #111' : '1px solid #cbd5e1',
+                        background: c.v,
+                        cursor: 'pointer'
+                      }}
+                    />
+                  );
+                })}
+                <span style={{ fontSize: 12, color: '#6b7280' }}>Hızlı seçim</span>
+              </div>
+            </div>
           </Field>
 
           <Field
