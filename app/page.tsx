@@ -54,6 +54,7 @@ type PosterParams = {
   subtitle: string;
   dedication: string;
   showCoordinates: boolean;
+  coordsInline: boolean;
   showTime: boolean;
   includeAzimuthScale: boolean;
   showCardinals: boolean;
@@ -113,6 +114,7 @@ const defaultPoster: PosterParams = {
   subtitle: '',
   dedication: '',
   showCoordinates: true,
+  coordsInline: false,
   showTime: false,
   includeAzimuthScale: true,
   showCardinals: false,
@@ -294,6 +296,7 @@ function encodeStateToQuery(input: {
   sp.set('pst', po.subtitle);
   sp.set('pd', po.dedication);
   sp.set('pc', po.showCoordinates ? '1' : '0');
+  sp.set('pci', po.coordsInline ? '1' : '0');
   sp.set('ptime', po.showTime ? '1' : '0');
   sp.set('paz', po.includeAzimuthScale ? '1' : '0');
   sp.set('psc', po.showCardinals ? '1' : '0');
@@ -390,6 +393,7 @@ function decodeStateFromQuery(): Partial<{
     subtitle: sp.get('pst') ?? defaultPoster.subtitle,
 	    dedication: sp.get('pd') ?? defaultPoster.dedication,
 	    showCoordinates: parseBool(sp.get('pc'), defaultPoster.showCoordinates),
+	    coordsInline: parseBool(sp.get('pci'), defaultPoster.coordsInline),
 	    showTime: parseBool(sp.get('ptime'), defaultPoster.showTime),
 	    includeAzimuthScale: parseBool(sp.get('paz'), defaultPoster.includeAzimuthScale),
 	    showCardinals: parseBool(sp.get('psc'), defaultPoster.showCardinals),
@@ -451,9 +455,9 @@ export default function Page() {
   const [metaAuto, setMetaAuto] = useState(true);
   const [lastAutoMetaText, setLastAutoMetaText] = useState('');
 
-  function formatCoordsLine(latitude: number, longitude: number): string {
-    const latStr = `${Math.abs(latitude).toFixed(4)}°${latitude >= 0 ? 'N' : 'S'}`;
-    const lonStr = `${Math.abs(longitude).toFixed(4)}°${longitude >= 0 ? 'E' : 'W'}`;
+  function formatCoordsLine(latitude: number, longitude: number, precision = 4): string {
+    const latStr = `${Math.abs(latitude).toFixed(precision)}°${latitude >= 0 ? 'N' : 'S'}`;
+    const lonStr = `${Math.abs(longitude).toFixed(precision)}°${longitude >= 0 ? 'E' : 'W'}`;
     return `${latStr} ${lonStr}`;
   }
 
@@ -475,9 +479,10 @@ export default function Page() {
     tz: string;
     offset: string;
     showCoordinates: boolean;
+    coordsInline: boolean;
     showTime: boolean;
   }): string {
-    const coordsLine = formatCoordsLine(input.latitude, input.longitude);
+    const coordsLine = formatCoordsLine(input.latitude, input.longitude, input.coordsInline ? 2 : 4);
     const dateLine = formatMetaDateLine(input.utcIso, input.tz, input.offset, input.showTime);
     const lines = input.current
       .split('\n')
@@ -491,12 +496,18 @@ export default function Page() {
 
     // Coordinates line heuristics: if showCoordinates, keep/insert as 2nd line; if not, remove if 2nd line looks like coords.
     const looksLikeCoords = (s: string) => /\d+\.\d+°[NS]\s+\d+\.\d+°[EW]/.test(s);
-    if (input.showCoordinates) {
+    if (input.showCoordinates && !input.coordsInline) {
       if (lines.length < 2) lines.push(coordsLine);
       else if (looksLikeCoords(lines[1])) lines[1] = coordsLine;
       else lines.splice(1, 0, coordsLine);
     } else {
       if (lines.length >= 2 && looksLikeCoords(lines[1])) lines.splice(1, 1);
+    }
+
+    if (input.showCoordinates && input.coordsInline) {
+      // Put coords on the first line in a compact way.
+      const base = lines[0].split('|')[0].trim() || input.label;
+      lines[0] = `${base} | ${coordsLine}`;
     }
 
     // Replace last line with date/time line.
@@ -512,11 +523,13 @@ export default function Page() {
     tz: string;
     offset: string;
     showCoordinates: boolean;
+    coordsInline: boolean;
     showTime: boolean;
   }): string {
     const lines: string[] = [];
-    lines.push(input.label);
-    if (input.showCoordinates) lines.push(formatCoordsLine(input.latitude, input.longitude));
+    const coordsLine = formatCoordsLine(input.latitude, input.longitude, input.coordsInline ? 2 : 4);
+    lines.push(input.showCoordinates && input.coordsInline ? `${input.label} | ${coordsLine}` : input.label);
+    if (input.showCoordinates && !input.coordsInline) lines.push(coordsLine);
     lines.push(formatMetaDateLine(input.utcIso, input.tz, input.offset, input.showTime));
     return lines.join('\n');
   }
@@ -572,6 +585,7 @@ export default function Page() {
         tz,
         offset,
         showCoordinates: poster.showCoordinates,
+        coordsInline: poster.coordsInline,
         showTime: poster.showTime
       });
       const shouldWriteMeta =
@@ -1421,6 +1435,7 @@ export default function Page() {
                     tz: timeZone,
                     offset: timeOffset,
                     showCoordinates: poster.showCoordinates,
+                    coordsInline: poster.coordsInline,
                     showTime: poster.showTime
                   });
                   setPoster((p) => ({ ...p, metaText: nextMetaText }));
@@ -1491,14 +1506,45 @@ export default function Page() {
                     tz: timeZone,
                     offset: timeOffset,
                     showCoordinates: v,
+                    coordsInline: p.coordsInline,
                     showTime: p.showTime
                   });
-                  return { ...p, showCoordinates: v, metaText: nextMetaText };
+                  return { ...p, showCoordinates: v, coordsInline: v ? p.coordsInline : false, metaText: nextMetaText };
                 });
               }}
             />
             Koordinatlar (lat/lon)
           </label>
+
+          {poster.showCoordinates ? (
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, paddingLeft: 22 }}>
+              <input
+                type="checkbox"
+                checked={poster.coordsInline}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setPoster((p) => {
+                    if (!timeUtcIso || !timeZone) return { ...p, coordsInline: v };
+                    const label = resolvedLabel || locationLabelOverride || cityQuery;
+                    const nextMetaText = patchMetaText({
+                      current: p.metaText || '',
+                      label,
+                      latitude: lat,
+                      longitude: lon,
+                      utcIso: timeUtcIso,
+                      tz: timeZone,
+                      offset: timeOffset,
+                      showCoordinates: p.showCoordinates,
+                      coordsInline: v,
+                      showTime: p.showTime
+                    });
+                    return { ...p, coordsInline: v, metaText: nextMetaText };
+                  });
+                }}
+              />
+              Kompakt (lokasyon satırında)
+            </label>
+          ) : null}
 
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
             <input
@@ -1518,6 +1564,7 @@ export default function Page() {
                     tz: timeZone,
                     offset: timeOffset,
                     showCoordinates: p.showCoordinates,
+                    coordsInline: p.coordsInline,
                     showTime: v
                   });
                   return { ...p, showTime: v, metaText: nextMetaText };

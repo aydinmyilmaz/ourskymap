@@ -62,6 +62,7 @@ export type PosterParams = {
   subtitle: string;
   dedication: string;
   showCoordinates: boolean;
+  coordsInline: boolean;
   showTime: boolean;
   includeAzimuthScale: boolean;
   showCardinals: boolean;
