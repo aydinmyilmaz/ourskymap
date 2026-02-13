@@ -340,6 +340,11 @@ export function renderPosterSvg(req: PosterRequest): string {
   </defs>
   <g clip-path="url(#clipCircle)">
     <g transform="${transform}">
+      ${
+        geom.coordinateGridPaths.length
+          ? `<path d="${geom.coordinateGridPaths.join(' ')}" fill="none" stroke="${palette.mutedInk}" stroke-width="0.9" stroke-linecap="round" opacity="0.85"/>`
+          : ''
+      }
       ${geom.eclipticPoints.length > 2 ? `<polyline points="${geom.eclipticPoints.join(' ')}" fill="none" stroke="${palette.ink}" stroke-width="1" stroke-dasharray="7 7" opacity="${params.eclipticAlpha}"/>` : ''}
       ${geom.linePaths.length ? `<path d="${geom.linePaths.join(' ')}" fill="none" stroke="${palette.ink}" stroke-width="${params.constellationLineWidth}" opacity="${params.constellationLineAlpha}" stroke-linecap="round"/>` : ''}
       <g opacity="${clamp01(params.starAlpha)}">

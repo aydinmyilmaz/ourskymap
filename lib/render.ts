@@ -97,6 +97,7 @@ export function renderSvg(req: ChartRequest): string {
   const labelFill = params.theme === 'dark' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)';
   const labelStroke = params.theme === 'dark' ? 'rgba(0,0,0,0.0)' : 'rgba(255,255,255,0.9)';
   const labelStrokeWidth = params.theme === 'dark' ? 0 : 3;
+  const gridStroke = params.theme === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.14)';
 
   const azScale = params.showAzimuthScale
     ? buildAzimuthScale({
@@ -121,6 +122,11 @@ export function renderSvg(req: ChartRequest): string {
   <rect x="0" y="0" width="${geom.W}" height="${geom.H}" fill="${bg}"/>
   ${azScale.join('\n  ')}
   <g>
+    ${
+      geom.coordinateGridPaths.length
+        ? `<path d="${geom.coordinateGridPaths.join(' ')}" fill="none" stroke="${gridStroke}" stroke-width="0.8" stroke-linecap="round" opacity="0.9"/>`
+        : ''
+    }
     ${geom.eclipticPoints.length > 2 ? `<polyline points="${geom.eclipticPoints.join(' ')}" fill="none" stroke="${line}" stroke-width="1" stroke-dasharray="7 7" opacity="${params.eclipticAlpha}"/>` : ''}
   </g>
   <g>

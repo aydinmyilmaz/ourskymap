@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 type RenderParams = {
   theme: 'light' | 'dark';
   showAzimuthScale: boolean;
+  showCoordinateGrid: boolean;
+  coordinateGridStepDeg: number;
   labelConstellations: boolean;
   labelBrightStars?: boolean;
   labelSolarSystem: boolean;
@@ -77,6 +79,8 @@ type PosterParams = {
 const defaultParams: RenderParams = {
   theme: 'light',
   showAzimuthScale: true,
+  showCoordinateGrid: false,
+  coordinateGridStepDeg: 30,
   labelConstellations: true,
   labelSolarSystem: true,
   mirrorHorizontal: true,
@@ -259,6 +263,8 @@ function encodeStateToQuery(input: {
   const p = input.params;
   sp.set('theme', p.theme);
   sp.set('az', p.showAzimuthScale ? '1' : '0');
+  sp.set('cg', p.showCoordinateGrid ? '1' : '0');
+  sp.set('cgs', String(p.coordinateGridStepDeg));
   sp.set('cl', p.labelConstellations ? '1' : '0');
   sp.set('psl', p.labelSolarSystem ? '1' : '0');
   sp.set('mh', p.mirrorHorizontal ? '1' : '0');
@@ -340,6 +346,8 @@ function decodeStateFromQuery(): Partial<{
     ...defaultParams,
     theme: theme === 'dark' ? 'dark' : 'light',
     showAzimuthScale: parseBool(sp.get('az'), defaultParams.showAzimuthScale),
+    showCoordinateGrid: parseBool(sp.get('cg'), defaultParams.showCoordinateGrid),
+    coordinateGridStepDeg: parseNum(sp.get('cgs'), defaultParams.coordinateGridStepDeg),
     labelConstellations: parseBool(sp.get('cl'), defaultParams.labelConstellations),
     labelSolarSystem: parseBool(sp.get('psl'), defaultParams.labelSolarSystem),
     mirrorHorizontal: parseBool(sp.get('mh'), defaultParams.mirrorHorizontal),
@@ -899,6 +907,30 @@ export default function Page() {
             />
             Azimut ölçeği (dış halka)
           </label>
+
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={params.showCoordinateGrid}
+              onChange={(e) => setParams((p) => ({ ...p, showCoordinateGrid: e.target.checked }))}
+            />
+            Koordinat ızgarası (gök enlem/boylam)
+          </label>
+
+          {params.showCoordinateGrid ? (
+            <Field label={`Izgara aralığı: ${params.coordinateGridStepDeg}° (küçük = daha yoğun)`}>
+              <select
+                value={params.coordinateGridStepDeg}
+                onChange={(e) => setParams((p) => ({ ...p, coordinateGridStepDeg: Number(e.target.value) }))}
+                style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+              >
+                <option value={30}>Seyrek (30°)</option>
+                <option value={20}>Orta (20°)</option>
+                <option value={15}>Detaylı (15°)</option>
+                <option value={10}>Çok detaylı (10°)</option>
+              </select>
+            </Field>
+          ) : null}
 
           {params.showAzimuthScale ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

@@ -13,6 +13,7 @@ export type ChartGeometry = {
   chartCx: number;
   chartCy: number;
   chartR: number;
+  coordinateGridPaths: string[];
   starPoints: { x: number; y: number; size: number }[];
   vertexPoints: { x: number; y: number; size: number }[];
   linePaths: string[];
@@ -33,6 +34,72 @@ function starSizeFromMag(mag: number, magLimit: number, sMin: number, sMax: numb
   const x = clamp01((magLimit - mag) / Math.max(magLimit, 1e-6));
   const y = Math.pow(x, gamma);
   return sMin + (sMax - sMin) * y;
+}
+
+function buildCoordinateGridPaths(opts: {
+  latitude: number;
+  longitude: number;
+  date: Date;
+  chartCx: number;
+  chartCy: number;
+  chartR: number;
+  mirrorX: number;
+  stepDeg: number;
+}): string[] {
+  const { latitude, longitude, date, chartCx, chartCy, chartR, mirrorX } = opts;
+  const stepDeg = Math.max(5, Math.min(60, Math.round(opts.stepDeg)));
+
+  const paths: string[] = [];
+
+  const pushSegment = (seg: { x: number; y: number }[]) => {
+    if (seg.length < 2) return;
+    const d = seg
+      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+      .join(' ');
+    paths.push(d);
+  };
+
+  const decMin = -80;
+  const decMax = 80;
+  const raSample = 3; // degrees
+  const decSample = 2; // degrees
+
+  // "Latitude" lines on the sky: declination circles.
+  for (let dec = -90 + stepDeg; dec <= 90 - stepDeg; dec += stepDeg) {
+    if (dec < decMin || dec > decMax) continue;
+    let seg: { x: number; y: number }[] = [];
+    for (let ra = 0; ra <= 360; ra += raSample) {
+      const { altDeg, azDeg } = raDecToAltAz(ra % 360, dec, latitude, longitude, date);
+      if (altDeg <= 0) {
+        pushSegment(seg);
+        seg = [];
+        continue;
+      }
+      const { x: x0, y } = altAzToXY(altDeg, azDeg);
+      const x = x0 * mirrorX;
+      seg.push({ x: chartCx + x * chartR, y: chartCy - y * chartR });
+    }
+    pushSegment(seg);
+  }
+
+  // "Longitude" lines on the sky: right-ascension meridians.
+  for (let ra = 0; ra < 360; ra += stepDeg) {
+    let seg: { x: number; y: number }[] = [];
+    for (let dec = decMin; dec <= decMax; dec += decSample) {
+      const { altDeg, azDeg } = raDecToAltAz(ra, dec, latitude, longitude, date);
+      if (altDeg <= 0) {
+        pushSegment(seg);
+        seg = [];
+        continue;
+      }
+      const { x: x0, y } = altAzToXY(altDeg, azDeg);
+      const x = x0 * mirrorX;
+      seg.push({ x: chartCx + x * chartR, y: chartCy - y * chartR });
+    }
+    pushSegment(seg);
+  }
+
+  return paths;
 }
 
 export function buildChartGeometry(args: {
@@ -72,6 +139,20 @@ export function buildChartGeometry(args: {
       if (s && s.mag <= params.magnitudeLimit) starList.push(s);
     }
   }
+
+  const coordinateGridPaths =
+    params.showCoordinateGrid
+      ? buildCoordinateGridPaths({
+          latitude,
+          longitude,
+          date,
+          chartCx,
+          chartCy,
+          chartR,
+          mirrorX,
+          stepDeg: params.coordinateGridStepDeg
+        })
+      : [];
 
   const starPoints: { x: number; y: number; size: number }[] = [];
   for (const s of starList) {
@@ -228,6 +309,7 @@ export function buildChartGeometry(args: {
     chartCx,
     chartCy,
     chartR,
+    coordinateGridPaths,
     starPoints,
     vertexPoints,
     linePaths,

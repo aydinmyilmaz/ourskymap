@@ -4,6 +4,8 @@ export type StarMode = 'none' | 'constellations' | 'all';
 export type RenderParams = {
   theme: Theme;
   showAzimuthScale: boolean;
+  showCoordinateGrid: boolean;
+  coordinateGridStepDeg: number;
   labelConstellations: boolean;
   labelSolarSystem: boolean;
   mirrorHorizontal: boolean;
