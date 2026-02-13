@@ -19,12 +19,14 @@ pnpm-debug.log*
 
 # Python
 .venv/
+venv-kolaj/
 __pycache__/
 *.pyc
 
 # Generated chart outputs
 *.pdf
 *.svg
+*.png
 
 # Local caches / downloads
 *.bsp
@@ -33,6 +35,10 @@ index.json
 
 # Local test assets
 age_test_images/
+age_test_images_2/
+photos/
+photos
+yas_kutlama_*.jpg
 
 # Env
 .env
