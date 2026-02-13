@@ -26,6 +26,7 @@ export type ChartGeometry = {
     label: string;
     kind: 'sun' | 'moon' | 'planet';
     moonPhaseDeg?: number;
+    limbAngleDeg?: number;
   }[];
   deepSky: { x: number; y: number; label: string; kind: 'galaxy' | 'nebula' | 'cluster' | 'globular' }[];
 };
@@ -250,13 +251,29 @@ export function buildChartGeometry(args: {
     label: string;
     kind: 'sun' | 'moon' | 'planet';
     moonPhaseDeg?: number;
+    limbAngleDeg?: number;
   }[] = [];
   if (params.showSolarSystem) {
     const obs = new Observer(latitude, longitude, 0);
     const t = new AstroTime(date);
     const moonPhaseDeg = MoonPhase(t);
 
-    const addBody = (body: Body, label: string, kind: 'sun' | 'moon' | 'planet', r: number) => {
+    const bodyScreen = (body: Body): { altDeg: number; azDeg: number; x: number; y: number } => {
+      const eq = Equator(body, t, obs, true, true);
+      const hor = Horizon(t, obs, eq.ra, eq.dec);
+      const altDeg = hor.altitude;
+      const azDeg = hor.azimuth;
+      const { x: x0, y: y0 } = altAzToXY(altDeg, azDeg);
+      const x = x0 * mirrorX;
+      return {
+        altDeg,
+        azDeg,
+        x: chartCx + x * chartR,
+        y: chartCy - y0 * chartR
+      };
+    };
+
+    const addBody = (body: Body, label: string, kind: 'sun' | 'moon' | 'planet', r: number, extra?: { limbAngleDeg?: number }) => {
       const eq = Equator(body, t, obs, true, true);
       const hor = Horizon(t, obs, eq.ra, eq.dec);
       const altDeg = hor.altitude;
@@ -270,13 +287,22 @@ export function buildChartGeometry(args: {
         r,
         label,
         kind,
-        moonPhaseDeg: kind === 'moon' ? moonPhaseDeg : undefined
+        moonPhaseDeg: kind === 'moon' ? moonPhaseDeg : undefined,
+        limbAngleDeg: extra?.limbAngleDeg
       });
     };
 
     // Sun: show only when above horizon (daytime for the observer).
     addBody(Body.Sun, 'Sun', 'sun', 7.5);
-    addBody(Body.Moon, 'Moon', 'moon', 6.5);
+    const moon = bodyScreen(Body.Moon);
+    const sun = bodyScreen(Body.Sun);
+    let limbAngleDeg = 0;
+    const dx = sun.x - moon.x;
+    const dy = sun.y - moon.y;
+    if (Number.isFinite(dx) && Number.isFinite(dy) && (Math.abs(dx) + Math.abs(dy) > 1e-6)) {
+      limbAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+    }
+    addBody(Body.Moon, 'Moon', 'moon', 6.5, { limbAngleDeg });
     addBody(Body.Mercury, 'Mercury', 'planet', 5.2);
     addBody(Body.Venus, 'Venus', 'planet', 5.6);
     addBody(Body.Mars, 'Mars', 'planet', 5.4);

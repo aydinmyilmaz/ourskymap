@@ -8,18 +8,31 @@ function svgEscape(s: string): string {
 }
 
 function moonIlluminatedPath(cx: number, cy: number, r: number, phaseDeg: number, mirrorHorizontal: boolean): string {
-  // phaseDeg: 0=new, 90=first quarter, 180=full, 270=third quarter
-  const phi = (phaseDeg * Math.PI) / 180;
-  const a = Math.cos(phi); // +1=new, 0=quarter, -1=full
-  const rx = Math.max(0.001, Math.abs(a) * r);
-  const isWaxing = phaseDeg < 180;
-  // In observer view (mirrored), swap left/right.
-  const outerSweep = (isWaxing !== mirrorHorizontal) ? 1 : 0; // 1=right side, 0=left side
-  const largeArc = a < 0 ? 1 : 0; // gibbous/full needs the long arc
-  const x0 = cx.toFixed(2);
-  const yTop = (cy - r).toFixed(2);
-  const yBot = (cy + r).toFixed(2);
-  return `M ${x0} ${yTop} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 ${outerSweep} ${x0} ${yBot} A ${rx.toFixed(2)} ${r.toFixed(2)} 0 ${largeArc} ${outerSweep} ${x0} ${yTop} Z`;
+  // phaseDeg: reduced phase angle in [0..180] where 0=new, 180=full.
+  const p = Math.max(0, Math.min(180, phaseDeg));
+  const phi = (p * Math.PI) / 180;
+  const k = Math.cos(phi); // +1=new, 0=quarter, -1=full
+  const rx = Math.max(0.001, Math.abs(k) * r);
+  const sign = k < 0 ? -1 : 1; // gibbous/full bulges opposite to the sunward limb
+
+  const n = 48;
+  const pts: { x: number; y: number }[] = [];
+
+  // Outer limb (sunward side) is on +X before rotation.
+  for (let i = 0; i <= n; i++) {
+    const t = (-Math.PI / 2) + (i * Math.PI) / n;
+    pts.push({ x: cx + r * Math.cos(t), y: cy + r * Math.sin(t) });
+  }
+  // Terminator curve back to top.
+  for (let i = n; i >= 0; i--) {
+    const t = (-Math.PI / 2) + (i * Math.PI) / n;
+    pts.push({ x: cx + sign * rx * Math.cos(t), y: cy + r * Math.sin(t) });
+  }
+
+  const d = pts
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(' ');
+  return `${d} Z`;
 }
 
 function sunburstPath(cx: number, cy: number, r: number, rays = 12, innerRatio = 0.55): string {
@@ -170,10 +183,18 @@ export function renderSvg(req: ChartRequest): string {
                 ].join('');
               }
               if (o.kind === 'moon' && typeof o.moonPhaseDeg === 'number') {
-                const path = moonIlluminatedPath(o.x, o.y, o.r, o.moonPhaseDeg, params.mirrorHorizontal);
+                const phase = o.moonPhaseDeg <= 180 ? o.moonPhaseDeg : 360 - o.moonPhaseDeg;
+                const rot = Number.isFinite(o.limbAngleDeg as any) ? (o.limbAngleDeg as number) : 0;
+                const path = phase >= 0.6 && phase <= 179.4 ? moonIlluminatedPath(o.x, o.y, o.r, phase, false) : '';
                 return [
                   `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="none" stroke="${stroke}" stroke-width="1.2"/>`,
-                  `<path d="${path}" fill="${fill}" opacity="0.95"/>`,
+                  `<g transform="rotate(${rot.toFixed(2)} ${o.x.toFixed(2)} ${o.y.toFixed(2)})">`,
+                  phase > 179.4
+                    ? `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="${fill}" opacity="0.95"/>`
+                    : phase < 0.6
+                      ? ''
+                      : `<path d="${path}" fill="${fill}" opacity="0.95"/>`,
+                  `</g>`,
                   params.labelSolarSystem
                     ? `<text x="${lx}" y="${ly}" font-size="10" fill="${labelFill}" stroke="${stroke}" stroke-width="3" paint-order="stroke" text-anchor="start" dominant-baseline="middle">${svgEscape(o.label)}</text>`
                     : ''

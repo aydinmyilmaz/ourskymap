@@ -8,16 +8,27 @@ function svgEscape(s: string): string {
 }
 
 function moonIlluminatedPath(cx: number, cy: number, r: number, phaseDeg: number, mirrorHorizontal: boolean): string {
-  const phi = (phaseDeg * Math.PI) / 180;
-  const a = Math.cos(phi);
-  const rx = Math.max(0.001, Math.abs(a) * r);
-  const isWaxing = phaseDeg < 180;
-  const outerSweep = (isWaxing !== mirrorHorizontal) ? 1 : 0;
-  const largeArc = a < 0 ? 1 : 0;
-  const x0 = cx.toFixed(2);
-  const yTop = (cy - r).toFixed(2);
-  const yBot = (cy + r).toFixed(2);
-  return `M ${x0} ${yTop} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 ${outerSweep} ${x0} ${yBot} A ${rx.toFixed(2)} ${r.toFixed(2)} 0 ${largeArc} ${outerSweep} ${x0} ${yTop} Z`;
+  const p = Math.max(0, Math.min(180, phaseDeg));
+  const phi = (p * Math.PI) / 180;
+  const k = Math.cos(phi);
+  const rx = Math.max(0.001, Math.abs(k) * r);
+  const sign = k < 0 ? -1 : 1;
+
+  const n = 48;
+  const pts: { x: number; y: number }[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = (-Math.PI / 2) + (i * Math.PI) / n;
+    pts.push({ x: cx + r * Math.cos(t), y: cy + r * Math.sin(t) });
+  }
+  for (let i = n; i >= 0; i--) {
+    const t = (-Math.PI / 2) + (i * Math.PI) / n;
+    pts.push({ x: cx + sign * rx * Math.cos(t), y: cy + r * Math.sin(t) });
+  }
+
+  const d = pts
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(' ');
+  return `${d} Z`;
 }
 
 function sunburstPath(cx: number, cy: number, r: number, rays = 12, innerRatio = 0.55): string {
@@ -372,10 +383,18 @@ export function renderPosterSvg(req: PosterRequest): string {
                   }
                   if (o.kind === 'moon' && typeof o.moonPhaseDeg === 'number') {
                     const fill = palette.ink;
-                    const path = moonIlluminatedPath(o.x, o.y, o.r, o.moonPhaseDeg, params.mirrorHorizontal);
+                    const phase = o.moonPhaseDeg <= 180 ? o.moonPhaseDeg : 360 - o.moonPhaseDeg;
+                    const rot = typeof o.limbAngleDeg === 'number' && Number.isFinite(o.limbAngleDeg) ? o.limbAngleDeg : 0;
+                    const path = phase >= 0.6 && phase <= 179.4 ? moonIlluminatedPath(o.x, o.y, o.r, phase, false) : '';
                     return [
                       `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="none" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
-                      `<path d="${path}" fill="${fill}" opacity="0.95"/>`,
+                      `<g transform="rotate(${rot.toFixed(2)} ${o.x.toFixed(2)} ${o.y.toFixed(2)})">`,
+                      phase > 179.4
+                        ? `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="${fill}" opacity="0.95"/>`
+                        : phase < 0.6
+                          ? ''
+                          : `<path d="${path}" fill="${fill}" opacity="0.95"/>`,
+                      `</g>`,
                       params.labelSolarSystem
                         ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${palette.ink}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="ui-sans-serif, system-ui">${svgEscape(o.label)}</text>`
                         : ''
