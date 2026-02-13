@@ -240,6 +240,43 @@ function parseEnum<T extends string>(v: string | null, allowed: readonly T[], fa
   return (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
 }
 
+type PresetStore = {
+  chart: { name: string; params: RenderParams }[];
+  poster: { name: string; poster: PosterParams }[];
+  active?: { chart?: string; poster?: string };
+};
+
+const PRESETS_KEY = 'space_map_presets_v1';
+
+function safeJsonParse<T>(s: string | null): T | null {
+  if (!s) return null;
+  try {
+    return JSON.parse(s) as T;
+  } catch {
+    return null;
+  }
+}
+
+function normalizePresetName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ');
+}
+
+function upsertByName<T extends { name: string }>(list: T[], item: T): T[] {
+  const key = item.name.trim().toLowerCase();
+  const next: T[] = [];
+  let replaced = false;
+  for (const it of list) {
+    if (it.name.trim().toLowerCase() === key) {
+      if (!replaced) next.push(item);
+      replaced = true;
+    } else {
+      next.push(it);
+    }
+  }
+  if (!replaced) next.unshift(item);
+  return next;
+}
+
 function encodeStateToQuery(input: {
   locationMode: 'city' | 'latlon';
   cityQuery: string;
@@ -462,6 +499,11 @@ export default function Page() {
   const [shareLink, setShareLink] = useState<string>('');
   const [metaAuto, setMetaAuto] = useState(true);
   const [lastAutoMetaText, setLastAutoMetaText] = useState('');
+  const [presets, setPresets] = useState<PresetStore>({ chart: [], poster: [], active: {} });
+  const [chartPresetName, setChartPresetName] = useState('');
+  const [posterPresetName, setPosterPresetName] = useState('');
+  const [selectedChartPreset, setSelectedChartPreset] = useState('');
+  const [selectedPosterPreset, setSelectedPosterPreset] = useState('');
 
   function formatCoordsLine(latitude: number, longitude: number, precision = 4): string {
     const latStr = `${Math.abs(latitude).toFixed(precision)}°${latitude >= 0 ? 'N' : 'S'}`;
@@ -661,10 +703,27 @@ export default function Page() {
     }
     if (decoded.view) setViewMode(decoded.view);
 
+    const stored = safeJsonParse<PresetStore>(typeof window !== 'undefined' ? window.localStorage.getItem(PRESETS_KEY) : null);
+    if (stored && Array.isArray(stored.chart) && Array.isArray(stored.poster)) {
+      const activeChart = stored.active?.chart ?? '';
+      const activePoster = stored.active?.poster ?? '';
+      setPresets({ chart: stored.chart, poster: stored.poster, active: stored.active ?? {} });
+      setSelectedChartPreset(activeChart);
+      setSelectedPosterPreset(activePoster);
+    }
+
     // generate after state is applied
     setTimeout(() => generate(), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+    } catch {
+      // ignore
+    }
+  }, [presets]);
 
   function downloadSvg(svgText: string, filename: string) {
     const blob = new Blob([svgText], { type: 'image/svg+xml' });
@@ -714,6 +773,26 @@ export default function Page() {
       // best-effort fallback
       window.prompt('Linki kopyala:', url);
     }
+  }
+
+  function applyChartPreset(name: string) {
+    const key = name.trim().toLowerCase();
+    const p = presets.chart.find((x) => x.name.trim().toLowerCase() === key);
+    if (!p) return;
+    setParams({ ...defaultParams, ...p.params });
+    setPresets((s) => ({ ...s, active: { ...(s.active ?? {}), chart: p.name } }));
+    setSelectedChartPreset(p.name);
+  }
+
+  function applyPosterPreset(name: string) {
+    const key = name.trim().toLowerCase();
+    const p = presets.poster.find((x) => x.name.trim().toLowerCase() === key);
+    if (!p) return;
+    const next = { ...defaultPoster, ...p.poster };
+    setPoster(next);
+    if (metaAuto) setLastAutoMetaText(next.metaText ?? '');
+    setPresets((s) => ({ ...s, active: { ...(s.active ?? {}), poster: p.name } }));
+    setSelectedPosterPreset(p.name);
   }
 
   return (
@@ -824,16 +903,86 @@ export default function Page() {
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Parametreler</div>
 
         <div style={{ display: 'grid', gap: 10 }}>
-          <Field label="Tema">
-            <select
-              value={params.theme}
-              onChange={(e) => setParams((p) => ({ ...p, theme: e.target.value === 'dark' ? 'dark' : 'light' }))}
-              style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
-            >
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </Field>
+          <div style={{ display: 'grid', gap: 8, padding: 10, background: '#fff', border: '1px solid #eee' }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>Presetler</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, alignItems: 'center' }}>
+              <select
+                value={selectedChartPreset}
+                onChange={(e) => setSelectedChartPreset(e.target.value)}
+                style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+              >
+                <option value="">(Seç…)</option>
+                {presets.chart.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => selectedChartPreset && applyChartPreset(selectedChartPreset)}
+                disabled={!selectedChartPreset}
+                style={{ padding: '10px 12px', border: '1px solid #111', background: '#fff', cursor: selectedChartPreset ? 'pointer' : 'not-allowed' }}
+              >
+                Uygula
+              </button>
+              <button
+                onClick={() => {
+                  if (!selectedChartPreset) return;
+                  const key = selectedChartPreset.trim().toLowerCase();
+                  setPresets((s) => {
+                    const next = { ...s, chart: s.chart.filter((p) => p.name.trim().toLowerCase() !== key) };
+                    if (next.active?.chart && next.active.chart.trim().toLowerCase() === key) {
+                      next.active = { ...(next.active ?? {}), chart: undefined };
+                    }
+                    return next;
+                  });
+                  setSelectedChartPreset('');
+                }}
+                disabled={!selectedChartPreset}
+                style={{ padding: '10px 12px', border: '1px solid #cbd5e1', background: '#fff', cursor: selectedChartPreset ? 'pointer' : 'not-allowed' }}
+                title="Preset sil"
+              >
+                Sil
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+              <input
+                value={chartPresetName}
+                onChange={(e) => setChartPresetName(e.target.value)}
+                placeholder="Yeni preset adı"
+                style={{ padding: 10, border: '1px solid #ddd' }}
+              />
+              <button
+                onClick={() => {
+                  const name = normalizePresetName(chartPresetName);
+                  if (!name) return;
+                  setPresets((s) => ({
+                    ...s,
+                    chart: upsertByName(s.chart, { name, params }),
+                    active: { ...(s.active ?? {}), chart: name }
+                  }));
+                  setSelectedChartPreset(name);
+                  setChartPresetName('');
+                }}
+                style={{ padding: '10px 12px', border: '1px solid #111', background: '#fff', cursor: 'pointer' }}
+              >
+                Kaydet
+              </button>
+            </div>
+          </div>
+
+          {viewMode === 'chart' ? (
+            <Field label="Tema (Chart)">
+              <select
+                value={params.theme}
+                onChange={(e) => setParams((p) => ({ ...p, theme: e.target.value === 'dark' ? 'dark' : 'light' }))}
+                style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </Field>
+          ) : null}
 
           <Field label="Yıldız modu">
             <select
@@ -1249,6 +1398,74 @@ export default function Page() {
               <option value="20x20">20x20 in (1440x1440)</option>
             </select>
           </Field>
+
+          <div style={{ display: 'grid', gap: 8, padding: 10, background: '#fff', border: '1px solid #eee' }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>Poster presetleri</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, alignItems: 'center' }}>
+              <select
+                value={selectedPosterPreset}
+                onChange={(e) => setSelectedPosterPreset(e.target.value)}
+                style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+              >
+                <option value="">(Seç…)</option>
+                {presets.poster.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => selectedPosterPreset && applyPosterPreset(selectedPosterPreset)}
+                disabled={!selectedPosterPreset}
+                style={{ padding: '10px 12px', border: '1px solid #111', background: '#fff', cursor: selectedPosterPreset ? 'pointer' : 'not-allowed' }}
+              >
+                Uygula
+              </button>
+              <button
+                onClick={() => {
+                  if (!selectedPosterPreset) return;
+                  const key = selectedPosterPreset.trim().toLowerCase();
+                  setPresets((s) => {
+                    const next = { ...s, poster: s.poster.filter((p) => p.name.trim().toLowerCase() !== key) };
+                    if (next.active?.poster && next.active.poster.trim().toLowerCase() === key) {
+                      next.active = { ...(next.active ?? {}), poster: undefined };
+                    }
+                    return next;
+                  });
+                  setSelectedPosterPreset('');
+                }}
+                disabled={!selectedPosterPreset}
+                style={{ padding: '10px 12px', border: '1px solid #cbd5e1', background: '#fff', cursor: selectedPosterPreset ? 'pointer' : 'not-allowed' }}
+                title="Preset sil"
+              >
+                Sil
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+              <input
+                value={posterPresetName}
+                onChange={(e) => setPosterPresetName(e.target.value)}
+                placeholder="Yeni preset adı"
+                style={{ padding: 10, border: '1px solid #ddd' }}
+              />
+              <button
+                onClick={() => {
+                  const name = normalizePresetName(posterPresetName);
+                  if (!name) return;
+                  setPresets((s) => ({
+                    ...s,
+                    poster: upsertByName(s.poster, { name, poster }),
+                    active: { ...(s.active ?? {}), poster: name }
+                  }));
+                  setSelectedPosterPreset(name);
+                  setPosterPresetName('');
+                }}
+                style={{ padding: '10px 12px', border: '1px solid #111', background: '#fff', cursor: 'pointer' }}
+              >
+                Kaydet
+              </button>
+            </div>
+          </div>
 
           <Field label="Yazi / cizgi rengi (hex)">
             <div style={{ display: 'grid', gap: 8 }}>
