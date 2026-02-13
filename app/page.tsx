@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { renderAgeMosaicSvg } from '../lib/age';
 
 type RenderParams = {
   theme: 'light' | 'dark';
@@ -103,6 +104,32 @@ type VinylParams = {
   metaFontSize: number;
 };
 
+type AgeParams = {
+  size: PosterParams['size'];
+  ageText: string;
+  bgColor: string;
+  inkColor: string;
+  frame: boolean;
+  frameInset: number;
+  frameWidth: number;
+  frameColor: string;
+  ageFontFamily: string;
+  ageFontWeight: number;
+  ageFontSize: number;
+  ageY: number;
+  tileSize: number;
+  tileGap: number;
+  tileBleed: number;
+  caption: string;
+  captionFontFamily: string;
+  captionFontSize: number;
+  captionY: number;
+  subCaption: string;
+  subCaptionFontFamily: string;
+  subCaptionFontSize: number;
+  subCaptionY: number;
+};
+
 const defaultParams: RenderParams = {
   theme: 'light',
   showAzimuthScale: true,
@@ -191,6 +218,32 @@ const defaultVinyl: VinylParams = {
   namesFontSize: 64,
   metaFont: 'signika',
   metaFontSize: 18
+};
+
+const defaultAge: AgeParams = {
+  size: '16x20',
+  ageText: '70',
+  bgColor: '#ffffff',
+  inkColor: '#111111',
+  frame: true,
+  frameInset: 18,
+  frameWidth: 6,
+  frameColor: '#111111',
+  ageFontFamily: 'Signika, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
+  ageFontWeight: 700,
+  ageFontSize: 820,
+  ageY: 520,
+  tileSize: 64,
+  tileGap: 2,
+  tileBleed: 0.22,
+  caption: 'Happy Birthday!',
+  captionFontFamily: 'Prata, ui-serif, Georgia, Times New Roman, serif',
+  captionFontSize: 40,
+  captionY: 1200,
+  subCaption: 'You are truly cherished.',
+  subCaptionFontFamily: 'Signika, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
+  subCaptionFontSize: 18,
+  subCaptionY: 1245
 };
 
 const posterSizePresets: Record<PosterParams['size'], Partial<PosterParams>> = {
@@ -304,6 +357,7 @@ type PresetStore = {
 const PRESETS_KEY = 'space_map_presets_v1';
 const VINYL_RECORD_IMAGE_KEY = 'space_map_vinyl_record_image_v1';
 const VINYL_LABEL_IMAGE_KEY = 'space_map_vinyl_label_image_v1';
+const AGE_IMAGES_KEY = 'space_map_age_images_v1';
 
 function safeJsonParse<T>(s: string | null): T | null {
   if (!s) return null;
@@ -344,8 +398,9 @@ function encodeStateToQuery(input: {
   params: RenderParams;
   poster: PosterParams;
   metaAuto: boolean;
-  view: 'poster' | 'chart' | 'vinyl';
+  view: 'poster' | 'chart' | 'vinyl' | 'age';
   vinyl: VinylParams;
+  age: AgeParams;
 }) {
   const sp = new URLSearchParams();
   sp.set('mode', input.locationMode);
@@ -442,6 +497,27 @@ function encodeStateToQuery(input: {
   sp.set('vmf', v.metaFont);
   sp.set('vmfs', String(v.metaFontSize));
 
+  const a = input.age;
+  sp.set('as', a.size);
+  sp.set('at', a.ageText);
+  sp.set('abg', a.bgColor);
+  sp.set('aic', a.inkColor);
+  sp.set('af', a.frame ? '1' : '0');
+  sp.set('afi', String(a.frameInset));
+  sp.set('afw', String(a.frameWidth));
+  sp.set('afc', a.frameColor);
+  sp.set('afs', String(a.ageFontSize));
+  sp.set('afy', String(a.ageY));
+  sp.set('ats', String(a.tileSize));
+  sp.set('atg', String(a.tileGap));
+  sp.set('atb', String(a.tileBleed));
+  if ((a.caption || '').length <= 200) sp.set('ac', a.caption);
+  sp.set('acs', String(a.captionFontSize));
+  sp.set('acy', String(a.captionY));
+  if ((a.subCaption || '').length <= 200) sp.set('asc', a.subCaption);
+  sp.set('ascs', String(a.subCaptionFontSize));
+  sp.set('ascy', String(a.subCaptionY));
+
   return sp.toString();
 }
 
@@ -455,8 +531,9 @@ function decodeStateFromQuery(): Partial<{
   params: RenderParams;
   poster: PosterParams;
   vinyl: VinylParams;
+  age: AgeParams;
   metaAuto: boolean;
-  view: 'poster' | 'chart' | 'vinyl';
+  view: 'poster' | 'chart' | 'vinyl' | 'age';
 }> {
   const sp = new URLSearchParams(window.location.search);
   const mode = sp.get('mode');
@@ -589,6 +666,30 @@ function decodeStateFromQuery(): Partial<{
     metaFontSize: parseNum(sp.get('vmfs'), defaultVinyl.metaFontSize)
   };
 
+  const as = sp.get('as');
+  const age: AgeParams = {
+    ...defaultAge,
+    size: as === '20x20' ? '20x20' : as === '16x20' ? '16x20' : as === 'square' ? 'square' : 'a4',
+    ageText: sp.get('at') ?? defaultAge.ageText,
+    bgColor: sp.get('abg') ?? defaultAge.bgColor,
+    inkColor: sp.get('aic') ?? defaultAge.inkColor,
+    frame: parseBool(sp.get('af'), defaultAge.frame),
+    frameInset: parseNum(sp.get('afi'), defaultAge.frameInset),
+    frameWidth: parseNum(sp.get('afw'), defaultAge.frameWidth),
+    frameColor: sp.get('afc') ?? defaultAge.frameColor,
+    ageFontSize: parseNum(sp.get('afs'), defaultAge.ageFontSize),
+    ageY: parseNum(sp.get('afy'), defaultAge.ageY),
+    tileSize: parseNum(sp.get('ats'), defaultAge.tileSize),
+    tileGap: parseNum(sp.get('atg'), defaultAge.tileGap),
+    tileBleed: parseNum(sp.get('atb'), defaultAge.tileBleed),
+    caption: sp.get('ac') ?? defaultAge.caption,
+    captionFontSize: parseNum(sp.get('acs'), defaultAge.captionFontSize),
+    captionY: parseNum(sp.get('acy'), defaultAge.captionY),
+    subCaption: sp.get('asc') ?? defaultAge.subCaption,
+    subCaptionFontSize: parseNum(sp.get('ascs'), defaultAge.subCaptionFontSize),
+    subCaptionY: parseNum(sp.get('ascy'), defaultAge.subCaptionY)
+  };
+
   return {
     locationMode: mode === 'latlon' ? 'latlon' : mode === 'city' ? 'city' : undefined,
     cityQuery: sp.get('q') ?? undefined,
@@ -599,8 +700,9 @@ function decodeStateFromQuery(): Partial<{
     params,
     poster,
     vinyl,
+    age,
     metaAuto: sp.get('pma') === null ? undefined : parseBool(sp.get('pma'), true),
-    view: view === 'chart' ? 'chart' : view === 'vinyl' ? 'vinyl' : view === 'poster' ? 'poster' : undefined
+    view: view === 'chart' ? 'chart' : view === 'vinyl' ? 'vinyl' : view === 'age' ? 'age' : view === 'poster' ? 'poster' : undefined
   };
 }
 
@@ -620,10 +722,13 @@ export default function Page() {
   const [params, setParams] = useState<RenderParams>(defaultParams);
   const [poster, setPoster] = useState<PosterParams>(defaultPoster);
   const [vinyl, setVinyl] = useState<VinylParams>(defaultVinyl);
+  const [age, setAge] = useState<AgeParams>(defaultAge);
+  const [ageImages, setAgeImages] = useState<string[]>([]);
   const [chartSvg, setChartSvg] = useState<string>('');
   const [posterSvg, setPosterSvg] = useState<string>('');
   const [vinylSvg, setVinylSvg] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'poster' | 'chart' | 'vinyl'>('poster');
+  const [ageSvg, setAgeSvg] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'poster' | 'chart' | 'vinyl' | 'age'>('poster');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>('');
   const [shareLink, setShareLink] = useState<string>('');
@@ -782,8 +887,67 @@ export default function Page() {
         params,
         poster,
         vinyl,
+        age,
         metaAuto,
         view: 'vinyl'
+      });
+      const url = `${window.location.origin}${window.location.pathname}?${qs}`;
+      window.history.replaceState(null, '', url);
+      setShareLink(url);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function generateAge() {
+    setBusy(true);
+    setError('');
+    try {
+      const svg = renderAgeMosaicSvg({
+        params: {
+          size: age.size,
+          ageText: age.ageText,
+          ageFontFamily: age.ageFontFamily,
+          ageFontWeight: age.ageFontWeight,
+          ageFontSize: age.ageFontSize,
+          ageY: age.ageY,
+          tileSize: age.tileSize,
+          tileGap: age.tileGap,
+          tileBleed: age.tileBleed,
+          bgColor: age.bgColor,
+          frame: age.frame,
+          frameInset: age.frameInset,
+          frameWidth: age.frameWidth,
+          frameColor: age.frameColor,
+          caption: age.caption,
+          captionFontFamily: age.captionFontFamily,
+          captionFontSize: age.captionFontSize,
+          captionY: age.captionY,
+          subCaption: age.subCaption,
+          subCaptionFontFamily: age.subCaptionFontFamily,
+          subCaptionFontSize: age.subCaptionFontSize,
+          subCaptionY: age.subCaptionY,
+          inkColor: age.inkColor
+        },
+        images: ageImages
+      });
+      setAgeSvg(svg);
+
+      const qs = encodeStateToQuery({
+        locationMode,
+        cityQuery,
+        lat,
+        lon,
+        dateTime,
+        locationLabelOverride,
+        params,
+        poster,
+        vinyl,
+        age,
+        metaAuto,
+        view: 'age'
       });
       const url = `${window.location.origin}${window.location.pathname}?${qs}`;
       window.history.replaceState(null, '', url);
@@ -867,6 +1031,7 @@ export default function Page() {
         params,
         poster: posterForReq,
         vinyl,
+        age,
         metaAuto,
         view: viewMode
       });
@@ -896,11 +1061,13 @@ export default function Page() {
       setLastAutoMetaText(initialMetaAuto ? decoded.poster.metaText ?? '' : '');
     }
     if (decoded.vinyl) setVinyl(decoded.vinyl);
+    if (decoded.age) setAge(decoded.age);
     if (decoded.view) setViewMode(decoded.view);
 
     try {
       const rec = window.localStorage.getItem(VINYL_RECORD_IMAGE_KEY) ?? '';
       const lab = window.localStorage.getItem(VINYL_LABEL_IMAGE_KEY) ?? '';
+      const ageImgs = safeJsonParse<string[]>(window.localStorage.getItem(AGE_IMAGES_KEY));
       if (rec || lab) {
         setVinyl((v) => ({
           ...v,
@@ -908,6 +1075,7 @@ export default function Page() {
           labelImageDataUrl: v.labelImageDataUrl || lab
         }));
       }
+      if (Array.isArray(ageImgs) && ageImgs.length) setAgeImages(ageImgs.filter((s) => typeof s === 'string').slice(0, 12));
     } catch {
       // ignore
     }
@@ -925,6 +1093,7 @@ export default function Page() {
     const initialView = decoded.view ?? 'poster';
     setTimeout(() => {
       if (initialView === 'vinyl') generateVinyl();
+      else if (initialView === 'age') generateAge();
       else generate();
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -947,6 +1116,14 @@ export default function Page() {
       // ignore
     }
   }, [vinyl.labelImageDataUrl]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(AGE_IMAGES_KEY, JSON.stringify(ageImages.slice(0, 12)));
+    } catch {
+      // ignore
+    }
+  }, [ageImages]);
 
   useEffect(() => {
     try {
@@ -1039,7 +1216,11 @@ export default function Page() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: leftOpen ? 'space-between' : 'center', gap: 10, marginBottom: leftOpen ? 12 : 6 }}>
-          {leftOpen ? <div style={{ fontSize: 18, fontWeight: 700 }}>{viewMode === 'vinyl' ? 'Vinyl Poster' : 'Sky Chart'}</div> : null}
+          {leftOpen ? (
+            <div style={{ fontSize: 18, fontWeight: 700 }}>
+              {viewMode === 'vinyl' ? 'Vinyl Poster' : viewMode === 'age' ? 'Age Mosaic' : 'Sky Chart'}
+            </div>
+          ) : null}
           <button
             onClick={() => setLeftOpen((v) => !v)}
             title={leftOpen ? 'Kontrolleri gizle' : 'Kontrolleri göster'}
@@ -1336,7 +1517,146 @@ export default function Page() {
             </div>
           ) : null}
 
-          {viewMode !== 'vinyl' ? (
+          {viewMode === 'age' ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Age Mosaic</div>
+
+              <Field label="Poster boyutu">
+                <select
+                  value={age.size}
+                  onChange={(e) => {
+                    const s = e.target.value as AgeParams['size'];
+                    setAge((a) => {
+                      const presets: Record<AgeParams['size'], Partial<AgeParams>> = {
+                        a4: { ageFontSize: 460, ageY: 320, captionY: 720, subCaptionY: 750, tileSize: 34 },
+                        square: { ageFontSize: 660, ageY: 410, captionY: 870, subCaptionY: 900, tileSize: 48 },
+                        '16x20': { ageFontSize: 820, ageY: 520, captionY: 1200, subCaptionY: 1245, tileSize: 64 },
+                        '20x20': { ageFontSize: 900, ageY: 560, captionY: 1180, subCaptionY: 1220, tileSize: 72 }
+                      };
+                      return { ...a, ...presets[s], size: s };
+                    });
+                  }}
+                  style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                >
+                  <option value="a4">A4 (595x842)</option>
+                  <option value="square">Square (1024x1024)</option>
+                  <option value="16x20">16x20 in (1152x1440)</option>
+                  <option value="20x20">20x20 in (1440x1440)</option>
+                </select>
+              </Field>
+
+              <Field label="Yaş (ör: 70)">
+                <input value={age.ageText} onChange={(e) => setAge((a) => ({ ...a, ageText: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+
+              <Field label="Fotoğraflar (çoklu yükle)">
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={async (e) => {
+                      const files = Array.from(e.target.files ?? []);
+                      if (!files.length) return;
+                      const imgs: string[] = [];
+                      for (const f of files.slice(0, 30)) {
+                        try {
+                          const dataUrl = await downscaleImageToDataUrl(f, 900, 'image/jpeg', 0.86);
+                          imgs.push(dataUrl);
+                        } catch {
+                          // ignore individual file
+                        }
+                      }
+                      setAgeImages((cur) => [...imgs, ...cur].slice(0, 40));
+                      e.currentTarget.value = '';
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setAgeImages([])}
+                      disabled={!ageImages.length}
+                      style={{
+                        padding: '8px 10px',
+                        border: '1px solid #cbd5e1',
+                        background: '#fff',
+                        cursor: ageImages.length ? 'pointer' : 'not-allowed'
+                      }}
+                    >
+                      Temizle
+                    </button>
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>{ageImages.length ? `${ageImages.length} foto` : 'Foto yok → placeholder renkler'}</span>
+                  </div>
+                  {ageImages.length ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6 }}>
+                      {ageImages.slice(0, 12).map((src, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setAgeImages((arr) => arr.filter((_, i) => i !== idx))}
+                          title="Kaldır"
+                          style={{ padding: 0, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', borderRadius: 8, overflow: 'hidden' }}
+                        >
+                          <img src={src} alt={`img${idx}`} style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', display: 'block' }} />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    Not: Yüklenen fotoğraflar paylaşım linkine eklenmez (tarayıcıda saklanır).
+                  </div>
+                </div>
+              </Field>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <Field label={`Tile size: ${age.tileSize.toFixed(0)}`}>
+                  <input type="range" min={18} max={140} step={1} value={age.tileSize} onChange={(e) => setAge((a) => ({ ...a, tileSize: Number(e.target.value) }))} />
+                </Field>
+                <Field label={`Gap: ${age.tileGap.toFixed(0)}`}>
+                  <input type="range" min={0} max={12} step={1} value={age.tileGap} onChange={(e) => setAge((a) => ({ ...a, tileGap: Number(e.target.value) }))} />
+                </Field>
+              </div>
+              <Field label={`Image bleed: ${(age.tileBleed * 100).toFixed(0)}%`}>
+                <input type="range" min={0} max={0.6} step={0.02} value={age.tileBleed} onChange={(e) => setAge((a) => ({ ...a, tileBleed: Number(e.target.value) }))} />
+              </Field>
+
+              <Field label="Arka plan rengi (hex)">
+                <input value={age.bgColor} onChange={(e) => setAge((a) => ({ ...a, bgColor: e.target.value }))} placeholder="#ffffff" style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+              <Field label="Yazı rengi (hex)">
+                <input value={age.inkColor} onChange={(e) => setAge((a) => ({ ...a, inkColor: e.target.value }))} placeholder="#111111" style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                <input type="checkbox" checked={age.frame} onChange={(e) => setAge((a) => ({ ...a, frame: e.target.checked }))} />
+                Çerçeve (frame)
+              </label>
+              {age.frame ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Frame width: ${age.frameWidth.toFixed(1)}`}>
+                    <input type="range" min={1} max={14} step={0.5} value={age.frameWidth} onChange={(e) => setAge((a) => ({ ...a, frameWidth: Number(e.target.value) }))} />
+                  </Field>
+                  <Field label={`Frame inset: ${age.frameInset.toFixed(0)}`}>
+                    <input type="range" min={0} max={60} step={1} value={age.frameInset} onChange={(e) => setAge((a) => ({ ...a, frameInset: Number(e.target.value) }))} />
+                  </Field>
+                </div>
+              ) : null}
+
+              <Field label={`Age font size: ${age.ageFontSize.toFixed(0)}`}>
+                <input type="range" min={240} max={1200} step={2} value={age.ageFontSize} onChange={(e) => setAge((a) => ({ ...a, ageFontSize: Number(e.target.value) }))} />
+              </Field>
+              <Field label={`Age Y: ${age.ageY.toFixed(0)}`}>
+                <input type="range" min={180} max={980} step={2} value={age.ageY} onChange={(e) => setAge((a) => ({ ...a, ageY: Number(e.target.value) }))} />
+              </Field>
+
+              <Field label="Alt yazı (caption)">
+                <input value={age.caption} onChange={(e) => setAge((a) => ({ ...a, caption: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+              <Field label="Alt yazı 2 (subcaption)">
+                <input value={age.subCaption} onChange={(e) => setAge((a) => ({ ...a, subCaption: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+            </div>
+          ) : null}
+
+          {viewMode !== 'vinyl' && viewMode !== 'age' ? (
             <>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button
@@ -1778,7 +2098,7 @@ export default function Page() {
         <div style={{ height: 14 }} />
         <div style={{ display: 'flex', gap: 10 }}>
           <button
-            onClick={viewMode === 'vinyl' ? generateVinyl : generate}
+            onClick={viewMode === 'vinyl' ? generateVinyl : viewMode === 'age' ? generateAge : generate}
             disabled={busy}
             style={{ padding: '10px 12px', border: '1px solid #111', background: '#111', color: '#fff', cursor: 'pointer' }}
           >
@@ -1787,11 +2107,11 @@ export default function Page() {
           <button
             onClick={() =>
               downloadSvg(
-                viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg,
-                viewMode === 'vinyl' ? 'vinyl-poster.svg' : viewMode === 'poster' ? 'star-poster.svg' : 'sky-chart.svg'
+                viewMode === 'age' ? ageSvg : viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg,
+                viewMode === 'age' ? 'age-mosaic.svg' : viewMode === 'vinyl' ? 'vinyl-poster.svg' : viewMode === 'poster' ? 'star-poster.svg' : 'sky-chart.svg'
               )
             }
-            disabled={viewMode === 'vinyl' ? !vinylSvg : viewMode === 'poster' ? !posterSvg : !chartSvg}
+            disabled={viewMode === 'age' ? !ageSvg : viewMode === 'vinyl' ? !vinylSvg : viewMode === 'poster' ? !posterSvg : !chartSvg}
             style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
           >
             Download SVG
@@ -1799,12 +2119,12 @@ export default function Page() {
           <button
             onClick={() =>
               downloadPng(
-                viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg,
-                viewMode === 'vinyl' ? 'vinyl-poster.png' : viewMode === 'poster' ? 'star-poster.png' : 'sky-chart.png',
+                viewMode === 'age' ? ageSvg : viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg,
+                viewMode === 'age' ? 'age-mosaic.png' : viewMode === 'vinyl' ? 'vinyl-poster.png' : viewMode === 'poster' ? 'star-poster.png' : 'sky-chart.png',
                 3
               )
             }
-            disabled={viewMode === 'vinyl' ? !vinylSvg : viewMode === 'poster' ? !posterSvg : !chartSvg}
+            disabled={viewMode === 'age' ? !ageSvg : viewMode === 'vinyl' ? !vinylSvg : viewMode === 'poster' ? !posterSvg : !chartSvg}
             style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
           >
             Download PNG
@@ -1858,14 +2178,25 @@ export default function Page() {
             >
               Vinyl
             </button>
+            <button
+              onClick={() => setViewMode('age')}
+              style={{
+                padding: '8px 10px',
+                border: '1px solid #ddd',
+                background: viewMode === 'age' ? '#111' : '#fff',
+                color: viewMode === 'age' ? '#fff' : '#111'
+              }}
+            >
+              Age
+            </button>
             <div style={{ fontSize: 12, color: '#6b7280' }}>Preview</div>
           </div>
 
           <div
             style={{ border: '1px solid #e5e7eb', background: '#fff' }}
-            dangerouslySetInnerHTML={{ __html: viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg }}
+            dangerouslySetInnerHTML={{ __html: viewMode === 'age' ? ageSvg : viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg }}
           />
-          {viewMode !== 'vinyl' ? (
+          {viewMode !== 'vinyl' && viewMode !== 'age' ? (
             <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
               Not: Zaman girdisi seçilen konumun lokal saatine göre yorumlanır. PDF için tarayıcıdan yazdır (Print) kullanabilirsin.
             </div>
@@ -1910,11 +2241,15 @@ export default function Page() {
           </div>
         ) : null}
 
-        {!rightOpen ? null : viewMode === 'vinyl' ? (
+        {!rightOpen ? null : viewMode === 'vinyl' || viewMode === 'age' ? (
           <div style={{ display: 'grid', gap: 10, fontSize: 13, color: '#374151' }}>
             <div style={{ padding: 12, background: '#fff', border: '1px solid #eee' }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Vinyl modu</div>
-              <div>Vinyl poster ayarları soldaki menüde. Buradaki “Poster Tasarımı” ayarları Sky Poster için geçerli.</div>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>{viewMode === 'vinyl' ? 'Vinyl modu' : 'Age Mosaic modu'}</div>
+              <div>
+                {viewMode === 'vinyl'
+                  ? 'Vinyl poster ayarları soldaki menüde. Buradaki “Poster Tasarımı” ayarları Sky Poster için geçerli.'
+                  : 'Age Mosaic ayarları soldaki menüde. Buradaki “Poster Tasarımı” ayarları Sky Poster için geçerli.'}
+              </div>
             </div>
           </div>
         ) : <div style={{ display: 'grid', gap: 10 }}>
