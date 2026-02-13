@@ -439,6 +439,15 @@ function parseEnum<T extends string>(v: string | null, allowed: readonly T[], fa
   return (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
 }
 
+function shuffledCopy<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 function ageCanvasDims(size: AgePosterSize): { W: number; H: number; margin: number } {
   const W = size === '16x20' ? 16 * 72 : size === '20x20' || size === '20x16' ? 20 * 72 : size === 'square' ? 1024 : 595;
   const H = size === '16x20' ? 20 * 72 : size === '20x20' ? 20 * 72 : size === '20x16' ? 16 * 72 : size === 'square' ? 1024 : 842;
@@ -1829,7 +1838,7 @@ export default function Page() {
                     {...({ webkitdirectory: 'true', directory: 'true' } as any)}
                     onChange={async (e) => {
                       const input = e.currentTarget;
-                      const files = Array.from(input?.files ?? []).filter((f) => (f.type || '').startsWith('image/'));
+                      const files = shuffledCopy(Array.from(input?.files ?? []).filter((f) => (f.type || '').startsWith('image/')));
                       if (!files.length) return;
                       setBusy(true);
                       setError('');
@@ -1837,7 +1846,8 @@ export default function Page() {
                         const imgs: string[] = [];
                         for (const f of files.slice(0, 140)) {
                           try {
-                            const dataUrl = await downscaleImageToDataUrl(f, 700, 'image/jpeg', 0.84, ageCropSquare);
+                            // Test mode: preserve original aspect ratios (don't square-crop).
+                            const dataUrl = await downscaleImageToDataUrl(f, 700, 'image/jpeg', 0.84, false);
                             imgs.push(dataUrl);
                           } catch {
                             // ignore per-file
@@ -1870,6 +1880,15 @@ export default function Page() {
                     </span>
                     {ageFolderImages.length ? (
                       <button
+                        onClick={() => setAgeFolderImages((arr) => shuffledCopy(arr))}
+                        style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                        title="Görsel sırasını karıştır (yerleşim de değişir)"
+                      >
+                        Karıştır
+                      </button>
+                    ) : null}
+                    {ageFolderImages.length ? (
+                      <button
                         onClick={() => {
                           setAgeFolderImages([]);
                           setAgeUseFolder(false);
@@ -1893,6 +1912,10 @@ export default function Page() {
                       />
                     </Field>
                   ) : null}
+
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    Not: Klasör testinde görseller kare kırpılmaz; oranlar korunur (müşteri fotoğrafları gibi).
+                  </div>
                 </div>
               </Section>
 

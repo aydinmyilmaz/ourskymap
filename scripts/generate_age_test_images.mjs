@@ -27,21 +27,59 @@ function hsl(h, s, l) {
 const outDir = path.resolve(process.cwd(), 'age_test_images');
 fs.mkdirSync(outDir, { recursive: true });
 
-const widths = [480, 640, 800, 960, 1200, 1600, 2000];
-const heights = [480, 600, 720, 900, 1200, 1600];
+// Clean previously generated samples (keep any user-added files).
+for (const name of fs.readdirSync(outDir)) {
+  if (name.startsWith('sample_') && name.endsWith('.svg')) {
+    try {
+      fs.unlinkSync(path.join(outDir, name));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+const longEdges = [420, 520, 640, 800, 960, 1200, 1600, 2000, 2400];
+const ratioPresets = [
+  { w: 1, h: 1, label: '1:1' },
+  { w: 4, h: 3, label: '4:3' },
+  { w: 3, h: 4, label: '3:4' },
+  { w: 16, h: 9, label: '16:9' },
+  { w: 9, h: 16, label: '9:16' },
+  { w: 3, h: 2, label: '3:2' },
+  { w: 2, h: 3, label: '2:3' },
+  { w: 5, h: 4, label: '5:4' },
+  { w: 4, h: 5, label: '4:5' },
+  { w: 21, h: 9, label: '21:9' },
+  { w: 9, h: 21, label: '9:21' }
+];
+
+function computeDims(longEdge, ratio) {
+  const r = ratio.w / ratio.h;
+  let w, h;
+  if (r >= 1) {
+    w = longEdge;
+    h = Math.round(longEdge / r);
+  } else {
+    h = longEdge;
+    w = Math.round(longEdge * r);
+  }
+  return { w: Math.max(320, Math.round(w)), h: Math.max(320, Math.round(h)) };
+}
 
 const total = Number(process.argv[2] ?? 80);
 const count = Number.isFinite(total) ? Math.max(50, Math.min(120, total)) : 80;
 
 for (let i = 1; i <= count; i++) {
   const rng = mulberry32(0xabc000 + i * 1337);
-  const w = pick(rng, widths);
-  const h = pick(rng, heights);
+  const ratio = pick(rng, ratioPresets);
+  const base = pick(rng, longEdges);
+  const scale = 0.75 + rng() * 0.55; // 0.75..1.30
+  const { w, h } = computeDims(Math.round(base * scale), ratio);
   const bg1 = hsl(rng() * 360, 40 + rng() * 40, 45 + rng() * 25);
   const bg2 = hsl((rng() * 360 + 120) % 360, 40 + rng() * 40, 35 + rng() * 25);
   const accent = hsl((rng() * 360 + 240) % 360, 55 + rng() * 35, 55 + rng() * 25);
 
-  const circles = Array.from({ length: 8 }).map((_, idx) => {
+  const circles = Array.from({ length: 10 + Math.floor(rng() * 6) }).map((_, idx) => {
     const cx = rng() * w;
     const cy = rng() * h;
     const r = 40 + rng() * Math.min(w, h) * 0.18;
@@ -75,7 +113,7 @@ for (let i = 1; i <= count; i++) {
       SAMPLE ${pad2(i)}
     </text>
     <text x="${(w * 0.10).toFixed(1)}" y="${(h * 0.90).toFixed(1)}" font-size="${Math.max(14, Math.round(Math.min(w, h) * 0.035))}" font-weight="600">
-      ${w} × ${h}
+      ${w} × ${h}  (${ratio.label})
     </text>
   </g>
 </svg>`;
@@ -85,4 +123,3 @@ for (let i = 1; i <= count; i++) {
 }
 
 console.log(`Generated ${count} SVG images in: ${outDir}`);
-
