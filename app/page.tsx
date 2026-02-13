@@ -448,6 +448,95 @@ function shuffledCopy<T>(arr: T[]): T[] {
   return out;
 }
 
+const GOOGLE_FONTS_CSS_URL =
+  'https://fonts.googleapis.com/css2?family=Jimmy+Script&family=Prata&family=Signika:wght@400;500;700&display=swap';
+
+let embeddedFontsCssCache: string | null = null;
+let embeddedFontsCssPromise: Promise<string> | null = null;
+
+function cleanCssUrl(raw: string): string {
+  return raw.trim().replace(/^['"]/, '').replace(/['"]$/, '');
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 8192;
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    chunks.push(String.fromCharCode(...bytes.subarray(i, i + chunkSize)));
+  }
+  return btoa(chunks.join(''));
+}
+
+async function getEmbeddedFontsCss(): Promise<string> {
+  if (embeddedFontsCssCache) return embeddedFontsCssCache;
+  if (!embeddedFontsCssPromise) {
+    embeddedFontsCssPromise = (async () => {
+      try {
+        const res = await fetch(GOOGLE_FONTS_CSS_URL, { cache: 'force-cache' });
+        if (!res.ok) return '';
+        const css = await res.text();
+        const urls = Array.from(new Set(Array.from(css.matchAll(/url\(([^)]+)\)/g)).map((m) => cleanCssUrl(m[1])))).filter((u) =>
+          u.endsWith('.woff2')
+        );
+
+        const urlToData = new Map<string, string>();
+        await Promise.all(
+          urls.map(async (u) => {
+            try {
+              const r = await fetch(u, { cache: 'force-cache' });
+              if (!r.ok) return;
+              const b64 = arrayBufferToBase64(await r.arrayBuffer());
+              urlToData.set(u, `data:font/woff2;base64,${b64}`);
+            } catch {
+              // ignore per-font failure
+            }
+          })
+        );
+
+        const embeddedCss = css.replace(/url\(([^)]+)\)/g, (full, raw) => {
+          const u = cleanCssUrl(String(raw));
+          const data = urlToData.get(u);
+          return data ? `url(${data})` : full;
+        });
+
+        embeddedFontsCssCache = embeddedCss;
+        return embeddedCss;
+      } catch {
+        return '';
+      } finally {
+        embeddedFontsCssPromise = null;
+      }
+    })();
+  }
+  return embeddedFontsCssPromise;
+}
+
+function svgNeedsEmbeddedFonts(svgText: string): boolean {
+  const s = svgText || '';
+  if (s.includes('data:font/woff2;base64,')) return false;
+  if (s.includes('@font-face')) return false;
+  // Our app uses these Google Fonts in the UI.
+  return s.includes('Prata') || s.includes('Signika') || s.includes('Jimmy Script');
+}
+
+function injectCssIntoSvg(svgText: string, cssText: string): string {
+  const css = (cssText || '').trim();
+  if (!css) return svgText;
+  const svgStart = svgText.indexOf('<svg');
+  if (svgStart === -1) return svgText;
+  const startTagEnd = svgText.indexOf('>', svgStart);
+  if (startTagEnd === -1) return svgText;
+  const styleTag = `<style type="text/css"><![CDATA[\n${css}\n]]></style>`;
+  return `${svgText.slice(0, startTagEnd + 1)}\n${styleTag}\n${svgText.slice(startTagEnd + 1)}`;
+}
+
+async function prepareSvgForDownload(svgText: string): Promise<string> {
+  if (!svgNeedsEmbeddedFonts(svgText)) return svgText;
+  const css = await getEmbeddedFontsCss();
+  return css ? injectCssIntoSvg(svgText, css) : svgText;
+}
+
 function ageCanvasDims(size: AgePosterSize): { W: number; H: number; margin: number } {
   const W = size === '16x20' ? 16 * 72 : size === '20x20' || size === '20x16' ? 20 * 72 : size === 'square' ? 1024 : 595;
   const H = size === '16x20' ? 20 * 72 : size === '20x20' ? 20 * 72 : size === '20x16' ? 16 * 72 : size === 'square' ? 1024 : 842;
@@ -888,6 +977,7 @@ export default function Page() {
   const [ageSvg, setAgeSvg] = useState<string>('');
   const [viewMode, setViewMode] = useState<'poster' | 'chart' | 'vinyl' | 'age'>('poster');
   const [busy, setBusy] = useState(false);
+  const [downloadBusy, setDownloadBusy] = useState(false);
   const [error, setError] = useState<string>('');
   const [shareLink, setShareLink] = useState<string>('');
   const [metaAuto, setMetaAuto] = useState(true);
@@ -1312,6 +1402,7 @@ export default function Page() {
     const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
     const svgUrl = URL.createObjectURL(svgBlob);
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.decoding = 'async';
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
@@ -1438,16 +1529,50 @@ export default function Page() {
                   {busy ? 'Üretiliyor…' : 'Generate'}
                 </button>
                 <button
-                  onClick={() => downloadSvg(activeSvg, `${activeSvgName}.svg`)}
-                  disabled={!canDownload}
-                  style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: canDownload ? 'pointer' : 'not-allowed' }}
+                  onClick={async () => {
+                    if (!activeSvg) return;
+                    setDownloadBusy(true);
+                    setError('');
+                    try {
+                      const svg = await prepareSvgForDownload(activeSvg);
+                      downloadSvg(svg, `${activeSvgName}.svg`);
+                    } catch (e: any) {
+                      setError(e?.message ?? String(e));
+                    } finally {
+                      setDownloadBusy(false);
+                    }
+                  }}
+                  disabled={!canDownload || downloadBusy}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #ddd',
+                    background: '#fff',
+                    cursor: canDownload && !downloadBusy ? 'pointer' : 'not-allowed'
+                  }}
                 >
                   SVG
                 </button>
                 <button
-                  onClick={() => downloadPng(activeSvg, `${activeSvgName}.png`, 3)}
-                  disabled={!canDownload}
-                  style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: canDownload ? 'pointer' : 'not-allowed' }}
+                  onClick={async () => {
+                    if (!activeSvg) return;
+                    setDownloadBusy(true);
+                    setError('');
+                    try {
+                      const svg = await prepareSvgForDownload(activeSvg);
+                      await downloadPng(svg, `${activeSvgName}.png`, 3);
+                    } catch (e: any) {
+                      setError(e?.message ?? String(e));
+                    } finally {
+                      setDownloadBusy(false);
+                    }
+                  }}
+                  disabled={!canDownload || downloadBusy}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #ddd',
+                    background: '#fff',
+                    cursor: canDownload && !downloadBusy ? 'pointer' : 'not-allowed'
+                  }}
                 >
                   PNG
                 </button>
@@ -1456,6 +1581,7 @@ export default function Page() {
                 </button>
               </div>
               {error ? <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div> : null}
+              {downloadBusy ? <div style={{ fontSize: 12, color: '#6b7280' }}>Dosya hazırlanıyor (fontlar gömülüyor)…</div> : null}
               <div style={{ fontSize: 12, color: '#6b7280' }}>
                 İpucu: Ayarları değiştirdikten sonra buradan tekrar Generate diyebilirsin (scroll gerekmez).
               </div>
