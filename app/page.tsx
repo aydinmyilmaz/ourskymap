@@ -98,8 +98,18 @@ type VinylParams = {
   showCenterGuides: boolean;
   titleFont: PosterParams['titleFont'];
   titleFontSize: number;
+  titleArcCurvature: number;
+  titleArcWidth: number;
   namesFont: PosterParams['namesFont'];
   namesFontSize: number;
+  namesLetterSpacing: number;
+  namesLineSpacing: number;
+  namesYOffset: number;
+  dateFont: PosterParams['metaFont'];
+  dateFontSize: number;
+  dateLetterSpacing: number;
+  dateLineSpacing: number;
+  dateYOffset: number;
   metaFont: PosterParams['metaFont'];
   metaFontSize: number;
 };
@@ -217,28 +227,38 @@ const defaultPoster: PosterParams = {
 
 const defaultVinyl: VinylParams = {
   size: '16x20',
-  palette: 'sand',
-  inkColor: '#1b1b1b',
-  backgroundTexture: 'paper',
+  palette: 'classic-black',
+  inkColor: '#e6e6ea',
+  backgroundTexture: 'solid',
   recordImageDataUrl: '',
   labelImageDataUrl: '',
-  diskDiameter: 11.5 * 72,
-  ringCountMax: 8,
-  ringFontSize: 12,
-  ringLetterSpacing: 2.0,
-  ringLineGap: 2,
+  diskDiameter: 13.7 * 72,
+  ringCountMax: 6,
+  ringFontSize: 11,
+  ringLetterSpacing: 1.2,
+  ringLineGap: 3,
   title: 'YOUR TITLE HERE',
   songTitle: 'SONG TITLE',
   artist: 'ARTIST',
   outerText:
     'Put your lyrics here. The text will wrap into multiple rings around the record. You can paste multiple lines and we will distribute them from outside to inside.',
-  names: 'Sara & Nick',
-  dateLine: '11.03.2011',
-  showCenterGuides: true,
+  names: '',
+  dateLine: '',
+  showCenterGuides: false,
   titleFont: 'prata',
   titleFontSize: 40,
+  titleArcCurvature: 0.8,
+  titleArcWidth: 0.73,
   namesFont: 'jimmy-script',
   namesFontSize: 64,
+  namesLetterSpacing: 0,
+  namesLineSpacing: 1.2,
+  namesYOffset: 0,
+  dateFont: 'signika',
+  dateFontSize: 18,
+  dateLetterSpacing: 0,
+  dateLineSpacing: 1.2,
+  dateYOffset: 74,
   metaFont: 'signika',
   metaFontSize: 18
 };
@@ -689,8 +709,18 @@ function encodeStateToQuery(input: {
   sp.set('vcg', v.showCenterGuides ? '1' : '0');
   sp.set('vtf', v.titleFont);
   sp.set('vtfs', String(v.titleFontSize));
+  sp.set('vtac', String(v.titleArcCurvature));
+  sp.set('vtaw', String(v.titleArcWidth));
   sp.set('vnf', v.namesFont);
   sp.set('vnfs', String(v.namesFontSize));
+  sp.set('vnsls', String(v.namesLetterSpacing));
+  sp.set('vnslh', String(v.namesLineSpacing));
+  sp.set('vnsy', String(v.namesYOffset));
+  sp.set('vdf', v.dateFont);
+  sp.set('vdfs', String(v.dateFontSize));
+  sp.set('vdls', String(v.dateLetterSpacing));
+  sp.set('vdlh', String(v.dateLineSpacing));
+  sp.set('vdy', String(v.dateYOffset));
   sp.set('vmf', v.metaFont);
   sp.set('vmfs', String(v.metaFontSize));
 
@@ -847,6 +877,9 @@ function decodeStateFromQuery(): Partial<{
   const vs = sp.get('vs');
   const vp = sp.get('vp');
   const vtx = sp.get('vtx');
+  const oldVinylLetterSpacing = parseNum(sp.get('vmls'), defaultVinyl.dateLetterSpacing);
+  const oldVinylLineSpacing = parseNum(sp.get('vmlh'), defaultVinyl.dateLineSpacing);
+  const oldVinylYOffset = parseNum(sp.get('vmy'), defaultVinyl.dateYOffset);
   const vinyl: VinylParams = {
     ...defaultVinyl,
     size: vs === '20x20' ? '20x20' : vs === '16x20' ? '16x20' : vs === 'square' ? 'square' : 'a4',
@@ -880,8 +913,18 @@ function decodeStateFromQuery(): Partial<{
     showCenterGuides: parseBool(sp.get('vcg'), defaultVinyl.showCenterGuides),
     titleFont: parseEnum(sp.get('vtf'), ['serif', 'sans', 'mono', 'prata'] as const, defaultVinyl.titleFont),
     titleFontSize: parseNum(sp.get('vtfs'), defaultVinyl.titleFontSize),
+    titleArcCurvature: parseNum(sp.get('vtac'), defaultVinyl.titleArcCurvature),
+    titleArcWidth: parseNum(sp.get('vtaw'), defaultVinyl.titleArcWidth),
     namesFont: parseEnum(sp.get('vnf'), ['serif', 'sans', 'cursive', 'jimmy-script'] as const, defaultVinyl.namesFont),
     namesFontSize: parseNum(sp.get('vnfs'), defaultVinyl.namesFontSize),
+    namesLetterSpacing: parseNum(sp.get('vnsls'), defaultVinyl.namesLetterSpacing),
+    namesLineSpacing: parseNum(sp.get('vnslh'), defaultVinyl.namesLineSpacing),
+    namesYOffset: parseNum(sp.get('vnsy'), defaultVinyl.namesYOffset),
+    dateFont: parseEnum(sp.get('vdf'), ['sans', 'serif', 'mono', 'signika'] as const, defaultVinyl.dateFont),
+    dateFontSize: parseNum(sp.get('vdfs'), defaultVinyl.dateFontSize),
+    dateLetterSpacing: parseNum(sp.get('vdls'), oldVinylLetterSpacing),
+    dateLineSpacing: parseNum(sp.get('vdlh'), oldVinylLineSpacing),
+    dateYOffset: parseNum(sp.get('vdy'), oldVinylYOffset),
     metaFont: parseEnum(sp.get('vmf'), ['sans', 'serif', 'mono', 'signika'] as const, defaultVinyl.metaFont),
     metaFontSize: parseNum(sp.get('vmfs'), defaultVinyl.metaFontSize)
   };
@@ -1303,7 +1346,7 @@ export default function Page() {
       setPoster(decoded.poster);
       setLastAutoMetaText(initialMetaAuto ? decoded.poster.metaText ?? '' : '');
     }
-    if (decoded.vinyl) setVinyl(decoded.vinyl);
+    if (decoded.vinyl) setVinyl({ ...defaultVinyl, ...decoded.vinyl });
     if (decoded.age) setAge(decoded.age);
     if (decoded.view) setViewMode(decoded.view);
 
@@ -1458,6 +1501,14 @@ export default function Page() {
   }
 
   const ageCanvas = ageCanvasDims(age.size);
+  const vinylNamesLetterSpacing = Number.isFinite(vinyl.namesLetterSpacing) ? vinyl.namesLetterSpacing : defaultVinyl.namesLetterSpacing;
+  const vinylNamesLineSpacing = Number.isFinite(vinyl.namesLineSpacing) ? vinyl.namesLineSpacing : defaultVinyl.namesLineSpacing;
+  const vinylNamesYOffset = Number.isFinite(vinyl.namesYOffset) ? vinyl.namesYOffset : defaultVinyl.namesYOffset;
+  const vinylDateLetterSpacing = Number.isFinite(vinyl.dateLetterSpacing) ? vinyl.dateLetterSpacing : defaultVinyl.dateLetterSpacing;
+  const vinylDateLineSpacing = Number.isFinite(vinyl.dateLineSpacing) ? vinyl.dateLineSpacing : defaultVinyl.dateLineSpacing;
+  const vinylDateYOffset = Number.isFinite(vinyl.dateYOffset) ? vinyl.dateYOffset : defaultVinyl.dateYOffset;
+  const vinylTitleArcCurvature = Number.isFinite(vinyl.titleArcCurvature) ? vinyl.titleArcCurvature : defaultVinyl.titleArcCurvature;
+  const vinylTitleArcWidth = Number.isFinite(vinyl.titleArcWidth) ? vinyl.titleArcWidth : defaultVinyl.titleArcWidth;
   const activeSvg = viewMode === 'age' ? ageSvg : viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg;
   const activeSvgName = viewMode === 'age' ? 'age-mosaic' : viewMode === 'vinyl' ? 'vinyl-poster' : viewMode === 'poster' ? 'star-poster' : 'sky-chart';
   const canDownload = Boolean(activeSvg && activeSvg.length > 0);
@@ -1589,273 +1640,484 @@ export default function Page() {
 
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', paddingRight: 4, paddingBottom: 10 }}>
           {viewMode === 'vinyl' ? (
-            <div style={{ display: 'grid', gap: 10 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Vinyl Poster</div>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 800 }}>Vinyl Poster</div>
 
-              <Field label="Poster boyutu">
-                <select
-                  value={vinyl.size}
-                  onChange={(e) => setVinyl((v) => ({ ...v, size: e.target.value as VinylParams['size'] }))}
-                  style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
-                >
-                  <option value="a4">A4 (595x842)</option>
-                  <option value="square">Square (1024x1024)</option>
-                  <option value="16x20">16x20 in (1152x1440)</option>
-                  <option value="20x20">20x20 in (1440x1440)</option>
-                </select>
-              </Field>
+              <Section title="Boyut & Renk" tone={1}>
+                <Field label="Poster boyutu">
+                  <select
+                    value={vinyl.size}
+                    onChange={(e) => setVinyl((v) => ({ ...v, size: e.target.value as VinylParams['size'] }))}
+                    style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                  >
+                    <option value="a4">A4 (595x842)</option>
+                    <option value="square">Square (1024x1024)</option>
+                    <option value="16x20">16x20 in (1152x1440)</option>
+                    <option value="20x20">20x20 in (1440x1440)</option>
+                  </select>
+                </Field>
 
-              <Field label="Renk paleti">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
-                  {posterPalettes.map((p) => {
-                    const active = vinyl.palette === p.key;
-                    return (
-                      <button
-                        key={p.key}
-                        onClick={() =>
-                          setVinyl((s) => ({
-                            ...s,
-                            palette: p.key,
-                            inkColor: s.inkColor === defaultVinyl.inkColor ? p.ink : s.inkColor
-                          }))
-                        }
-                        title={p.label}
-                        style={{
-                          height: 44,
-                          border: active ? '2px solid #111' : '1px solid #cbd5e1',
-                          background: `linear-gradient(135deg, ${p.bg} 0%, ${p.bg} 72%, ${p.ink} 72%, ${p.ink} 100%)`,
-                          cursor: 'pointer',
-                          position: 'relative'
-                        }}
-                      >
-                        <span
-                          style={{
-                            position: 'absolute',
-                            inset: 6,
-                            border: `2px solid ${p.ink}`,
-                            opacity: 0.75,
-                            boxShadow: active ? '0 0 0 3px rgba(17,24,39,0.12)' : undefined
-                          }}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
-
-              <Field label="Yazi / cizgi rengi (hex)">
-                <div style={{ display: 'grid', gap: 8 }}>
+                <Field label={`Plak çapı: ${(vinyl.diskDiameter / 72).toFixed(1)} in`}>
                   <input
-                    value={vinyl.inkColor}
-                    onChange={(e) => setVinyl((v) => ({ ...v, inkColor: e.target.value }))}
-                    placeholder="#1b1b1b"
-                    style={{ padding: 10, border: '1px solid #ddd' }}
+                    type="range"
+                    min={8 * 72}
+                    max={15.5 * 72}
+                    step={1}
+                    value={vinyl.diskDiameter}
+                    onChange={(e) => setVinyl((v) => ({ ...v, diskDiameter: Number(e.target.value) }))}
                   />
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                    {[
-                      { label: '#1b1b1b', v: '#1b1b1b' },
-                      { label: '#d9d9d9', v: '#d9d9d9' },
-                      { label: '#ffffff', v: '#ffffff' },
-                      { label: '#fbab29', v: '#fbab29' }
-                    ].map((c) => {
-                      const active = vinyl.inkColor.trim().toLowerCase() === c.v;
+                </Field>
+
+                <Field label="Renk paleti">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+                    {posterPalettes.map((p) => {
+                      const active = vinyl.palette === p.key;
                       return (
                         <button
-                          key={c.v}
-                          onClick={() => setVinyl((v) => ({ ...v, inkColor: c.v }))}
-                          title={c.label}
+                          key={p.key}
+                          onClick={() =>
+                            setVinyl((s) => ({
+                              ...s,
+                              palette: p.key,
+                              inkColor: s.inkColor === defaultVinyl.inkColor ? p.ink : s.inkColor
+                            }))
+                          }
+                          title={p.label}
                           style={{
-                            width: 34,
-                            height: 28,
-                            borderRadius: 8,
+                            height: 44,
                             border: active ? '2px solid #111' : '1px solid #cbd5e1',
-                            background: c.v,
-                            cursor: 'pointer'
+                            background: `linear-gradient(135deg, ${p.bg} 0%, ${p.bg} 72%, ${p.ink} 72%, ${p.ink} 100%)`,
+                            cursor: 'pointer',
+                            position: 'relative'
                           }}
-                        />
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              inset: 6,
+                              border: `2px solid ${p.ink}`,
+                              opacity: 0.75,
+                              boxShadow: active ? '0 0 0 3px rgba(17,24,39,0.12)' : undefined
+                            }}
+                          />
+                        </button>
                       );
                     })}
-                    <span style={{ fontSize: 12, color: '#6b7280' }}>Hızlı seçim</span>
                   </div>
-                </div>
-              </Field>
+                </Field>
 
-              <Field label="Arka plan deseni">
-                <select
-                  value={vinyl.backgroundTexture}
-                  onChange={(e) => setVinyl((v) => ({ ...v, backgroundTexture: e.target.value as VinylParams['backgroundTexture'] }))}
-                  style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
-                >
-                  <option value="solid">Solid</option>
-                  <option value="paper">Paper</option>
-                  <option value="marble">Marble</option>
-                  <option value="noise">Noise</option>
-                </select>
-              </Field>
-
-              <Field label="Plak resmi (opsiyonel, daha gerçekçi)">
-                <div style={{ display: 'grid', gap: 8 }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const input = e.currentTarget;
-                      const f = input?.files?.[0];
-                      if (!f) return;
-                      const dataUrl = await downscaleImageToDataUrl(f, 1200, 'image/jpeg', 0.88);
-                      setVinyl((v) => ({ ...v, recordImageDataUrl: dataUrl }));
-                      if (input) input.value = '';
-                    }}
-                  />
-                  {vinyl.recordImageDataUrl ? (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <button
-                        onClick={() => setVinyl((v) => ({ ...v, recordImageDataUrl: '' }))}
-                        style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
-                      >
-                        Kaldır
-                      </button>
-                      <img
-                        src={vinyl.recordImageDataUrl}
-                        alt="Record"
-                        style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }}
-                      />
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>Seçildi</span>
+                <Field label="Yazi / cizgi rengi (hex)">
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <input
+                      value={vinyl.inkColor}
+                      onChange={(e) => setVinyl((v) => ({ ...v, inkColor: e.target.value }))}
+                      placeholder="#1b1b1b"
+                      style={{ padding: 10, border: '1px solid #ddd' }}
+                    />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                      {[
+                        { label: '#1b1b1b', v: '#1b1b1b' },
+                        { label: '#d9d9d9', v: '#d9d9d9' },
+                        { label: '#ffffff', v: '#ffffff' },
+                        { label: '#fbab29', v: '#fbab29' }
+                      ].map((c) => {
+                        const active = vinyl.inkColor.trim().toLowerCase() === c.v;
+                        return (
+                          <button
+                            key={c.v}
+                            onClick={() => setVinyl((v) => ({ ...v, inkColor: c.v }))}
+                            title={c.label}
+                            style={{
+                              width: 34,
+                              height: 28,
+                              borderRadius: 8,
+                              border: active ? '2px solid #111' : '1px solid #cbd5e1',
+                              background: c.v,
+                              cursor: 'pointer'
+                            }}
+                          />
+                        );
+                      })}
+                      <span style={{ fontSize: 12, color: '#6b7280' }}>Hızlı seçim</span>
                     </div>
-                  ) : (
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>SVG içi “foto” görünüm için önerilir. Linke dahil edilmez.</div>
-                  )}
+                  </div>
+                </Field>
+
+                <Field label="Arka plan deseni">
+                  <select
+                    value={vinyl.backgroundTexture}
+                    onChange={(e) => setVinyl((v) => ({ ...v, backgroundTexture: e.target.value as VinylParams['backgroundTexture'] }))}
+                    style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                  >
+                    <option value="solid">Solid</option>
+                    <option value="paper">Paper</option>
+                    <option value="marble">Marble</option>
+                    <option value="noise">Noise</option>
+                  </select>
+                </Field>
+              </Section>
+
+              <Section title="Görseller" tone={2} description="Yüklenen görseller tarayıcıda saklanır; linke dahil edilmez.">
+                <Field label="Plak resmi (opsiyonel, daha gerçekçi)">
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const input = e.currentTarget;
+                        const f = input?.files?.[0];
+                        if (!f) return;
+                        const dataUrl = await downscaleImageToDataUrl(f, 1200, 'image/jpeg', 0.88);
+                        setVinyl((v) => ({ ...v, recordImageDataUrl: dataUrl }));
+                        if (input) input.value = '';
+                      }}
+                    />
+                    {vinyl.recordImageDataUrl ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button
+                          onClick={() => setVinyl((v) => ({ ...v, recordImageDataUrl: '' }))}
+                          style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                        >
+                          Kaldır
+                        </button>
+                        <img
+                          src={vinyl.recordImageDataUrl}
+                          alt="Record"
+                          style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }}
+                        />
+                        <span style={{ fontSize: 12, color: '#6b7280' }}>Seçildi</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>SVG içi “foto” görünüm için önerilir.</div>
+                    )}
+                  </div>
+                </Field>
+
+                <Field label="Label resmi (opsiyonel)">
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const input = e.currentTarget;
+                        const f = input?.files?.[0];
+                        if (!f) return;
+                        const dataUrl = await downscaleImageToDataUrl(f, 700, 'image/jpeg', 0.88);
+                        setVinyl((v) => ({ ...v, labelImageDataUrl: dataUrl }));
+                        if (input) input.value = '';
+                      }}
+                    />
+                    {vinyl.labelImageDataUrl ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button
+                          onClick={() => setVinyl((v) => ({ ...v, labelImageDataUrl: '' }))}
+                          style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                        >
+                          Kaldır
+                        </button>
+                        <img
+                          src={vinyl.labelImageDataUrl}
+                          alt="Label"
+                          style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 999, border: '1px solid #e5e7eb' }}
+                        />
+                        <span style={{ fontSize: 12, color: '#6b7280' }}>Seçildi</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>İstersen gerçek label görseli ekleyebilirsin.</div>
+                    )}
+                  </div>
+                </Field>
+              </Section>
+
+              <Section title="Ring Yazıları" tone={3}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Ring sayısı: ${vinyl.ringCountMax}`}>
+                    <input
+                      type="range"
+                      min={1}
+                      max={16}
+                      step={1}
+                      value={vinyl.ringCountMax}
+                      onChange={(e) => setVinyl((v) => ({ ...v, ringCountMax: Number(e.target.value) }))}
+                    />
+                  </Field>
+                  <Field label={`Ring font: ${vinyl.ringFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={8}
+                      max={24}
+                      step={1}
+                      value={vinyl.ringFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, ringFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
                 </div>
-              </Field>
-
-              <Field label="Label resmi (opsiyonel)">
-                <div style={{ display: 'grid', gap: 8 }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const input = e.currentTarget;
-                      const f = input?.files?.[0];
-                      if (!f) return;
-                      const dataUrl = await downscaleImageToDataUrl(f, 700, 'image/jpeg', 0.88);
-                      setVinyl((v) => ({ ...v, labelImageDataUrl: dataUrl }));
-                      if (input) input.value = '';
-                    }}
-                  />
-                  {vinyl.labelImageDataUrl ? (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <button
-                        onClick={() => setVinyl((v) => ({ ...v, labelImageDataUrl: '' }))}
-                        style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
-                      >
-                        Kaldır
-                      </button>
-                      <img
-                        src={vinyl.labelImageDataUrl}
-                        alt="Label"
-                        style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 999, border: '1px solid #e5e7eb' }}
-                      />
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>Seçildi</span>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>İstersen gerçek label görseli ekleyebilirsin.</div>
-                  )}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Letter spacing: ${vinyl.ringLetterSpacing.toFixed(1)}`}>
+                    <input
+                      type="range"
+                      min={-2}
+                      max={12}
+                      step={0.1}
+                      value={vinyl.ringLetterSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, ringLetterSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                  <Field label={`Satır aralığı: ${vinyl.ringLineGap.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={12}
+                      step={1}
+                      value={vinyl.ringLineGap}
+                      onChange={(e) => setVinyl((v) => ({ ...v, ringLineGap: Number(e.target.value) }))}
+                    />
+                  </Field>
                 </div>
-              </Field>
 
-              <Field label={`Plak çapı: ${(vinyl.diskDiameter / 72).toFixed(1)} in`}>
-                <input
-                  type="range"
-                  min={8 * 72}
-                  max={15.5 * 72}
-                  step={1}
-                  value={vinyl.diskDiameter}
-                  onChange={(e) => setVinyl((v) => ({ ...v, diskDiameter: Number(e.target.value) }))}
-                />
-              </Field>
+                <Field label="Şarkı sözleri (outer rings)">
+                  <textarea
+                    value={vinyl.outerText}
+                    onChange={(e) => setVinyl((v) => ({ ...v, outerText: e.target.value }))}
+                    rows={6}
+                    style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+                  />
+                </Field>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  Not: Çok uzun sözler linke sığmayabilir; paylaşım linkinde en fazla ~600 karakter saklıyoruz.
+                </div>
+              </Section>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <Field label={`Ring sayısı: ${vinyl.ringCountMax}`}>
+              <Section title="Center Etiket" tone={1}>
+                <Field label="Center Title">
+                  <input value={vinyl.title} onChange={(e) => setVinyl((v) => ({ ...v, title: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+                </Field>
+                <Field label="Song Title">
+                  <input value={vinyl.songTitle} onChange={(e) => setVinyl((v) => ({ ...v, songTitle: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+                </Field>
+                <Field label="Artist">
+                  <input value={vinyl.artist} onChange={(e) => setVinyl((v) => ({ ...v, artist: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Başlık font">
+                    <select
+                      value={vinyl.titleFont}
+                      onChange={(e) => setVinyl((v) => ({ ...v, titleFont: e.target.value as VinylParams['titleFont'] }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="prata">Prata</option>
+                      <option value="serif">Serif</option>
+                      <option value="sans">Sans</option>
+                      <option value="mono">Mono</option>
+                    </select>
+                  </Field>
+                  <Field label={`Başlık size: ${vinyl.titleFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={12}
+                      max={140}
+                      step={1}
+                      value={vinyl.titleFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, titleFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+                <Field label={`Başlık kavis: ${vinylTitleArcCurvature.toFixed(2)}`}>
                   <input
                     type="range"
-                    min={1}
-                    max={16}
+                    min={0.15}
+                    max={1.40}
+                    step={0.01}
+                    value={vinylTitleArcCurvature}
+                    onChange={(e) => setVinyl((v) => ({ ...v, titleArcCurvature: Number(e.target.value) }))}
+                  />
+                </Field>
+                <Field label={`Arc genişliği: ${vinylTitleArcWidth.toFixed(2)}`}>
+                  <input
+                    type="range"
+                    min={0.45}
+                    max={0.95}
+                    step={0.01}
+                    value={vinylTitleArcWidth}
+                    onChange={(e) => setVinyl((v) => ({ ...v, titleArcWidth: Number(e.target.value) }))}
+                  />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Song/Artist font">
+                    <select
+                      value={vinyl.metaFont}
+                      onChange={(e) => setVinyl((v) => ({ ...v, metaFont: e.target.value as VinylParams['metaFont'] }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="signika">Signika</option>
+                      <option value="sans">Sans</option>
+                      <option value="serif">Serif</option>
+                      <option value="mono">Mono</option>
+                    </select>
+                  </Field>
+                  <Field label={`Song/Artist size: ${vinyl.metaFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={9}
+                      max={80}
+                      step={1}
+                      value={vinyl.metaFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, metaFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={vinyl.showCenterGuides}
+                    onChange={(e) => setVinyl((v) => ({ ...v, showCenterGuides: e.target.checked }))}
+                  />
+                  Merkez çizgileri
+                </label>
+              </Section>
+
+              <Section title="Alt Metin 1" tone={2} description="İsimler bloğu tamamen bağımsızdır.">
+                <Field label="İsimler metni">
+                  <textarea
+                    value={vinyl.names}
+                    onChange={(e) => setVinyl((v) => ({ ...v, names: e.target.value }))}
+                    rows={3}
+                    style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+                  />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="İsimler font">
+                    <select
+                      value={vinyl.namesFont}
+                      onChange={(e) => setVinyl((v) => ({ ...v, namesFont: e.target.value as VinylParams['namesFont'] }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="jimmy-script">Jimmy Script</option>
+                      <option value="serif">Serif</option>
+                      <option value="sans">Sans</option>
+                      <option value="cursive">Cursive</option>
+                    </select>
+                  </Field>
+                  <Field label={`İsimler size: ${vinyl.namesFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={10}
+                      max={160}
+                      step={1}
+                      value={vinyl.namesFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, namesFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Harf aralığı: ${vinylNamesLetterSpacing.toFixed(1)}`}>
+                    <input
+                      type="range"
+                      min={-1}
+                      max={20}
+                      step={0.1}
+                      value={vinylNamesLetterSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, namesLetterSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                  <Field label={`Satır aralığı: ${vinylNamesLineSpacing.toFixed(2)}`}>
+                    <input
+                      type="range"
+                      min={0.8}
+                      max={3}
+                      step={0.05}
+                      value={vinylNamesLineSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, namesLineSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <Field label={`İsimler Y konumu: ${vinylNamesYOffset.toFixed(0)}`}>
+                  <input
+                    type="range"
+                    min={-260}
+                    max={260}
                     step={1}
-                    value={vinyl.ringCountMax}
-                    onChange={(e) => setVinyl((v) => ({ ...v, ringCountMax: Number(e.target.value) }))}
+                    value={vinylNamesYOffset}
+                    onChange={(e) => setVinyl((v) => ({ ...v, namesYOffset: Number(e.target.value) }))}
                   />
                 </Field>
-                <Field label={`Ring font: ${vinyl.ringFontSize.toFixed(0)}`}>
+              </Section>
+
+              <Section title="Alt Metin 2" tone={3} description="Tarih/alt bilgi bloğu tamamen bağımsızdır.">
+                <Field label="Tarih metni">
+                  <textarea
+                    value={vinyl.dateLine}
+                    onChange={(e) => setVinyl((v) => ({ ...v, dateLine: e.target.value }))}
+                    rows={3}
+                    style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+                  />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Tarih font">
+                    <select
+                      value={vinyl.dateFont}
+                      onChange={(e) => setVinyl((v) => ({ ...v, dateFont: e.target.value as VinylParams['dateFont'] }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="signika">Signika</option>
+                      <option value="sans">Sans</option>
+                      <option value="serif">Serif</option>
+                      <option value="mono">Mono</option>
+                    </select>
+                  </Field>
+                  <Field label={`Tarih size: ${vinyl.dateFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={9}
+                      max={80}
+                      step={1}
+                      value={vinyl.dateFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, dateFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Harf aralığı: ${vinylDateLetterSpacing.toFixed(1)}`}>
+                    <input
+                      type="range"
+                      min={-1}
+                      max={20}
+                      step={0.1}
+                      value={vinylDateLetterSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, dateLetterSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                  <Field label={`Satır aralığı: ${vinylDateLineSpacing.toFixed(2)}`}>
+                    <input
+                      type="range"
+                      min={0.8}
+                      max={3}
+                      step={0.05}
+                      value={vinylDateLineSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, dateLineSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <Field label={`Tarih Y konumu: ${vinylDateYOffset.toFixed(0)}`}>
                   <input
                     type="range"
-                    min={8}
-                    max={24}
+                    min={-260}
+                    max={260}
                     step={1}
-                    value={vinyl.ringFontSize}
-                    onChange={(e) => setVinyl((v) => ({ ...v, ringFontSize: Number(e.target.value) }))}
+                    value={vinylDateYOffset}
+                    onChange={(e) => setVinyl((v) => ({ ...v, dateYOffset: Number(e.target.value) }))}
                   />
                 </Field>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <Field label={`Letter spacing: ${vinyl.ringLetterSpacing.toFixed(1)}`}>
-                  <input
-                    type="range"
-                    min={-2}
-                    max={12}
-                    step={0.1}
-                    value={vinyl.ringLetterSpacing}
-                    onChange={(e) => setVinyl((v) => ({ ...v, ringLetterSpacing: Number(e.target.value) }))}
-                  />
-                </Field>
-                <Field label={`Satır aralığı: ${vinyl.ringLineGap.toFixed(0)}`}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={12}
-                    step={1}
-                    value={vinyl.ringLineGap}
-                    onChange={(e) => setVinyl((v) => ({ ...v, ringLineGap: Number(e.target.value) }))}
-                  />
-                </Field>
-              </div>
-
-              <Field label="Center Title">
-                <input value={vinyl.title} onChange={(e) => setVinyl((v) => ({ ...v, title: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
-              </Field>
-              <Field label="Song Title">
-                <input value={vinyl.songTitle} onChange={(e) => setVinyl((v) => ({ ...v, songTitle: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
-              </Field>
-              <Field label="Artist">
-                <input value={vinyl.artist} onChange={(e) => setVinyl((v) => ({ ...v, artist: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
-              </Field>
-
-              <Field label="Şarkı sözleri (outer rings)">
-                <textarea
-                  value={vinyl.outerText}
-                  onChange={(e) => setVinyl((v) => ({ ...v, outerText: e.target.value }))}
-                  rows={6}
-                  style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
-                />
-              </Field>
-              <div style={{ fontSize: 12, color: '#6b7280' }}>
-                Not: Çok uzun sözler linke sığmayabilir; bu yüzden paylaşım linkinde en fazla ~600 karakter saklıyoruz.
-              </div>
-
-              <Field label="İsimler (altta)">
-                <input value={vinyl.names} onChange={(e) => setVinyl((v) => ({ ...v, names: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
-              </Field>
-              <Field label="Tarih (altta)">
-                <input value={vinyl.dateLine} onChange={(e) => setVinyl((v) => ({ ...v, dateLine: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
-              </Field>
-
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
-                <input
-                  type="checkbox"
-                  checked={vinyl.showCenterGuides}
-                  onChange={(e) => setVinyl((v) => ({ ...v, showCenterGuides: e.target.checked }))}
-                />
-                Merkez çizgileri
-              </label>
+              </Section>
             </div>
           ) : null}
 

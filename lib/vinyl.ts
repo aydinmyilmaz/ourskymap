@@ -79,18 +79,28 @@ function circlePathD(cx: number, cy: number, r: number): string {
 function buildFlowingRingText(input: { text: string; targetChars: number; start: number }): { chunk: string; next: number } {
   const raw = (input.text || '').replace(/\s+/g, ' ').trim();
   if (!raw) return { chunk: '', next: 0 };
-  const n = raw.length;
-  const start = ((input.start % n) + n) % n;
-  let end = start + Math.max(40, input.targetChars);
-  let slice = '';
-  if (end <= n) slice = raw.slice(start, end);
-  else slice = raw.slice(start) + ' ' + raw.slice(0, end - n);
+  const words = raw.split(' ').filter((w) => w.length > 0);
+  const n = words.length;
+  if (!n) return { chunk: '', next: 0 };
 
-  // Prefer ending at a word boundary (space) near the end.
-  const lastSpace = slice.lastIndexOf(' ');
-  if (lastSpace > Math.floor(slice.length * 0.7)) slice = slice.slice(0, lastSpace);
-  const next = (start + slice.length) % n;
-  return { chunk: slice.trim(), next };
+  const targetChars = Math.max(40, input.targetChars);
+  let idx = ((Math.round(input.start) % n) + n) % n;
+  const startIdx = idx;
+  const out: string[] = [];
+  let len = 0;
+
+  for (let guard = 0; guard < n * 3; guard++) {
+    const w = words[idx];
+    const add = out.length === 0 ? w.length : w.length + 1;
+    const isLongEnough = len >= Math.floor(targetChars * 0.82) && out.length >= 6;
+    if (len + add > targetChars && isLongEnough) break;
+    out.push(w);
+    len += add;
+    idx = (idx + 1) % n;
+    if (idx === startIdx && out.length >= 8) break;
+  }
+
+  return { chunk: out.join(' ').trim(), next: idx };
 }
 
 function wrapTextToLines(text: string, maxChars: number): string[] {
@@ -126,6 +136,36 @@ function repeatToMinLength(s: string, minLen: number): string {
   const sep = ' • ';
   while (out.length < minLen) out = `${out}${sep}${base}`;
   return out;
+}
+
+function splitMultiline(text: string): string[] {
+  return (text || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+}
+
+function centeredMultilineText(input: {
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  lineSpacing: number;
+  fill: string;
+  fontFamily: string;
+  letterSpacing: number;
+  fontWeight?: number;
+}): string {
+  const lines = splitMultiline(input.text);
+  if (!lines.length) return '';
+  const tspans = lines
+    .map((line, i) => {
+      const dy = i === 0 ? '0' : (input.fontSize * input.lineSpacing).toFixed(2);
+      return `<tspan x="${input.x}" dy="${dy}">${svgEscape(line)}</tspan>`;
+    })
+    .join('');
+  const fw = input.fontWeight ? ` font-weight="${input.fontWeight}"` : '';
+  return `<text x="${input.x}" y="${input.y.toFixed(2)}" font-size="${input.fontSize.toFixed(2)}" fill="${input.fill}" text-anchor="middle" font-family="${input.fontFamily}" letter-spacing="${input.letterSpacing.toFixed(2)}"${fw}>${tspans}</text>`;
 }
 
 function fontFamily(k: VinylParams['titleFont'] | VinylParams['namesFont'] | VinylParams['metaFont']): string {
@@ -188,6 +228,12 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const ringFontSize = clamp(v.ringFontSize, 8, 28);
   const ringLineGap = clamp(v.ringLineGap, 0, 16);
   const ringLetterSpacing = clamp(v.ringLetterSpacing, -2, 20);
+  const diskImage = (v.recordImageDataUrl || '').trim();
+  const labelImage = (v.labelImageDataUrl || '').trim();
+  // Many uploaded record photos include a thin gray studio/background margin.
+  // Slightly zoom the image inside the clip to keep only the actual vinyl edge.
+  const recordImageScale = diskImage ? 1.12 : 1;
+  const recordImageR = diskR * recordImageScale;
 
   const flowText = (v.outerText || '').trim();
   const hasManualLines = flowText.includes('\n');
@@ -195,7 +241,9 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const ringLines = hasManualLines ? rawLines.slice(0, ringCountMax) : [];
 
   const lineHeight = ringFontSize + ringLineGap;
-  const ringStartR = diskR - 18;
+  // Keep lyric rings visibly on the dark vinyl surface, not on the outer paper/background.
+  const ringOuterInset = clamp(ringFontSize * 2.4 + Math.max(0, ringLetterSpacing) * 1.1 + (diskImage ? 14 : 10), 34, 96);
+  const ringStartR = diskR - ringOuterInset;
 
   const defs: string[] = [];
   const ringText: string[] = [];
@@ -204,6 +252,9 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const diskFill = '#0b0b0d';
   const diskInk = effectiveInkRgb && relativeLuminance(effectiveInkRgb) < 0.42 ? '#f6f6f7' : palette.ink;
   const diskMutedInk = diskInk === palette.ink ? palette.mutedInk : 'rgba(246,246,247,0.40)';
+  const ringFill = relativeLuminance(hexToRgb(diskInk) || { r: 246, g: 246, b: 247 }) < 0.5 ? '#f2f2f4' : diskInk;
+  const ringStroke = diskImage ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.30)';
+  const ringStrokeWidth = diskImage ? 0.95 : 0.75;
 
   const grooves: string[] = [];
   const grooveStart = labelR * 1.2;
@@ -226,8 +277,8 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     const text = repeatToMinLength(ringLines[i], approxChars);
 
     ringText.push(
-      `<text fill="${diskInk}" stroke="rgba(0,0,0,0.75)" stroke-width="2" paint-order="stroke" opacity="0.92" font-size="${ringFontSize.toFixed(2)}" letter-spacing="${ringLetterSpacing.toFixed(2)}" font-family="${fontFamily('sans')}">` +
-      `<textPath href="#${id}" startOffset="50%" text-anchor="middle">${svgEscape(text.toUpperCase())}</textPath>` +
+      `<text fill="${ringFill}" stroke="${ringStroke}" stroke-width="${ringStrokeWidth.toFixed(2)}" paint-order="stroke" opacity="0.93" font-size="${ringFontSize.toFixed(2)}" letter-spacing="${ringLetterSpacing.toFixed(2)}" font-family="${fontFamily('sans')}" font-weight="600">` +
+      `<textPath href="#${id}" startOffset="50%" text-anchor="middle">${svgEscape(text)}</textPath>` +
       `</text>`
     );
   }
@@ -246,8 +297,8 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       cursor = next;
       const text = repeatToMinLength(chunk, approxChars);
       ringText.push(
-        `<text fill="${diskInk}" stroke="rgba(0,0,0,0.75)" stroke-width="2" paint-order="stroke" opacity="0.92" font-size="${ringFontSize.toFixed(2)}" letter-spacing="${ringLetterSpacing.toFixed(2)}" font-family="${fontFamily('sans')}">` +
-        `<textPath href="#${id}" startOffset="50%" text-anchor="middle">${svgEscape(text.toUpperCase())}</textPath>` +
+        `<text fill="${ringFill}" stroke="${ringStroke}" stroke-width="${ringStrokeWidth.toFixed(2)}" paint-order="stroke" opacity="0.93" font-size="${ringFontSize.toFixed(2)}" letter-spacing="${ringLetterSpacing.toFixed(2)}" font-family="${fontFamily('sans')}" font-weight="600">` +
+        `<textPath href="#${id}" startOffset="50%" text-anchor="middle">${svgEscape(text)}</textPath>` +
         `</text>`
       );
     }
@@ -255,45 +306,72 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
 
   const labelFill = '#efe3cf';
   const labelPaper = bgRgb && relativeLuminance(bgRgb) > 0.62 ? '#f3e8d7' : '#e7d9c5';
+  const labelEdgeStrokeW = Math.max(3, labelR * 0.07);
+  const labelInnerStrokeW = Math.max(1.2, labelR * 0.014);
+  const labelHubR = Math.max(holeR * 2.9, labelR * 0.29);
+  const labelHubStrokeW = Math.max(1.6, labelR * 0.017);
+  const labelDividerY = diskCy;
+  const titleArcWidth = clamp(v.titleArcWidth, 0.45, 0.95);
+  const labelTitleArcR = labelR * titleArcWidth;
+  const labelTitleY = diskCy - labelR * 0.10;
+  const titleArcCurvature = clamp(v.titleArcCurvature, 0.15, 1.4);
+  const labelTitleArcControlY = labelTitleY - labelR * titleArcCurvature;
+  const labelTitleArcId = 'labelTitleArc';
+  defs.push(
+    `<path id="${labelTitleArcId}" d="M ${(diskCx - labelTitleArcR).toFixed(2)} ${labelTitleY.toFixed(2)} Q ${diskCx.toFixed(2)} ${labelTitleArcControlY.toFixed(2)} ${(diskCx + labelTitleArcR).toFixed(2)} ${labelTitleY.toFixed(2)}"/>`
+  );
 
   const title = (v.title || '').trim();
   const songTitle = (v.songTitle || '').trim();
   const artist = (v.artist || '').trim();
-  const names = (v.names || '').trim();
-  const dateLine = (v.dateLine || '').trim();
+  const names = v.names || '';
+  const dateLine = v.dateLine || '';
   const showCenterGuides = !!v.showCenterGuides;
 
   const titleFontSize = clamp(v.titleFontSize, 10, 120);
   const namesFontSize = clamp(v.namesFontSize, 10, 120);
-  const metaFontSize = clamp(v.metaFontSize, 8, 80);
+  const dateFontSize = clamp(v.dateFontSize, 8, 80);
+  const centerMetaFontSize = clamp(v.metaFontSize, 8, 80);
+  const namesLetterSpacing = clamp(v.namesLetterSpacing, -1, 20);
+  const namesLineSpacing = clamp(v.namesLineSpacing, 0.8, 3.0);
+  const namesYOffset = clamp(v.namesYOffset, -260, 260);
+  const dateLetterSpacing = clamp(v.dateLetterSpacing, -1, 20);
+  const dateLineSpacing = clamp(v.dateLineSpacing, 0.8, 3.0);
+  const dateYOffset = clamp(v.dateYOffset, -260, 260);
 
   const titleFont = fontFamily(v.titleFont);
   const namesFont = fontFamily(v.namesFont);
-  const metaFont = fontFamily(v.metaFont);
+  const dateFont = fontFamily(v.dateFont);
+  const centerMetaFont = fontFamily(v.metaFont);
+  const centerTitleSize = clamp(titleFontSize, 12, labelR * 0.52);
+  const centerSongSize = clamp(centerMetaFontSize, 10, labelR * 0.28);
+  const centerArtistSize = clamp(centerMetaFontSize * 0.72, 8, labelR * 0.20);
 
   // Text layout below disk
   const belowTop = diskCy + diskR + 40;
   const belowAvailable = H - margin - belowTop;
-  const namesY = belowTop + Math.max(0, belowAvailable * 0.35);
-  const dateY = namesY + metaFontSize * 1.2;
+  const belowAnchorY = belowTop + Math.max(0, belowAvailable * 0.35);
+  const namesY = belowAnchorY + namesYOffset;
+  const dateY = belowAnchorY + dateYOffset;
 
   const centerText: string[] = [];
-  let cy = diskCy - labelR * 0.35;
+  let cy = diskCy + labelR * 0.46;
   if (title) {
     centerText.push(
-      `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${(metaFontSize * 0.95).toFixed(2)}" fill="${diskFill}" text-anchor="middle" font-family="${metaFont}" font-weight="800" letter-spacing="1">${svgEscape(title.toUpperCase())}</text>`
+      `<text fill="rgba(0,0,0,0.88)" font-size="${centerTitleSize.toFixed(2)}" letter-spacing="0.5" font-family="${titleFont}" font-weight="800">` +
+      `<textPath href="#${labelTitleArcId}" startOffset="50%" text-anchor="middle">${svgEscape(title.toUpperCase())}</textPath>` +
+      `</text>`
     );
-    cy += metaFontSize * 1.15;
   }
   if (songTitle) {
     centerText.push(
-      `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${(metaFontSize * 0.78).toFixed(2)}" fill="${diskFill}" text-anchor="middle" font-family="${metaFont}" font-weight="700" opacity="0.9">${svgEscape(songTitle.toUpperCase())}</text>`
+      `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${centerSongSize.toFixed(2)}" fill="rgba(0,0,0,0.86)" text-anchor="middle" font-family="${centerMetaFont}" font-weight="700" letter-spacing="0.6">${svgEscape(songTitle.toUpperCase())}</text>`
     );
-    cy += metaFontSize * 1.05;
+    cy += centerSongSize * 1.18;
   }
   if (artist) {
     centerText.push(
-      `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${(metaFontSize * 0.70).toFixed(2)}" fill="rgba(0,0,0,0.60)" text-anchor="middle" font-family="${metaFont}" font-weight="700">${svgEscape(artist.toUpperCase())}</text>`
+      `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${centerArtistSize.toFixed(2)}" fill="rgba(0,0,0,0.62)" text-anchor="middle" font-family="${centerMetaFont}" font-weight="700" letter-spacing="0.5">${svgEscape(artist.toUpperCase())}</text>`
     );
   }
 
@@ -313,9 +391,6 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   } else if (texture === 'marble') {
     textureOverlays.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="${palette.ink}" opacity="0.07" filter="url(#texMarble)"/>`);
   }
-
-  const diskImage = (v.recordImageDataUrl || '').trim();
-  const labelImage = (v.labelImageDataUrl || '').trim();
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
@@ -357,11 +432,30 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
         0 0 0 0.20 0" />
       <feGaussianBlur stdDeviation="0.35" />
     </filter>
+    <filter id="labelDust" x="-15%" y="-15%" width="130%" height="130%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves="2" seed="17" result="n" />
+      <feColorMatrix in="n" type="matrix" values="
+        0 0 0 0 0.22
+        0 0 0 0 0.14
+        0 0 0 0 0.08
+        0 0 0 0.24 0" result="d" />
+      <feGaussianBlur in="d" stdDeviation="0.25" />
+    </filter>
+    <radialGradient id="labelTint" cx="48%" cy="44%" r="64%">
+      <stop offset="0%" stop-color="#f0e3cf"/>
+      <stop offset="62%" stop-color="#e6d3ba"/>
+      <stop offset="100%" stop-color="#cfb89b"/>
+    </radialGradient>
     <radialGradient id="discGrad" cx="38%" cy="35%" r="70%">
       <stop offset="0%" stop-color="#1a1b1f"/>
       <stop offset="38%" stop-color="#0f1014"/>
       <stop offset="72%" stop-color="#0b0b0d"/>
       <stop offset="100%" stop-color="#050506"/>
+    </radialGradient>
+    <radialGradient id="discVignette" cx="50%" cy="50%" r="50%">
+      <stop offset="58%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="82%" stop-color="#000000" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.56"/>
     </radialGradient>
     <clipPath id="clipDisc">
       <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}"/>
@@ -376,40 +470,68 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     <g clip-path="url(#clipDisc)">
       ${
         diskImage
-          ? `<image href="${svgEscape(diskImage)}" x="${(diskCx - diskR).toFixed(2)}" y="${(diskCy - diskR).toFixed(2)}" width="${(diskR * 2).toFixed(2)}" height="${(diskR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" opacity="1"/>`
+          ? `<image href="${svgEscape(diskImage)}" x="${(diskCx - recordImageR).toFixed(2)}" y="${(diskCy - recordImageR).toFixed(2)}" width="${(recordImageR * 2).toFixed(2)}" height="${(recordImageR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" opacity="1"/>`
           : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="url(#discGrad)" opacity="0.98"/>`
       }
+      ${diskImage ? `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(innerGrooveR * 0.98).toFixed(2)}" fill="rgba(0,0,0,0.20)"/>` : ''}
       ${diskImage ? '' : grooves.join('\n      ')}
-      <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(diskR * 0.92).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="18"/>
+      <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="url(#discVignette)"/>
+      ${ringText.join('\n      ')}
+      ${diskImage ? '' : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(diskR * 0.92).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="18"/>`}
     </g>
 
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="none" stroke="${diskInk}" stroke-width="10" opacity="0.96"/>
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(diskR - 16).toFixed(2)}" fill="none" stroke="${diskInk}" stroke-width="2.5" opacity="0.35"/>
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${innerGrooveR.toFixed(2)}" fill="none" stroke="${diskMutedInk}" stroke-width="1.1" opacity="0.35"/>
-    ${ringText.join('\n    ')}
+    ${
+      diskImage
+        ? ''
+        : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="none" stroke="rgba(6,6,8,0.92)" stroke-width="9"/>`
+    }
+    ${
+      diskImage
+        ? ''
+        : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(diskR - 16).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.11)" stroke-width="2.3"/>`
+    }
+    ${diskImage ? '' : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${innerGrooveR.toFixed(2)}" fill="none" stroke="${diskMutedInk}" stroke-width="1.1" opacity="0.35"/>`}
 
     ${
       labelImage
         ? `<g clip-path="url(#clipLabel)"><image href="${svgEscape(labelImage)}" x="${(diskCx - labelR).toFixed(2)}" y="${(diskCy - labelR).toFixed(2)}" width="${(labelR * 2).toFixed(2)}" height="${(labelR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice"/></g>`
         : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="${labelPaper}" opacity="0.98" filter="url(#labelPaper)"/>`
     }
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="${labelFill}" stroke="rgba(0,0,0,0.45)" stroke-width="2" opacity="0.95"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="url(#labelTint)" opacity="${labelImage ? '0.60' : '0.95'}"/>
+    <g clip-path="url(#clipLabel)">
+      <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="${labelFill}" opacity="${labelImage ? '0.10' : '0.18'}" filter="url(#labelDust)"/>
+    </g>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(labelR - labelEdgeStrokeW * 0.45).toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.82)" stroke-width="${labelEdgeStrokeW.toFixed(2)}"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(labelR * 0.78).toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.40)" stroke-width="${labelInnerStrokeW.toFixed(2)}"/>
+    <line x1="${(diskCx - labelR * 0.94).toFixed(2)}" y1="${labelDividerY.toFixed(2)}" x2="${(diskCx + labelR * 0.94).toFixed(2)}" y2="${labelDividerY.toFixed(2)}" stroke="rgba(0,0,0,0.62)" stroke-width="${Math.max(1.2, labelR * 0.016).toFixed(2)}"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelHubR.toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.58)" stroke-width="${labelHubStrokeW.toFixed(2)}"/>
     ${centerGuides}
     ${centerText.join('\n    ')}
     <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${holeR.toFixed(2)}" fill="${diskFill}" stroke="rgba(0,0,0,0.55)" stroke-width="2"/>
   </g>
 
   <g>
-    ${
-      names
-        ? `<text x="${W / 2}" y="${namesY.toFixed(2)}" font-size="${namesFontSize.toFixed(2)}" fill="${palette.accent}" text-anchor="middle" font-family="${namesFont}">${svgEscape(names)}</text>`
-        : ''
-    }
-    ${
-      dateLine
-        ? `<text x="${W / 2}" y="${dateY.toFixed(2)}" font-size="${metaFontSize.toFixed(2)}" fill="${palette.ink}" text-anchor="middle" font-family="${metaFont}" font-weight="600" letter-spacing="1">${svgEscape(dateLine.toUpperCase())}</text>`
-        : ''
-    }
+    ${centeredMultilineText({
+      text: names,
+      x: W / 2,
+      y: namesY,
+      fontSize: namesFontSize,
+      lineSpacing: namesLineSpacing,
+      fill: palette.accent,
+      fontFamily: namesFont,
+      letterSpacing: namesLetterSpacing
+    })}
+    ${centeredMultilineText({
+      text: dateLine,
+      x: W / 2,
+      y: dateY,
+      fontSize: dateFontSize,
+      lineSpacing: dateLineSpacing,
+      fill: palette.ink,
+      fontFamily: dateFont,
+      letterSpacing: dateLetterSpacing,
+      fontWeight: 600
+    })}
   </g>
 </svg>`;
 }

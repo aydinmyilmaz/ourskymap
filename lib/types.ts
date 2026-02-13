@@ -42,19 +42,25 @@ export type ChartRequest = {
 };
 
 export type PosterParams = {
-  size: 'a4' | 'square' | '16x20' | '20x20';
+  size: 'a4' | 'square' | '16x20' | '20x20' | 'a2' | 'us-letter' | '18x24';
   palette:
     | 'classic-black'
     | 'midnight'
     | 'navy-gold'
     | 'cream-ink'
     | 'night-gold'
+    | 'twilight-blue'
+    | 'storm-gray'
+    | 'mocha'
+    | 'soft-sage'
+    | 'blush-night'
     | 'forest'
     | 'emerald'
     | 'plum'
     | 'burgundy'
     | 'slate'
-    | 'sand';
+    | 'sand'
+    | 'pearl';
   inkColor: string;
   border: boolean;
   borderWidth: number;
@@ -82,6 +88,8 @@ export type PosterParams = {
   metaLetterSpacing: number;
   metaLineSpacing: number;
   metaUppercase: boolean;
+  showMoonPhase?: boolean;
+  moonPhaseImageUrl?: string;
 };
 
 export type PosterRequest = {
@@ -116,8 +124,18 @@ export type VinylParams = {
   showCenterGuides: boolean;
   titleFont: PosterParams['titleFont'];
   titleFontSize: number;
+  titleArcCurvature: number;
+  titleArcWidth: number;
   namesFont: PosterParams['namesFont'];
   namesFontSize: number;
+  namesLetterSpacing: number;
+  namesLineSpacing: number;
+  namesYOffset: number;
+  dateFont: PosterParams['metaFont'];
+  dateFontSize: number;
+  dateLetterSpacing: number;
+  dateLineSpacing: number;
+  dateYOffset: number;
   metaFont: PosterParams['metaFont'];
   metaFontSize: number;
 };

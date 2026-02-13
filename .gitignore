@@ -27,6 +27,7 @@ __pycache__/
 *.pdf
 *.svg
 *.png
+!public/moon.png
 
 # Local caches / downloads
 *.bsp
