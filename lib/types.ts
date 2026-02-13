@@ -100,6 +100,8 @@ export type VinylParams = {
   palette: PosterParams['palette'];
   inkColor: string;
   backgroundTexture: 'solid' | 'paper' | 'marble' | 'noise';
+  recordImageDataUrl?: string;
+  labelImageDataUrl?: string;
   diskDiameter: number;
   ringCountMax: number;
   ringFontSize: number;

@@ -81,6 +81,8 @@ type VinylParams = {
   palette: PosterParams['palette'];
   inkColor: string;
   backgroundTexture: 'solid' | 'paper' | 'marble' | 'noise';
+  recordImageDataUrl?: string;
+  labelImageDataUrl?: string;
   diskDiameter: number;
   ringCountMax: number;
   ringFontSize: number;
@@ -168,6 +170,8 @@ const defaultVinyl: VinylParams = {
   palette: 'sand',
   inkColor: '#1b1b1b',
   backgroundTexture: 'paper',
+  recordImageDataUrl: '',
+  labelImageDataUrl: '',
   diskDiameter: 11.5 * 72,
   ringCountMax: 8,
   ringFontSize: 12,
@@ -298,6 +302,8 @@ type PresetStore = {
 };
 
 const PRESETS_KEY = 'space_map_presets_v1';
+const VINYL_RECORD_IMAGE_KEY = 'space_map_vinyl_record_image_v1';
+const VINYL_LABEL_IMAGE_KEY = 'space_map_vinyl_label_image_v1';
 
 function safeJsonParse<T>(s: string | null): T | null {
   if (!s) return null;
@@ -629,6 +635,33 @@ export default function Page() {
   const [selectedChartPreset, setSelectedChartPreset] = useState('');
   const [selectedPosterPreset, setSelectedPosterPreset] = useState('');
 
+  async function downscaleImageToDataUrl(file: File, maxSize: number, mime: 'image/jpeg' | 'image/webp' = 'image/jpeg', quality = 0.88): Promise<string> {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.decoding = 'async';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Image load failed'));
+        img.src = url;
+      });
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      const scale = Math.min(1, maxSize / Math.max(w, h));
+      const cw = Math.max(1, Math.round(w * scale));
+      const ch = Math.max(1, Math.round(h * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas unavailable');
+      ctx.drawImage(img, 0, 0, cw, ch);
+      return canvas.toDataURL(mime, quality);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
   function formatCoordsLine(latitude: number, longitude: number, precision = 4): string {
     const latStr = `${Math.abs(latitude).toFixed(precision)}°${latitude >= 0 ? 'N' : 'S'}`;
     const lonStr = `${Math.abs(longitude).toFixed(precision)}°${longitude >= 0 ? 'E' : 'W'}`;
@@ -865,6 +898,20 @@ export default function Page() {
     if (decoded.vinyl) setVinyl(decoded.vinyl);
     if (decoded.view) setViewMode(decoded.view);
 
+    try {
+      const rec = window.localStorage.getItem(VINYL_RECORD_IMAGE_KEY) ?? '';
+      const lab = window.localStorage.getItem(VINYL_LABEL_IMAGE_KEY) ?? '';
+      if (rec || lab) {
+        setVinyl((v) => ({
+          ...v,
+          recordImageDataUrl: v.recordImageDataUrl || rec,
+          labelImageDataUrl: v.labelImageDataUrl || lab
+        }));
+      }
+    } catch {
+      // ignore
+    }
+
     const stored = safeJsonParse<PresetStore>(typeof window !== 'undefined' ? window.localStorage.getItem(PRESETS_KEY) : null);
     if (stored && Array.isArray(stored.chart) && Array.isArray(stored.poster)) {
       const activeChart = stored.active?.chart ?? '';
@@ -882,6 +929,24 @@ export default function Page() {
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    try {
+      if (vinyl.recordImageDataUrl) window.localStorage.setItem(VINYL_RECORD_IMAGE_KEY, vinyl.recordImageDataUrl);
+      else window.localStorage.removeItem(VINYL_RECORD_IMAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }, [vinyl.recordImageDataUrl]);
+
+  useEffect(() => {
+    try {
+      if (vinyl.labelImageDataUrl) window.localStorage.setItem(VINYL_LABEL_IMAGE_KEY, vinyl.labelImageDataUrl);
+      else window.localStorage.removeItem(VINYL_LABEL_IMAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }, [vinyl.labelImageDataUrl]);
 
   useEffect(() => {
     try {
@@ -1105,6 +1170,74 @@ export default function Page() {
                   <option value="marble">Marble</option>
                   <option value="noise">Noise</option>
                 </select>
+              </Field>
+
+              <Field label="Plak resmi (opsiyonel, daha gerçekçi)">
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      const dataUrl = await downscaleImageToDataUrl(f, 1200, 'image/jpeg', 0.88);
+                      setVinyl((v) => ({ ...v, recordImageDataUrl: dataUrl }));
+                      e.currentTarget.value = '';
+                    }}
+                  />
+                  {vinyl.recordImageDataUrl ? (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button
+                        onClick={() => setVinyl((v) => ({ ...v, recordImageDataUrl: '' }))}
+                        style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                      >
+                        Kaldır
+                      </button>
+                      <img
+                        src={vinyl.recordImageDataUrl}
+                        alt="Record"
+                        style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#6b7280' }}>Seçildi</span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>SVG içi “foto” görünüm için önerilir. Linke dahil edilmez.</div>
+                  )}
+                </div>
+              </Field>
+
+              <Field label="Label resmi (opsiyonel)">
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      const dataUrl = await downscaleImageToDataUrl(f, 700, 'image/jpeg', 0.88);
+                      setVinyl((v) => ({ ...v, labelImageDataUrl: dataUrl }));
+                      e.currentTarget.value = '';
+                    }}
+                  />
+                  {vinyl.labelImageDataUrl ? (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button
+                        onClick={() => setVinyl((v) => ({ ...v, labelImageDataUrl: '' }))}
+                        style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                      >
+                        Kaldır
+                      </button>
+                      <img
+                        src={vinyl.labelImageDataUrl}
+                        alt="Label"
+                        style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 999, border: '1px solid #e5e7eb' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#6b7280' }}>Seçildi</span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>İstersen gerçek label görseli ekleyebilirsin.</div>
+                  )}
+                </div>
               </Field>
 
               <Field label={`Plak çapı: ${(vinyl.diskDiameter / 72).toFixed(1)} in`}>
