@@ -12,6 +12,7 @@ export type AgeMosaicParams = {
   tileBleed: number; // image oversize factor (0..0.5)
   imageFit: 'cover' | 'contain'; // cover=crop (slice), contain=fit (meet)
   imageJitter: number; // 0..1 (only for cover)
+  containFill: 'solid' | 'blur'; // when imageFit=contain, fill bars
   tileLayout: 'grid' | 'stagger'; // stagger offsets every other row
   tilePositionJitter: number; // px (random tile position offset)
   bgColor: string;
@@ -221,6 +222,7 @@ export function renderAgeMosaicSvg(input: { params: AgeMosaicParams; images: str
   const tileBleed = clamp(p.tileBleed, 0, 0.6);
   const imageFit: 'cover' | 'contain' = p.imageFit === 'contain' ? 'contain' : 'cover';
   const imageJitter = clamp(typeof p.imageJitter === 'number' ? p.imageJitter : 1, 0, 1);
+  const containFill: 'solid' | 'blur' = p.containFill === 'solid' ? 'solid' : 'blur';
   const tileLayout: 'grid' | 'stagger' = p.tileLayout === 'stagger' ? 'stagger' : 'grid';
   const tilePositionJitter = clamp(typeof p.tilePositionJitter === 'number' ? p.tilePositionJitter : 0, 0, tileSize * 0.35);
 
@@ -284,7 +286,16 @@ export function renderAgeMosaicSvg(input: { params: AgeMosaicParams; images: str
         const preserve = imageFit === 'contain' ? 'xMidYMid meet' : 'xMidYMid slice';
         tiles.push(
           `<g clip-path="url(#${id})">` +
-            `${imageFit === 'contain' ? `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${tileSize.toFixed(2)}" height="${tileSize.toFixed(2)}" fill="${bgColor}" />` : ''}` +
+            `${
+              imageFit === 'contain'
+                ? `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${tileSize.toFixed(2)}" height="${tileSize.toFixed(2)}" fill="${bgColor}" />` +
+                  (containFill === 'blur'
+                    ? `<image href="${svgEscape(href)}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${tileSize.toFixed(2)}" height="${tileSize.toFixed(
+                        2
+                      )}" preserveAspectRatio="xMidYMid slice" filter="url(#tileBlur)" opacity="0.85" />`
+                    : '')
+                : ''
+            }` +
             `<image href="${svgEscape(href)}" x="${ix.toFixed(2)}" y="${iy.toFixed(2)}" width="${iw.toFixed(2)}" height="${ih.toFixed(2)}" preserveAspectRatio="${preserve}" />` +
             `</g>`
         );
@@ -357,6 +368,9 @@ export function renderAgeMosaicSvg(input: { params: AgeMosaicParams; images: str
         0 1 0 0 0
         0 0 1 0 0
         0 0 0 0.12 0" />
+    </filter>
+    <filter id="tileBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="${Math.max(2, Math.min(16, tileSize * 0.10)).toFixed(2)}" />
     </filter>
     ${tileClips.join('\n    ')}
     <clipPath id="ageClip" clipPathUnits="userSpaceOnUse">

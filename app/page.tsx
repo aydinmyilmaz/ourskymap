@@ -124,6 +124,7 @@ type AgeParams = {
   tileBleed: number;
   imageFit: 'cover' | 'contain';
   imageJitter: number;
+  containFill: 'solid' | 'blur';
   tileLayout: 'grid' | 'stagger';
   tilePositionJitter: number;
   caption: string;
@@ -260,6 +261,7 @@ const defaultAge: AgeParams = {
   tileBleed: 0.22,
   imageFit: 'cover',
   imageJitter: 0.75,
+  containFill: 'blur',
   tileLayout: 'stagger',
   tilePositionJitter: 6,
   caption: 'Happy Birthday!',
@@ -610,6 +612,7 @@ function encodeStateToQuery(input: {
   sp.set('atb', String(a.tileBleed));
   sp.set('aif', a.imageFit);
   sp.set('aij', String(a.imageJitter));
+  sp.set('acfi', a.containFill);
   sp.set('atl', a.tileLayout);
   sp.set('atj', String(a.tilePositionJitter));
   if ((a.caption || '').length <= 200) sp.set('ac', a.caption);
@@ -803,6 +806,7 @@ function decodeStateFromQuery(): Partial<{
     tileBleed: parseNum(sp.get('atb'), defaultAge.tileBleed),
     imageFit: sp.get('aif') === 'contain' ? 'contain' : 'cover',
     imageJitter: parseNum(sp.get('aij'), defaultAge.imageJitter),
+    containFill: sp.get('acfi') === 'solid' ? 'solid' : 'blur',
     tileLayout: sp.get('atl') === 'grid' ? 'grid' : 'stagger',
     tilePositionJitter: parseNum(sp.get('atj'), defaultAge.tilePositionJitter),
     caption: sp.get('ac') ?? defaultAge.caption,
@@ -1903,6 +1907,18 @@ export default function Page() {
                     <option value="contain">Contain (kırpma yok)</option>
                   </select>
                 </Field>
+                {age.imageFit === 'contain' ? (
+                  <Field label="Contain fill">
+                    <select
+                      value={age.containFill}
+                      onChange={(e) => setAge((a) => ({ ...a, containFill: e.target.value === 'solid' ? 'solid' : 'blur' }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="blur">Blur fill (boşlukları doldurur)</option>
+                      <option value="solid">Solid bg (boşluklar görünür)</option>
+                    </select>
+                  </Field>
+                ) : null}
                 {age.imageFit === 'cover' ? (
                   <Field label={`Crop randomness: ${(age.imageJitter * 100).toFixed(0)}%`}>
                     <input type="range" min={0} max={1} step={0.05} value={age.imageJitter} onChange={(e) => setAge((a) => ({ ...a, imageJitter: Number(e.target.value) }))} />
