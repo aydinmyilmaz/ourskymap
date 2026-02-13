@@ -76,6 +76,31 @@ type PosterParams = {
   metaUppercase: boolean;
 };
 
+type VinylParams = {
+  size: PosterParams['size'];
+  palette: PosterParams['palette'];
+  inkColor: string;
+  backgroundTexture: 'solid' | 'paper' | 'marble' | 'noise';
+  diskDiameter: number;
+  ringCountMax: number;
+  ringFontSize: number;
+  ringLetterSpacing: number;
+  ringLineGap: number;
+  title: string;
+  songTitle: string;
+  artist: string;
+  outerText: string;
+  names: string;
+  dateLine: string;
+  showCenterGuides: boolean;
+  titleFont: PosterParams['titleFont'];
+  titleFontSize: number;
+  namesFont: PosterParams['namesFont'];
+  namesFontSize: number;
+  metaFont: PosterParams['metaFont'];
+  metaFontSize: number;
+};
+
 const defaultParams: RenderParams = {
   theme: 'light',
   showAzimuthScale: true,
@@ -136,6 +161,32 @@ const defaultPoster: PosterParams = {
   metaLetterSpacing: 5.8,
   metaLineSpacing: 1.5,
   metaUppercase: true
+};
+
+const defaultVinyl: VinylParams = {
+  size: '16x20',
+  palette: 'sand',
+  inkColor: '#1b1b1b',
+  backgroundTexture: 'paper',
+  diskDiameter: 11.5 * 72,
+  ringCountMax: 8,
+  ringFontSize: 12,
+  ringLetterSpacing: 2.0,
+  ringLineGap: 2,
+  title: 'YOUR TITLE HERE',
+  songTitle: 'SONG TITLE',
+  artist: 'ARTIST',
+  outerText:
+    'Put your lyrics here. The text will wrap into multiple rings around the record. You can paste multiple lines and we will distribute them from outside to inside.',
+  names: 'Sara & Nick',
+  dateLine: '11.03.2011',
+  showCenterGuides: true,
+  titleFont: 'prata',
+  titleFontSize: 40,
+  namesFont: 'jimmy-script',
+  namesFontSize: 64,
+  metaFont: 'signika',
+  metaFontSize: 18
 };
 
 const posterSizePresets: Record<PosterParams['size'], Partial<PosterParams>> = {
@@ -287,7 +338,8 @@ function encodeStateToQuery(input: {
   params: RenderParams;
   poster: PosterParams;
   metaAuto: boolean;
-  view: 'poster' | 'chart';
+  view: 'poster' | 'chart' | 'vinyl';
+  vinyl: VinylParams;
 }) {
   const sp = new URLSearchParams();
   sp.set('mode', input.locationMode);
@@ -358,6 +410,32 @@ function encodeStateToQuery(input: {
   sp.set('pmlh', String(po.metaLineSpacing));
   sp.set('pmu', po.metaUppercase ? '1' : '0');
   sp.set('pma', input.metaAuto ? '1' : '0');
+
+  const v = input.vinyl;
+  sp.set('vs', v.size);
+  sp.set('vp', v.palette);
+  sp.set('vic', v.inkColor);
+  sp.set('vtx', v.backgroundTexture);
+  sp.set('vdd', String(v.diskDiameter));
+  sp.set('vrc', String(v.ringCountMax));
+  sp.set('vrfs', String(v.ringFontSize));
+  sp.set('vrls', String(v.ringLetterSpacing));
+  sp.set('vrlg', String(v.ringLineGap));
+  sp.set('vt', v.title);
+  sp.set('vst', v.songTitle);
+  sp.set('var', v.artist);
+  // Avoid huge URLs: include lyrics only if reasonably short.
+  if ((v.outerText || '').length <= 600) sp.set('vot', v.outerText);
+  sp.set('vn', v.names);
+  sp.set('vdl', v.dateLine);
+  sp.set('vcg', v.showCenterGuides ? '1' : '0');
+  sp.set('vtf', v.titleFont);
+  sp.set('vtfs', String(v.titleFontSize));
+  sp.set('vnf', v.namesFont);
+  sp.set('vnfs', String(v.namesFontSize));
+  sp.set('vmf', v.metaFont);
+  sp.set('vmfs', String(v.metaFontSize));
+
   return sp.toString();
 }
 
@@ -370,8 +448,9 @@ function decodeStateFromQuery(): Partial<{
   locationLabelOverride: string;
   params: RenderParams;
   poster: PosterParams;
+  vinyl: VinylParams;
   metaAuto: boolean;
-  view: 'poster' | 'chart';
+  view: 'poster' | 'chart' | 'vinyl';
 }> {
   const sp = new URLSearchParams(window.location.search);
   const mode = sp.get('mode');
@@ -462,6 +541,48 @@ function decodeStateFromQuery(): Partial<{
 	    metaUppercase: parseBool(sp.get('pmu'), defaultPoster.metaUppercase)
 	  };
 
+  const vs = sp.get('vs');
+  const vp = sp.get('vp');
+  const vtx = sp.get('vtx');
+  const vinyl: VinylParams = {
+    ...defaultVinyl,
+    size: vs === '20x20' ? '20x20' : vs === '16x20' ? '16x20' : vs === 'square' ? 'square' : 'a4',
+    palette:
+      vp === 'classic-black' ||
+      vp === 'midnight' ||
+      vp === 'navy-gold' ||
+      vp === 'night-gold' ||
+      vp === 'cream-ink' ||
+      vp === 'slate' ||
+      vp === 'forest' ||
+      vp === 'emerald' ||
+      vp === 'plum' ||
+      vp === 'burgundy' ||
+      vp === 'sand'
+        ? vp
+        : defaultVinyl.palette,
+    inkColor: sp.get('vic') ?? defaultVinyl.inkColor,
+    backgroundTexture: (vtx === 'solid' || vtx === 'paper' || vtx === 'marble' || vtx === 'noise') ? vtx : defaultVinyl.backgroundTexture,
+    diskDiameter: parseNum(sp.get('vdd'), defaultVinyl.diskDiameter),
+    ringCountMax: parseNum(sp.get('vrc'), defaultVinyl.ringCountMax),
+    ringFontSize: parseNum(sp.get('vrfs'), defaultVinyl.ringFontSize),
+    ringLetterSpacing: parseNum(sp.get('vrls'), defaultVinyl.ringLetterSpacing),
+    ringLineGap: parseNum(sp.get('vrlg'), defaultVinyl.ringLineGap),
+    title: sp.get('vt') ?? defaultVinyl.title,
+    songTitle: sp.get('vst') ?? defaultVinyl.songTitle,
+    artist: sp.get('var') ?? defaultVinyl.artist,
+    outerText: sp.get('vot') ?? defaultVinyl.outerText,
+    names: sp.get('vn') ?? defaultVinyl.names,
+    dateLine: sp.get('vdl') ?? defaultVinyl.dateLine,
+    showCenterGuides: parseBool(sp.get('vcg'), defaultVinyl.showCenterGuides),
+    titleFont: parseEnum(sp.get('vtf'), ['serif', 'sans', 'mono', 'prata'] as const, defaultVinyl.titleFont),
+    titleFontSize: parseNum(sp.get('vtfs'), defaultVinyl.titleFontSize),
+    namesFont: parseEnum(sp.get('vnf'), ['serif', 'sans', 'cursive', 'jimmy-script'] as const, defaultVinyl.namesFont),
+    namesFontSize: parseNum(sp.get('vnfs'), defaultVinyl.namesFontSize),
+    metaFont: parseEnum(sp.get('vmf'), ['sans', 'serif', 'mono', 'signika'] as const, defaultVinyl.metaFont),
+    metaFontSize: parseNum(sp.get('vmfs'), defaultVinyl.metaFontSize)
+  };
+
   return {
     locationMode: mode === 'latlon' ? 'latlon' : mode === 'city' ? 'city' : undefined,
     cityQuery: sp.get('q') ?? undefined,
@@ -471,8 +592,9 @@ function decodeStateFromQuery(): Partial<{
     locationLabelOverride: sp.get('label') ?? undefined,
     params,
     poster,
+    vinyl,
     metaAuto: sp.get('pma') === null ? undefined : parseBool(sp.get('pma'), true),
-    view: view === 'chart' ? 'chart' : view === 'poster' ? 'poster' : undefined
+    view: view === 'chart' ? 'chart' : view === 'vinyl' ? 'vinyl' : view === 'poster' ? 'poster' : undefined
   };
 }
 
@@ -491,9 +613,11 @@ export default function Page() {
   const [locationLabelOverride, setLocationLabelOverride] = useState('');
   const [params, setParams] = useState<RenderParams>(defaultParams);
   const [poster, setPoster] = useState<PosterParams>(defaultPoster);
+  const [vinyl, setVinyl] = useState<VinylParams>(defaultVinyl);
   const [chartSvg, setChartSvg] = useState<string>('');
   const [posterSvg, setPosterSvg] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'poster' | 'chart'>('poster');
+  const [vinylSvg, setVinylSvg] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'poster' | 'chart' | 'vinyl'>('poster');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>('');
   const [shareLink, setShareLink] = useState<string>('');
@@ -602,6 +726,42 @@ export default function Page() {
     return data;
   }
 
+  async function generateVinyl() {
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/vinyl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vinyl })
+      });
+      if (!res.ok) throw new Error((await res.text()) || 'Vinyl generation failed');
+      const svg = await res.text();
+      setVinylSvg(svg);
+
+      const qs = encodeStateToQuery({
+        locationMode,
+        cityQuery,
+        lat,
+        lon,
+        dateTime,
+        locationLabelOverride,
+        params,
+        poster,
+        vinyl,
+        metaAuto,
+        view: 'vinyl'
+      });
+      const url = `${window.location.origin}${window.location.pathname}?${qs}`;
+      window.history.replaceState(null, '', url);
+      setShareLink(url);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function generate() {
     setBusy(true);
     setError('');
@@ -673,6 +833,7 @@ export default function Page() {
         locationLabelOverride,
         params,
         poster: posterForReq,
+        vinyl,
         metaAuto,
         view: viewMode
       });
@@ -701,6 +862,7 @@ export default function Page() {
       setPoster(decoded.poster);
       setLastAutoMetaText(initialMetaAuto ? decoded.poster.metaText ?? '' : '');
     }
+    if (decoded.vinyl) setVinyl(decoded.vinyl);
     if (decoded.view) setViewMode(decoded.view);
 
     const stored = safeJsonParse<PresetStore>(typeof window !== 'undefined' ? window.localStorage.getItem(PRESETS_KEY) : null);
@@ -713,7 +875,11 @@ export default function Page() {
     }
 
     // generate after state is applied
-    setTimeout(() => generate(), 0);
+    const initialView = decoded.view ?? 'poster';
+    setTimeout(() => {
+      if (initialView === 'vinyl') generateVinyl();
+      else generate();
+    }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -808,7 +974,7 @@ export default function Page() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: leftOpen ? 'space-between' : 'center', gap: 10, marginBottom: leftOpen ? 12 : 6 }}>
-          {leftOpen ? <div style={{ fontSize: 18, fontWeight: 700 }}>Sky Chart</div> : null}
+          {leftOpen ? <div style={{ fontSize: 18, fontWeight: 700 }}>{viewMode === 'vinyl' ? 'Vinyl Poster' : 'Sky Chart'}</div> : null}
           <button
             onClick={() => setLeftOpen((v) => !v)}
             title={leftOpen ? 'Kontrolleri gizle' : 'Kontrolleri göster'}
@@ -836,6 +1002,209 @@ export default function Page() {
 
         {!leftOpen ? null : (
           <>
+          {viewMode === 'vinyl' ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Vinyl Poster</div>
+
+              <Field label="Poster boyutu">
+                <select
+                  value={vinyl.size}
+                  onChange={(e) => setVinyl((v) => ({ ...v, size: e.target.value as VinylParams['size'] }))}
+                  style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                >
+                  <option value="a4">A4 (595x842)</option>
+                  <option value="square">Square (1024x1024)</option>
+                  <option value="16x20">16x20 in (1152x1440)</option>
+                  <option value="20x20">20x20 in (1440x1440)</option>
+                </select>
+              </Field>
+
+              <Field label="Renk paleti">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+                  {posterPalettes.map((p) => {
+                    const active = vinyl.palette === p.key;
+                    return (
+                      <button
+                        key={p.key}
+                        onClick={() =>
+                          setVinyl((s) => ({
+                            ...s,
+                            palette: p.key,
+                            inkColor: s.inkColor === defaultVinyl.inkColor ? p.ink : s.inkColor
+                          }))
+                        }
+                        title={p.label}
+                        style={{
+                          height: 44,
+                          border: active ? '2px solid #111' : '1px solid #cbd5e1',
+                          background: `linear-gradient(135deg, ${p.bg} 0%, ${p.bg} 72%, ${p.ink} 72%, ${p.ink} 100%)`,
+                          cursor: 'pointer',
+                          position: 'relative'
+                        }}
+                      >
+                        <span
+                          style={{
+                            position: 'absolute',
+                            inset: 6,
+                            border: `2px solid ${p.ink}`,
+                            opacity: 0.75,
+                            boxShadow: active ? '0 0 0 3px rgba(17,24,39,0.12)' : undefined
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+
+              <Field label="Yazi / cizgi rengi (hex)">
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <input
+                    value={vinyl.inkColor}
+                    onChange={(e) => setVinyl((v) => ({ ...v, inkColor: e.target.value }))}
+                    placeholder="#1b1b1b"
+                    style={{ padding: 10, border: '1px solid #ddd' }}
+                  />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                    {[
+                      { label: '#1b1b1b', v: '#1b1b1b' },
+                      { label: '#d9d9d9', v: '#d9d9d9' },
+                      { label: '#ffffff', v: '#ffffff' },
+                      { label: '#fbab29', v: '#fbab29' }
+                    ].map((c) => {
+                      const active = vinyl.inkColor.trim().toLowerCase() === c.v;
+                      return (
+                        <button
+                          key={c.v}
+                          onClick={() => setVinyl((v) => ({ ...v, inkColor: c.v }))}
+                          title={c.label}
+                          style={{
+                            width: 34,
+                            height: 28,
+                            borderRadius: 8,
+                            border: active ? '2px solid #111' : '1px solid #cbd5e1',
+                            background: c.v,
+                            cursor: 'pointer'
+                          }}
+                        />
+                      );
+                    })}
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>Hızlı seçim</span>
+                  </div>
+                </div>
+              </Field>
+
+              <Field label="Arka plan deseni">
+                <select
+                  value={vinyl.backgroundTexture}
+                  onChange={(e) => setVinyl((v) => ({ ...v, backgroundTexture: e.target.value as VinylParams['backgroundTexture'] }))}
+                  style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                >
+                  <option value="solid">Solid</option>
+                  <option value="paper">Paper</option>
+                  <option value="marble">Marble</option>
+                  <option value="noise">Noise</option>
+                </select>
+              </Field>
+
+              <Field label={`Plak çapı: ${(vinyl.diskDiameter / 72).toFixed(1)} in`}>
+                <input
+                  type="range"
+                  min={8 * 72}
+                  max={15.5 * 72}
+                  step={1}
+                  value={vinyl.diskDiameter}
+                  onChange={(e) => setVinyl((v) => ({ ...v, diskDiameter: Number(e.target.value) }))}
+                />
+              </Field>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <Field label={`Ring sayısı: ${vinyl.ringCountMax}`}>
+                  <input
+                    type="range"
+                    min={1}
+                    max={16}
+                    step={1}
+                    value={vinyl.ringCountMax}
+                    onChange={(e) => setVinyl((v) => ({ ...v, ringCountMax: Number(e.target.value) }))}
+                  />
+                </Field>
+                <Field label={`Ring font: ${vinyl.ringFontSize.toFixed(0)}`}>
+                  <input
+                    type="range"
+                    min={8}
+                    max={24}
+                    step={1}
+                    value={vinyl.ringFontSize}
+                    onChange={(e) => setVinyl((v) => ({ ...v, ringFontSize: Number(e.target.value) }))}
+                  />
+                </Field>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <Field label={`Letter spacing: ${vinyl.ringLetterSpacing.toFixed(1)}`}>
+                  <input
+                    type="range"
+                    min={-2}
+                    max={12}
+                    step={0.1}
+                    value={vinyl.ringLetterSpacing}
+                    onChange={(e) => setVinyl((v) => ({ ...v, ringLetterSpacing: Number(e.target.value) }))}
+                  />
+                </Field>
+                <Field label={`Satır aralığı: ${vinyl.ringLineGap.toFixed(0)}`}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={12}
+                    step={1}
+                    value={vinyl.ringLineGap}
+                    onChange={(e) => setVinyl((v) => ({ ...v, ringLineGap: Number(e.target.value) }))}
+                  />
+                </Field>
+              </div>
+
+              <Field label="Center Title">
+                <input value={vinyl.title} onChange={(e) => setVinyl((v) => ({ ...v, title: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+              <Field label="Song Title">
+                <input value={vinyl.songTitle} onChange={(e) => setVinyl((v) => ({ ...v, songTitle: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+              <Field label="Artist">
+                <input value={vinyl.artist} onChange={(e) => setVinyl((v) => ({ ...v, artist: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+
+              <Field label="Şarkı sözleri (outer rings)">
+                <textarea
+                  value={vinyl.outerText}
+                  onChange={(e) => setVinyl((v) => ({ ...v, outerText: e.target.value }))}
+                  rows={6}
+                  style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+                />
+              </Field>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>
+                Not: Çok uzun sözler linke sığmayabilir; bu yüzden paylaşım linkinde en fazla ~600 karakter saklıyoruz.
+              </div>
+
+              <Field label="İsimler (altta)">
+                <input value={vinyl.names} onChange={(e) => setVinyl((v) => ({ ...v, names: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+              <Field label="Tarih (altta)">
+                <input value={vinyl.dateLine} onChange={(e) => setVinyl((v) => ({ ...v, dateLine: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+              </Field>
+
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={vinyl.showCenterGuides}
+                  onChange={(e) => setVinyl((v) => ({ ...v, showCenterGuides: e.target.checked }))}
+                />
+                Merkez çizgileri
+              </label>
+            </div>
+          ) : null}
+
+          {viewMode !== 'vinyl' ? (
+            <>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button
             onClick={() => setLocationMode('city')}
@@ -1270,26 +1639,39 @@ export default function Page() {
             </div>
           ) : null}
         </div>
+        </>
+          ) : null}
 
         <div style={{ height: 14 }} />
         <div style={{ display: 'flex', gap: 10 }}>
           <button
-            onClick={generate}
+            onClick={viewMode === 'vinyl' ? generateVinyl : generate}
             disabled={busy}
             style={{ padding: '10px 12px', border: '1px solid #111', background: '#111', color: '#fff', cursor: 'pointer' }}
           >
             {busy ? 'Üretiliyor…' : 'Generate'}
           </button>
           <button
-            onClick={() => downloadSvg(viewMode === 'poster' ? posterSvg : chartSvg, viewMode === 'poster' ? 'star-poster.svg' : 'sky-chart.svg')}
-            disabled={viewMode === 'poster' ? !posterSvg : !chartSvg}
+            onClick={() =>
+              downloadSvg(
+                viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg,
+                viewMode === 'vinyl' ? 'vinyl-poster.svg' : viewMode === 'poster' ? 'star-poster.svg' : 'sky-chart.svg'
+              )
+            }
+            disabled={viewMode === 'vinyl' ? !vinylSvg : viewMode === 'poster' ? !posterSvg : !chartSvg}
             style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
           >
             Download SVG
           </button>
           <button
-            onClick={() => downloadPng(viewMode === 'poster' ? posterSvg : chartSvg, viewMode === 'poster' ? 'star-poster.png' : 'sky-chart.png', 3)}
-            disabled={viewMode === 'poster' ? !posterSvg : !chartSvg}
+            onClick={() =>
+              downloadPng(
+                viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg,
+                viewMode === 'vinyl' ? 'vinyl-poster.png' : viewMode === 'poster' ? 'star-poster.png' : 'sky-chart.png',
+                3
+              )
+            }
+            disabled={viewMode === 'vinyl' ? !vinylSvg : viewMode === 'poster' ? !posterSvg : !chartSvg}
             style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
           >
             Download PNG
@@ -1332,16 +1714,29 @@ export default function Page() {
             >
               Chart
             </button>
+            <button
+              onClick={() => setViewMode('vinyl')}
+              style={{
+                padding: '8px 10px',
+                border: '1px solid #ddd',
+                background: viewMode === 'vinyl' ? '#111' : '#fff',
+                color: viewMode === 'vinyl' ? '#fff' : '#111'
+              }}
+            >
+              Vinyl
+            </button>
             <div style={{ fontSize: 12, color: '#6b7280' }}>Preview</div>
           </div>
 
           <div
             style={{ border: '1px solid #e5e7eb', background: '#fff' }}
-            dangerouslySetInnerHTML={{ __html: viewMode === 'poster' ? posterSvg : chartSvg }}
+            dangerouslySetInnerHTML={{ __html: viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg }}
           />
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
-            Not: Zaman girdisi seçilen konumun lokal saatine göre yorumlanır. PDF için tarayıcıdan yazdır (Print) kullanabilirsin.
-          </div>
+          {viewMode !== 'vinyl' ? (
+            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
+              Not: Zaman girdisi seçilen konumun lokal saatine göre yorumlanır. PDF için tarayıcıdan yazdır (Print) kullanabilirsin.
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1382,7 +1777,14 @@ export default function Page() {
           </div>
         ) : null}
 
-        {!rightOpen ? null : <div style={{ display: 'grid', gap: 10 }}>
+        {!rightOpen ? null : viewMode === 'vinyl' ? (
+          <div style={{ display: 'grid', gap: 10, fontSize: 13, color: '#374151' }}>
+            <div style={{ padding: 12, background: '#fff', border: '1px solid #eee' }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Vinyl modu</div>
+              <div>Vinyl poster ayarları soldaki menüde. Buradaki “Poster Tasarımı” ayarları Sky Poster için geçerli.</div>
+            </div>
+          </div>
+        ) : <div style={{ display: 'grid', gap: 10 }}>
           <Field label="Poster boyutu">
             <select
               value={poster.size}

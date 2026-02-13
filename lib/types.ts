@@ -94,3 +94,32 @@ export type PosterRequest = {
   params: RenderParams;
   poster: PosterParams;
 };
+
+export type VinylParams = {
+  size: 'a4' | 'square' | '16x20' | '20x20';
+  palette: PosterParams['palette'];
+  inkColor: string;
+  backgroundTexture: 'solid' | 'paper' | 'marble' | 'noise';
+  diskDiameter: number;
+  ringCountMax: number;
+  ringFontSize: number;
+  ringLetterSpacing: number;
+  ringLineGap: number;
+  title: string;
+  songTitle: string;
+  artist: string;
+  outerText: string;
+  names: string;
+  dateLine: string;
+  showCenterGuides: boolean;
+  titleFont: PosterParams['titleFont'];
+  titleFontSize: number;
+  namesFont: PosterParams['namesFont'];
+  namesFontSize: number;
+  metaFont: PosterParams['metaFont'];
+  metaFontSize: number;
+};
+
+export type VinylRequest = {
+  vinyl: VinylParams;
+};
