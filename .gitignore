@@ -33,6 +33,7 @@ __pycache__/
 *.bsp
 *.dat
 index.json
+cache/
 
 # Local test assets
 age_test_images/
