@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { renderAgeMosaicSvg } from '../lib/age';
 
 type RenderParams = {
   theme: 'light' | 'dark';
@@ -76,6 +77,92 @@ type PosterParams = {
   metaUppercase: boolean;
 };
 
+type VinylParams = {
+  size: PosterParams['size'];
+  palette: PosterParams['palette'];
+  inkColor: string;
+  backgroundTexture: 'solid' | 'paper' | 'marble' | 'noise';
+  recordImageDataUrl?: string;
+  labelImageDataUrl?: string;
+  diskDiameter: number;
+  ringCountMax: number;
+  ringFontSize: number;
+  ringLetterSpacing: number;
+  ringLineGap: number;
+  title: string;
+  songTitle: string;
+  artist: string;
+  outerText: string;
+  names: string;
+  dateLine: string;
+  showCenterGuides: boolean;
+  titleFont: PosterParams['titleFont'];
+  titleFontSize: number;
+  titleArcCurvature: number;
+  titleArcWidth: number;
+  namesFont: PosterParams['namesFont'];
+  namesFontSize: number;
+  namesLetterSpacing: number;
+  namesLineSpacing: number;
+  namesYOffset: number;
+  dateFont: PosterParams['metaFont'];
+  dateFontSize: number;
+  dateLetterSpacing: number;
+  dateLineSpacing: number;
+  dateYOffset: number;
+  metaFont: PosterParams['metaFont'];
+  metaFontSize: number;
+};
+
+type AgePosterSize = 'a4' | 'square' | '16x20' | '20x20' | '20x16';
+
+type AgeParams = {
+  size: AgePosterSize;
+  ageText: string;
+  bgColor: string;
+  inkColor: string;
+  frame: boolean;
+  frameInset: number;
+  frameWidth: number;
+  frameColor: string;
+  ageFontFamily: string;
+  ageFontWeight: number;
+  ageFontSize: number;
+  ageY: number;
+  tileSize: number;
+  tileGap: number;
+  tileBleed: number;
+  imageFit: 'cover' | 'contain';
+  imageJitter: number;
+  containFill: 'solid' | 'blur';
+  tileLayout: 'grid' | 'stagger';
+  tilePositionJitter: number;
+  caption: string;
+  captionFontFamily: string;
+  captionFontWeight: number;
+  captionFontSize: number;
+  captionLetterSpacing: number;
+  captionLineSpacing: number;
+  captionUppercase: boolean;
+  captionBoxWidthPct: number;
+  captionBoxHeightLines: number;
+  captionMaxLines: number;
+  captionAutoWrap: boolean;
+  captionY: number;
+  subCaption: string;
+  subCaptionFontFamily: string;
+  subCaptionFontWeight: number;
+  subCaptionFontSize: number;
+  subCaptionLetterSpacing: number;
+  subCaptionLineSpacing: number;
+  subCaptionUppercase: boolean;
+  subCaptionBoxWidthPct: number;
+  subCaptionBoxHeightLines: number;
+  subCaptionMaxLines: number;
+  subCaptionAutoWrap: boolean;
+  subCaptionY: number;
+};
+
 const defaultParams: RenderParams = {
   theme: 'light',
   showAzimuthScale: true,
@@ -136,6 +223,91 @@ const defaultPoster: PosterParams = {
   metaLetterSpacing: 5.8,
   metaLineSpacing: 1.5,
   metaUppercase: true
+};
+
+const defaultVinyl: VinylParams = {
+  size: '16x20',
+  palette: 'classic-black',
+  inkColor: '#e6e6ea',
+  backgroundTexture: 'solid',
+  recordImageDataUrl: '',
+  labelImageDataUrl: '',
+  diskDiameter: 13.7 * 72,
+  ringCountMax: 6,
+  ringFontSize: 11,
+  ringLetterSpacing: 1.2,
+  ringLineGap: 3,
+  title: 'YOUR TITLE HERE',
+  songTitle: 'SONG TITLE',
+  artist: 'ARTIST',
+  outerText:
+    'Put your lyrics here. The text will wrap into multiple rings around the record. You can paste multiple lines and we will distribute them from outside to inside.',
+  names: '',
+  dateLine: '',
+  showCenterGuides: false,
+  titleFont: 'prata',
+  titleFontSize: 40,
+  titleArcCurvature: 0.8,
+  titleArcWidth: 0.73,
+  namesFont: 'jimmy-script',
+  namesFontSize: 64,
+  namesLetterSpacing: 0,
+  namesLineSpacing: 1.2,
+  namesYOffset: 0,
+  dateFont: 'signika',
+  dateFontSize: 18,
+  dateLetterSpacing: 0,
+  dateLineSpacing: 1.2,
+  dateYOffset: 74,
+  metaFont: 'signika',
+  metaFontSize: 18
+};
+
+const defaultAge: AgeParams = {
+  size: '16x20',
+  ageText: '70',
+  bgColor: '#ffffff',
+  inkColor: '#111111',
+  frame: true,
+  frameInset: 18,
+  frameWidth: 6,
+  frameColor: '#111111',
+  ageFontFamily: 'Signika, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
+  ageFontWeight: 700,
+  ageFontSize: 820,
+  ageY: 520,
+  tileSize: 64,
+  tileGap: 2,
+  tileBleed: 0.22,
+  imageFit: 'cover',
+  imageJitter: 0.75,
+  containFill: 'blur',
+  tileLayout: 'stagger',
+  tilePositionJitter: 6,
+  caption: 'Happy Birthday!',
+  captionFontFamily: 'Prata, ui-serif, Georgia, Times New Roman, serif',
+  captionFontWeight: 400,
+  captionFontSize: 40,
+  captionLetterSpacing: 0,
+  captionLineSpacing: 1.2,
+  captionUppercase: false,
+  captionBoxWidthPct: 0.86,
+  captionBoxHeightLines: 3.2,
+  captionMaxLines: 2,
+  captionAutoWrap: true,
+  captionY: 1200,
+  subCaption: 'You are truly cherished.',
+  subCaptionFontFamily: 'Signika, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
+  subCaptionFontWeight: 500,
+  subCaptionFontSize: 18,
+  subCaptionLetterSpacing: 0,
+  subCaptionLineSpacing: 1.35,
+  subCaptionUppercase: false,
+  subCaptionBoxWidthPct: 0.78,
+  subCaptionBoxHeightLines: 4.0,
+  subCaptionMaxLines: 3,
+  subCaptionAutoWrap: true,
+  subCaptionY: 1245
 };
 
 const posterSizePresets: Record<PosterParams['size'], Partial<PosterParams>> = {
@@ -211,12 +383,59 @@ const posterPalettes: { key: PosterParams['palette']; label: string; bg: string;
   { key: 'sand', label: 'Sand', bg: '#f7f3e8', ink: '#1b1b1b' }
 ];
 
+const AGE_FONT_PRESETS: { key: string; label: string; family: string }[] = [
+  { key: 'prata', label: 'Prata', family: 'Prata, ui-serif, Georgia, Times New Roman, serif' },
+  { key: 'signika', label: 'Signika', family: 'Signika, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial' },
+  { key: 'jimmy', label: 'Jimmy Script', family: '"Jimmy Script", "Comic Sans MS", cursive' },
+  { key: 'sans', label: 'System Sans', family: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial' },
+  { key: 'serif', label: 'System Serif', family: 'ui-serif, Georgia, Times New Roman, serif' }
+];
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ display: 'grid', gap: 6, fontSize: 13 }}>
       <div style={{ color: '#333' }}>{label}</div>
       {children}
     </label>
+  );
+}
+
+function Section({
+  title,
+  children,
+  description,
+  tone = 0
+}: {
+  title: string;
+  description?: string;
+  tone?: 0 | 1 | 2 | 3;
+  children: React.ReactNode;
+}) {
+  const tones: { bg: string; border: string }[] = [
+    { bg: '#ffffff', border: '#dbe1ea' }, // base white
+    { bg: '#f8fafc', border: '#d7dee9' }, // subtle slate
+    { bg: '#f5f3ff', border: '#dbd5ff' }, // subtle indigo
+    { bg: '#f0fdf4', border: '#c9f0d6' } // subtle green
+  ];
+  const t = tones[Math.max(0, Math.min(tones.length - 1, tone))];
+  return (
+    <div
+      style={{
+        padding: 12,
+        background: t.bg,
+        border: `1px solid ${t.border}`,
+        borderRadius: 12,
+        display: 'grid',
+        gap: 10,
+        boxShadow: '0 1px 0 rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.04)'
+      }}
+    >
+      <div style={{ display: 'grid', gap: 4 }}>
+        <div style={{ fontWeight: 800, fontSize: 13 }}>{title}</div>
+        {description ? <div style={{ fontSize: 12, color: '#6b7280' }}>{description}</div> : null}
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -240,6 +459,111 @@ function parseEnum<T extends string>(v: string | null, allowed: readonly T[], fa
   return (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
 }
 
+function shuffledCopy<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+const GOOGLE_FONTS_CSS_URL =
+  'https://fonts.googleapis.com/css2?family=Jimmy+Script&family=Prata&family=Signika:wght@400;500;700&display=swap';
+
+let embeddedFontsCssCache: string | null = null;
+let embeddedFontsCssPromise: Promise<string> | null = null;
+
+function cleanCssUrl(raw: string): string {
+  return raw.trim().replace(/^['"]/, '').replace(/['"]$/, '');
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 8192;
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    chunks.push(String.fromCharCode(...bytes.subarray(i, i + chunkSize)));
+  }
+  return btoa(chunks.join(''));
+}
+
+async function getEmbeddedFontsCss(): Promise<string> {
+  if (embeddedFontsCssCache) return embeddedFontsCssCache;
+  if (!embeddedFontsCssPromise) {
+    embeddedFontsCssPromise = (async () => {
+      try {
+        const res = await fetch(GOOGLE_FONTS_CSS_URL, { cache: 'force-cache' });
+        if (!res.ok) return '';
+        const css = await res.text();
+        const urls = Array.from(new Set(Array.from(css.matchAll(/url\(([^)]+)\)/g)).map((m) => cleanCssUrl(m[1])))).filter((u) =>
+          u.endsWith('.woff2')
+        );
+
+        const urlToData = new Map<string, string>();
+        await Promise.all(
+          urls.map(async (u) => {
+            try {
+              const r = await fetch(u, { cache: 'force-cache' });
+              if (!r.ok) return;
+              const b64 = arrayBufferToBase64(await r.arrayBuffer());
+              urlToData.set(u, `data:font/woff2;base64,${b64}`);
+            } catch {
+              // ignore per-font failure
+            }
+          })
+        );
+
+        const embeddedCss = css.replace(/url\(([^)]+)\)/g, (full, raw) => {
+          const u = cleanCssUrl(String(raw));
+          const data = urlToData.get(u);
+          return data ? `url(${data})` : full;
+        });
+
+        embeddedFontsCssCache = embeddedCss;
+        return embeddedCss;
+      } catch {
+        return '';
+      } finally {
+        embeddedFontsCssPromise = null;
+      }
+    })();
+  }
+  return embeddedFontsCssPromise;
+}
+
+function svgNeedsEmbeddedFonts(svgText: string): boolean {
+  const s = svgText || '';
+  if (s.includes('data:font/woff2;base64,')) return false;
+  if (s.includes('@font-face')) return false;
+  // Our app uses these Google Fonts in the UI.
+  return s.includes('Prata') || s.includes('Signika') || s.includes('Jimmy Script');
+}
+
+function injectCssIntoSvg(svgText: string, cssText: string): string {
+  const css = (cssText || '').trim();
+  if (!css) return svgText;
+  const svgStart = svgText.indexOf('<svg');
+  if (svgStart === -1) return svgText;
+  const startTagEnd = svgText.indexOf('>', svgStart);
+  if (startTagEnd === -1) return svgText;
+  const styleTag = `<style type="text/css"><![CDATA[\n${css}\n]]></style>`;
+  return `${svgText.slice(0, startTagEnd + 1)}\n${styleTag}\n${svgText.slice(startTagEnd + 1)}`;
+}
+
+async function prepareSvgForDownload(svgText: string): Promise<string> {
+  if (!svgNeedsEmbeddedFonts(svgText)) return svgText;
+  const css = await getEmbeddedFontsCss();
+  return css ? injectCssIntoSvg(svgText, css) : svgText;
+}
+
+function ageCanvasDims(size: AgePosterSize): { W: number; H: number; margin: number } {
+  const W = size === '16x20' ? 16 * 72 : size === '20x20' || size === '20x16' ? 20 * 72 : size === 'square' ? 1024 : 595;
+  const H = size === '16x20' ? 20 * 72 : size === '20x20' ? 20 * 72 : size === '20x16' ? 16 * 72 : size === 'square' ? 1024 : 842;
+  const margin = size === '16x20' || size === '20x20' || size === '20x16' ? 72 : size === 'square' ? 70 : 48;
+  return { W, H, margin };
+}
+
 type PresetStore = {
   chart: { name: string; params: RenderParams }[];
   poster: { name: string; poster: PosterParams }[];
@@ -247,6 +571,10 @@ type PresetStore = {
 };
 
 const PRESETS_KEY = 'space_map_presets_v1';
+const VINYL_RECORD_IMAGE_KEY = 'space_map_vinyl_record_image_v1';
+const VINYL_LABEL_IMAGE_KEY = 'space_map_vinyl_label_image_v1';
+const AGE_IMAGES_KEY = 'space_map_age_images_v1';
+const AGE_CROP_SQUARE_KEY = 'space_map_age_crop_square_v1';
 
 function safeJsonParse<T>(s: string | null): T | null {
   if (!s) return null;
@@ -287,7 +615,9 @@ function encodeStateToQuery(input: {
   params: RenderParams;
   poster: PosterParams;
   metaAuto: boolean;
-  view: 'poster' | 'chart';
+  view: 'poster' | 'chart' | 'vinyl' | 'age';
+  vinyl: VinylParams;
+  age: AgeParams;
 }) {
   const sp = new URLSearchParams();
   sp.set('mode', input.locationMode);
@@ -358,6 +688,86 @@ function encodeStateToQuery(input: {
   sp.set('pmlh', String(po.metaLineSpacing));
   sp.set('pmu', po.metaUppercase ? '1' : '0');
   sp.set('pma', input.metaAuto ? '1' : '0');
+
+  const v = input.vinyl;
+  sp.set('vs', v.size);
+  sp.set('vp', v.palette);
+  sp.set('vic', v.inkColor);
+  sp.set('vtx', v.backgroundTexture);
+  sp.set('vdd', String(v.diskDiameter));
+  sp.set('vrc', String(v.ringCountMax));
+  sp.set('vrfs', String(v.ringFontSize));
+  sp.set('vrls', String(v.ringLetterSpacing));
+  sp.set('vrlg', String(v.ringLineGap));
+  sp.set('vt', v.title);
+  sp.set('vst', v.songTitle);
+  sp.set('var', v.artist);
+  // Avoid huge URLs: include lyrics only if reasonably short.
+  if ((v.outerText || '').length <= 600) sp.set('vot', v.outerText);
+  sp.set('vn', v.names);
+  sp.set('vdl', v.dateLine);
+  sp.set('vcg', v.showCenterGuides ? '1' : '0');
+  sp.set('vtf', v.titleFont);
+  sp.set('vtfs', String(v.titleFontSize));
+  sp.set('vtac', String(v.titleArcCurvature));
+  sp.set('vtaw', String(v.titleArcWidth));
+  sp.set('vnf', v.namesFont);
+  sp.set('vnfs', String(v.namesFontSize));
+  sp.set('vnsls', String(v.namesLetterSpacing));
+  sp.set('vnslh', String(v.namesLineSpacing));
+  sp.set('vnsy', String(v.namesYOffset));
+  sp.set('vdf', v.dateFont);
+  sp.set('vdfs', String(v.dateFontSize));
+  sp.set('vdls', String(v.dateLetterSpacing));
+  sp.set('vdlh', String(v.dateLineSpacing));
+  sp.set('vdy', String(v.dateYOffset));
+  sp.set('vmf', v.metaFont);
+  sp.set('vmfs', String(v.metaFontSize));
+
+  const a = input.age;
+  sp.set('as', a.size);
+  sp.set('at', a.ageText);
+  sp.set('abg', a.bgColor);
+  sp.set('aic', a.inkColor);
+  sp.set('af', a.frame ? '1' : '0');
+  sp.set('afi', String(a.frameInset));
+  sp.set('afw', String(a.frameWidth));
+  sp.set('afc', a.frameColor);
+  sp.set('afs', String(a.ageFontSize));
+  sp.set('afy', String(a.ageY));
+  sp.set('ats', String(a.tileSize));
+  sp.set('atg', String(a.tileGap));
+  sp.set('atb', String(a.tileBleed));
+  sp.set('aif', a.imageFit);
+  sp.set('aij', String(a.imageJitter));
+  sp.set('acfi', a.containFill);
+  sp.set('atl', a.tileLayout);
+  sp.set('atj', String(a.tilePositionJitter));
+  if ((a.caption || '').length <= 200) sp.set('ac', a.caption);
+  if ((a.captionFontFamily || '').length <= 160) sp.set('acff', a.captionFontFamily);
+  sp.set('acfw', String(a.captionFontWeight));
+  sp.set('acs', String(a.captionFontSize));
+  sp.set('acls', String(a.captionLetterSpacing));
+  sp.set('aclh', String(a.captionLineSpacing));
+  sp.set('acu', a.captionUppercase ? '1' : '0');
+  sp.set('acbw', String(a.captionBoxWidthPct));
+  sp.set('acbh', String(a.captionBoxHeightLines));
+  sp.set('acml', String(a.captionMaxLines));
+  sp.set('acaw', a.captionAutoWrap ? '1' : '0');
+  sp.set('acy', String(a.captionY));
+  if ((a.subCaption || '').length <= 200) sp.set('asc', a.subCaption);
+  if ((a.subCaptionFontFamily || '').length <= 160) sp.set('asff', a.subCaptionFontFamily);
+  sp.set('asfw', String(a.subCaptionFontWeight));
+  sp.set('ascs', String(a.subCaptionFontSize));
+  sp.set('asls', String(a.subCaptionLetterSpacing));
+  sp.set('aslh', String(a.subCaptionLineSpacing));
+  sp.set('asu', a.subCaptionUppercase ? '1' : '0');
+  sp.set('asbw', String(a.subCaptionBoxWidthPct));
+  sp.set('asbh', String(a.subCaptionBoxHeightLines));
+  sp.set('asml', String(a.subCaptionMaxLines));
+  sp.set('asaw', a.subCaptionAutoWrap ? '1' : '0');
+  sp.set('ascy', String(a.subCaptionY));
+
   return sp.toString();
 }
 
@@ -370,8 +780,10 @@ function decodeStateFromQuery(): Partial<{
   locationLabelOverride: string;
   params: RenderParams;
   poster: PosterParams;
+  vinyl: VinylParams;
+  age: AgeParams;
   metaAuto: boolean;
-  view: 'poster' | 'chart';
+  view: 'poster' | 'chart' | 'vinyl' | 'age';
 }> {
   const sp = new URLSearchParams(window.location.search);
   const mode = sp.get('mode');
@@ -462,6 +874,108 @@ function decodeStateFromQuery(): Partial<{
 	    metaUppercase: parseBool(sp.get('pmu'), defaultPoster.metaUppercase)
 	  };
 
+  const vs = sp.get('vs');
+  const vp = sp.get('vp');
+  const vtx = sp.get('vtx');
+  const oldVinylLetterSpacing = parseNum(sp.get('vmls'), defaultVinyl.dateLetterSpacing);
+  const oldVinylLineSpacing = parseNum(sp.get('vmlh'), defaultVinyl.dateLineSpacing);
+  const oldVinylYOffset = parseNum(sp.get('vmy'), defaultVinyl.dateYOffset);
+  const vinyl: VinylParams = {
+    ...defaultVinyl,
+    size: vs === '20x20' ? '20x20' : vs === '16x20' ? '16x20' : vs === 'square' ? 'square' : 'a4',
+    palette:
+      vp === 'classic-black' ||
+      vp === 'midnight' ||
+      vp === 'navy-gold' ||
+      vp === 'night-gold' ||
+      vp === 'cream-ink' ||
+      vp === 'slate' ||
+      vp === 'forest' ||
+      vp === 'emerald' ||
+      vp === 'plum' ||
+      vp === 'burgundy' ||
+      vp === 'sand'
+        ? vp
+        : defaultVinyl.palette,
+    inkColor: sp.get('vic') ?? defaultVinyl.inkColor,
+    backgroundTexture: (vtx === 'solid' || vtx === 'paper' || vtx === 'marble' || vtx === 'noise') ? vtx : defaultVinyl.backgroundTexture,
+    diskDiameter: parseNum(sp.get('vdd'), defaultVinyl.diskDiameter),
+    ringCountMax: parseNum(sp.get('vrc'), defaultVinyl.ringCountMax),
+    ringFontSize: parseNum(sp.get('vrfs'), defaultVinyl.ringFontSize),
+    ringLetterSpacing: parseNum(sp.get('vrls'), defaultVinyl.ringLetterSpacing),
+    ringLineGap: parseNum(sp.get('vrlg'), defaultVinyl.ringLineGap),
+    title: sp.get('vt') ?? defaultVinyl.title,
+    songTitle: sp.get('vst') ?? defaultVinyl.songTitle,
+    artist: sp.get('var') ?? defaultVinyl.artist,
+    outerText: sp.get('vot') ?? defaultVinyl.outerText,
+    names: sp.get('vn') ?? defaultVinyl.names,
+    dateLine: sp.get('vdl') ?? defaultVinyl.dateLine,
+    showCenterGuides: parseBool(sp.get('vcg'), defaultVinyl.showCenterGuides),
+    titleFont: parseEnum(sp.get('vtf'), ['serif', 'sans', 'mono', 'prata'] as const, defaultVinyl.titleFont),
+    titleFontSize: parseNum(sp.get('vtfs'), defaultVinyl.titleFontSize),
+    titleArcCurvature: parseNum(sp.get('vtac'), defaultVinyl.titleArcCurvature),
+    titleArcWidth: parseNum(sp.get('vtaw'), defaultVinyl.titleArcWidth),
+    namesFont: parseEnum(sp.get('vnf'), ['serif', 'sans', 'cursive', 'jimmy-script'] as const, defaultVinyl.namesFont),
+    namesFontSize: parseNum(sp.get('vnfs'), defaultVinyl.namesFontSize),
+    namesLetterSpacing: parseNum(sp.get('vnsls'), defaultVinyl.namesLetterSpacing),
+    namesLineSpacing: parseNum(sp.get('vnslh'), defaultVinyl.namesLineSpacing),
+    namesYOffset: parseNum(sp.get('vnsy'), defaultVinyl.namesYOffset),
+    dateFont: parseEnum(sp.get('vdf'), ['sans', 'serif', 'mono', 'signika'] as const, defaultVinyl.dateFont),
+    dateFontSize: parseNum(sp.get('vdfs'), defaultVinyl.dateFontSize),
+    dateLetterSpacing: parseNum(sp.get('vdls'), oldVinylLetterSpacing),
+    dateLineSpacing: parseNum(sp.get('vdlh'), oldVinylLineSpacing),
+    dateYOffset: parseNum(sp.get('vdy'), oldVinylYOffset),
+    metaFont: parseEnum(sp.get('vmf'), ['sans', 'serif', 'mono', 'signika'] as const, defaultVinyl.metaFont),
+    metaFontSize: parseNum(sp.get('vmfs'), defaultVinyl.metaFontSize)
+  };
+
+  const as = sp.get('as');
+  const age: AgeParams = {
+    ...defaultAge,
+    size: as === '20x16' ? '20x16' : as === '20x20' ? '20x20' : as === '16x20' ? '16x20' : as === 'square' ? 'square' : 'a4',
+    ageText: sp.get('at') ?? defaultAge.ageText,
+    bgColor: sp.get('abg') ?? defaultAge.bgColor,
+    inkColor: sp.get('aic') ?? defaultAge.inkColor,
+    frame: parseBool(sp.get('af'), defaultAge.frame),
+    frameInset: parseNum(sp.get('afi'), defaultAge.frameInset),
+    frameWidth: parseNum(sp.get('afw'), defaultAge.frameWidth),
+    frameColor: sp.get('afc') ?? defaultAge.frameColor,
+    ageFontSize: parseNum(sp.get('afs'), defaultAge.ageFontSize),
+    ageY: parseNum(sp.get('afy'), defaultAge.ageY),
+    tileSize: parseNum(sp.get('ats'), defaultAge.tileSize),
+    tileGap: parseNum(sp.get('atg'), defaultAge.tileGap),
+    tileBleed: parseNum(sp.get('atb'), defaultAge.tileBleed),
+    imageFit: sp.get('aif') === 'contain' ? 'contain' : 'cover',
+    imageJitter: parseNum(sp.get('aij'), defaultAge.imageJitter),
+    containFill: sp.get('acfi') === 'solid' ? 'solid' : 'blur',
+    tileLayout: sp.get('atl') === 'grid' ? 'grid' : 'stagger',
+    tilePositionJitter: parseNum(sp.get('atj'), defaultAge.tilePositionJitter),
+    caption: sp.get('ac') ?? defaultAge.caption,
+    captionFontFamily: sp.get('acff') ?? defaultAge.captionFontFamily,
+    captionFontWeight: parseNum(sp.get('acfw'), defaultAge.captionFontWeight),
+    captionFontSize: parseNum(sp.get('acs'), defaultAge.captionFontSize),
+    captionLetterSpacing: parseNum(sp.get('acls'), defaultAge.captionLetterSpacing),
+    captionLineSpacing: parseNum(sp.get('aclh'), defaultAge.captionLineSpacing),
+    captionUppercase: parseBool(sp.get('acu'), defaultAge.captionUppercase),
+    captionBoxWidthPct: parseNum(sp.get('acbw'), defaultAge.captionBoxWidthPct),
+    captionBoxHeightLines: parseNum(sp.get('acbh'), defaultAge.captionBoxHeightLines),
+    captionMaxLines: parseNum(sp.get('acml'), defaultAge.captionMaxLines),
+    captionAutoWrap: parseBool(sp.get('acaw'), defaultAge.captionAutoWrap),
+    captionY: parseNum(sp.get('acy'), defaultAge.captionY),
+    subCaption: sp.get('asc') ?? defaultAge.subCaption,
+    subCaptionFontFamily: sp.get('asff') ?? defaultAge.subCaptionFontFamily,
+    subCaptionFontWeight: parseNum(sp.get('asfw'), defaultAge.subCaptionFontWeight),
+    subCaptionFontSize: parseNum(sp.get('ascs'), defaultAge.subCaptionFontSize),
+    subCaptionLetterSpacing: parseNum(sp.get('asls'), defaultAge.subCaptionLetterSpacing),
+    subCaptionLineSpacing: parseNum(sp.get('aslh'), defaultAge.subCaptionLineSpacing),
+    subCaptionUppercase: parseBool(sp.get('asu'), defaultAge.subCaptionUppercase),
+    subCaptionBoxWidthPct: parseNum(sp.get('asbw'), defaultAge.subCaptionBoxWidthPct),
+    subCaptionBoxHeightLines: parseNum(sp.get('asbh'), defaultAge.subCaptionBoxHeightLines),
+    subCaptionMaxLines: parseNum(sp.get('asml'), defaultAge.subCaptionMaxLines),
+    subCaptionAutoWrap: parseBool(sp.get('asaw'), defaultAge.subCaptionAutoWrap),
+    subCaptionY: parseNum(sp.get('ascy'), defaultAge.subCaptionY)
+  };
+
   return {
     locationMode: mode === 'latlon' ? 'latlon' : mode === 'city' ? 'city' : undefined,
     cityQuery: sp.get('q') ?? undefined,
@@ -471,8 +985,10 @@ function decodeStateFromQuery(): Partial<{
     locationLabelOverride: sp.get('label') ?? undefined,
     params,
     poster,
+    vinyl,
+    age,
     metaAuto: sp.get('pma') === null ? undefined : parseBool(sp.get('pma'), true),
-    view: view === 'chart' ? 'chart' : view === 'poster' ? 'poster' : undefined
+    view: view === 'chart' ? 'chart' : view === 'vinyl' ? 'vinyl' : view === 'age' ? 'age' : view === 'poster' ? 'poster' : undefined
   };
 }
 
@@ -491,10 +1007,20 @@ export default function Page() {
   const [locationLabelOverride, setLocationLabelOverride] = useState('');
   const [params, setParams] = useState<RenderParams>(defaultParams);
   const [poster, setPoster] = useState<PosterParams>(defaultPoster);
+  const [vinyl, setVinyl] = useState<VinylParams>(defaultVinyl);
+  const [age, setAge] = useState<AgeParams>(defaultAge);
+  const [ageImages, setAgeImages] = useState<string[]>([]);
+  const [ageFolderImages, setAgeFolderImages] = useState<string[]>([]);
+  const [ageUseFolder, setAgeUseFolder] = useState(false);
+  const [ageFolderUseCount, setAgeFolderUseCount] = useState(40);
+  const [ageCropSquare, setAgeCropSquare] = useState(true);
   const [chartSvg, setChartSvg] = useState<string>('');
   const [posterSvg, setPosterSvg] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'poster' | 'chart'>('poster');
+  const [vinylSvg, setVinylSvg] = useState<string>('');
+  const [ageSvg, setAgeSvg] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'poster' | 'chart' | 'vinyl' | 'age'>('poster');
   const [busy, setBusy] = useState(false);
+  const [downloadBusy, setDownloadBusy] = useState(false);
   const [error, setError] = useState<string>('');
   const [shareLink, setShareLink] = useState<string>('');
   const [metaAuto, setMetaAuto] = useState(true);
@@ -504,6 +1030,51 @@ export default function Page() {
   const [posterPresetName, setPosterPresetName] = useState('');
   const [selectedChartPreset, setSelectedChartPreset] = useState('');
   const [selectedPosterPreset, setSelectedPosterPreset] = useState('');
+
+  async function downscaleImageToDataUrl(
+    file: File,
+    maxSize: number,
+    mime: 'image/jpeg' | 'image/webp' = 'image/jpeg',
+    quality = 0.88,
+    cropSquare = false
+  ): Promise<string> {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.decoding = 'async';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Image load failed'));
+        img.src = url;
+      });
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      const srcSize = cropSquare ? Math.min(w, h) : Math.max(w, h);
+      const scale = Math.min(1, maxSize / srcSize);
+      const cw = Math.max(1, Math.round((cropSquare ? Math.min(w, h) : w) * scale));
+      const ch = Math.max(1, Math.round((cropSquare ? Math.min(w, h) : h) * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas unavailable');
+      if (mime === 'image/jpeg') {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, cw, ch);
+      }
+      if (cropSquare) {
+        const s = Math.min(w, h);
+        const sx = Math.max(0, (w - s) / 2);
+        const sy = Math.max(0, (h - s) / 2);
+        ctx.drawImage(img, sx, sy, s, s, 0, 0, cw, ch);
+      } else {
+        ctx.drawImage(img, 0, 0, cw, ch);
+      }
+      return canvas.toDataURL(mime, quality);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
 
   function formatCoordsLine(latitude: number, longitude: number, precision = 4): string {
     const latStr = `${Math.abs(latitude).toFixed(precision)}°${latitude >= 0 ? 'N' : 'S'}`;
@@ -602,6 +1173,78 @@ export default function Page() {
     return data;
   }
 
+  async function generateVinyl() {
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/vinyl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vinyl })
+      });
+      if (!res.ok) throw new Error((await res.text()) || 'Vinyl generation failed');
+      const svg = await res.text();
+      setVinylSvg(svg);
+
+      const qs = encodeStateToQuery({
+        locationMode,
+        cityQuery,
+        lat,
+        lon,
+        dateTime,
+        locationLabelOverride,
+        params,
+        poster,
+        vinyl,
+        age,
+        metaAuto,
+        view: 'vinyl'
+      });
+      const url = `${window.location.origin}${window.location.pathname}?${qs}`;
+      window.history.replaceState(null, '', url);
+      setShareLink(url);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function generateAge() {
+    setBusy(true);
+    setError('');
+    try {
+      const effectiveImages = ageUseFolder ? ageFolderImages.slice(0, Math.max(1, Math.min(ageFolderUseCount, ageFolderImages.length))) : ageImages;
+      const svg = renderAgeMosaicSvg({
+        params: age,
+        images: effectiveImages
+      });
+      setAgeSvg(svg);
+
+      const qs = encodeStateToQuery({
+        locationMode,
+        cityQuery,
+        lat,
+        lon,
+        dateTime,
+        locationLabelOverride,
+        params,
+        poster,
+        vinyl,
+        age,
+        metaAuto,
+        view: 'age'
+      });
+      const url = `${window.location.origin}${window.location.pathname}?${qs}`;
+      window.history.replaceState(null, '', url);
+      setShareLink(url);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function generate() {
     setBusy(true);
     setError('');
@@ -673,6 +1316,8 @@ export default function Page() {
         locationLabelOverride,
         params,
         poster: posterForReq,
+        vinyl,
+        age,
         metaAuto,
         view: viewMode
       });
@@ -701,7 +1346,27 @@ export default function Page() {
       setPoster(decoded.poster);
       setLastAutoMetaText(initialMetaAuto ? decoded.poster.metaText ?? '' : '');
     }
+    if (decoded.vinyl) setVinyl({ ...defaultVinyl, ...decoded.vinyl });
+    if (decoded.age) setAge(decoded.age);
     if (decoded.view) setViewMode(decoded.view);
+
+    try {
+      const rec = window.localStorage.getItem(VINYL_RECORD_IMAGE_KEY) ?? '';
+      const lab = window.localStorage.getItem(VINYL_LABEL_IMAGE_KEY) ?? '';
+      const ageImgs = safeJsonParse<string[]>(window.localStorage.getItem(AGE_IMAGES_KEY));
+      const crop = window.localStorage.getItem(AGE_CROP_SQUARE_KEY);
+      if (rec || lab) {
+        setVinyl((v) => ({
+          ...v,
+          recordImageDataUrl: v.recordImageDataUrl || rec,
+          labelImageDataUrl: v.labelImageDataUrl || lab
+        }));
+      }
+      if (Array.isArray(ageImgs) && ageImgs.length) setAgeImages(ageImgs.filter((s) => typeof s === 'string').slice(0, 12));
+      if (crop === '0' || crop === '1') setAgeCropSquare(crop === '1');
+    } catch {
+      // ignore
+    }
 
     const stored = safeJsonParse<PresetStore>(typeof window !== 'undefined' ? window.localStorage.getItem(PRESETS_KEY) : null);
     if (stored && Array.isArray(stored.chart) && Array.isArray(stored.poster)) {
@@ -713,9 +1378,48 @@ export default function Page() {
     }
 
     // generate after state is applied
-    setTimeout(() => generate(), 0);
+    const initialView = decoded.view ?? 'poster';
+    setTimeout(() => {
+      if (initialView === 'vinyl') generateVinyl();
+      else if (initialView === 'age') generateAge();
+      else generate();
+    }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    try {
+      if (vinyl.recordImageDataUrl) window.localStorage.setItem(VINYL_RECORD_IMAGE_KEY, vinyl.recordImageDataUrl);
+      else window.localStorage.removeItem(VINYL_RECORD_IMAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }, [vinyl.recordImageDataUrl]);
+
+  useEffect(() => {
+    try {
+      if (vinyl.labelImageDataUrl) window.localStorage.setItem(VINYL_LABEL_IMAGE_KEY, vinyl.labelImageDataUrl);
+      else window.localStorage.removeItem(VINYL_LABEL_IMAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }, [vinyl.labelImageDataUrl]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(AGE_IMAGES_KEY, JSON.stringify(ageImages.slice(0, 12)));
+    } catch {
+      // ignore
+    }
+  }, [ageImages]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(AGE_CROP_SQUARE_KEY, ageCropSquare ? '1' : '0');
+    } catch {
+      // ignore
+    }
+  }, [ageCropSquare]);
 
   useEffect(() => {
     try {
@@ -741,6 +1445,7 @@ export default function Page() {
     const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
     const svgUrl = URL.createObjectURL(svgBlob);
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.decoding = 'async';
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
@@ -795,6 +1500,20 @@ export default function Page() {
     setSelectedPosterPreset(p.name);
   }
 
+  const ageCanvas = ageCanvasDims(age.size);
+  const vinylNamesLetterSpacing = Number.isFinite(vinyl.namesLetterSpacing) ? vinyl.namesLetterSpacing : defaultVinyl.namesLetterSpacing;
+  const vinylNamesLineSpacing = Number.isFinite(vinyl.namesLineSpacing) ? vinyl.namesLineSpacing : defaultVinyl.namesLineSpacing;
+  const vinylNamesYOffset = Number.isFinite(vinyl.namesYOffset) ? vinyl.namesYOffset : defaultVinyl.namesYOffset;
+  const vinylDateLetterSpacing = Number.isFinite(vinyl.dateLetterSpacing) ? vinyl.dateLetterSpacing : defaultVinyl.dateLetterSpacing;
+  const vinylDateLineSpacing = Number.isFinite(vinyl.dateLineSpacing) ? vinyl.dateLineSpacing : defaultVinyl.dateLineSpacing;
+  const vinylDateYOffset = Number.isFinite(vinyl.dateYOffset) ? vinyl.dateYOffset : defaultVinyl.dateYOffset;
+  const vinylTitleArcCurvature = Number.isFinite(vinyl.titleArcCurvature) ? vinyl.titleArcCurvature : defaultVinyl.titleArcCurvature;
+  const vinylTitleArcWidth = Number.isFinite(vinyl.titleArcWidth) ? vinyl.titleArcWidth : defaultVinyl.titleArcWidth;
+  const activeSvg = viewMode === 'age' ? ageSvg : viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg;
+  const activeSvgName = viewMode === 'age' ? 'age-mosaic' : viewMode === 'vinyl' ? 'vinyl-poster' : viewMode === 'poster' ? 'star-poster' : 'sky-chart';
+  const canDownload = Boolean(activeSvg && activeSvg.length > 0);
+  const generateFn = viewMode === 'vinyl' ? generateVinyl : viewMode === 'age' ? generateAge : generate;
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `${leftOpen ? 420 : 64}px 1fr ${rightOpen ? 380 : 64}px`, minHeight: '100vh' }}>
       <div
@@ -803,12 +1522,17 @@ export default function Page() {
           borderRight: '1px solid #e5e7eb',
           background: '#fafafa',
           overflow: 'hidden',
+          height: '100vh',
           display: 'flex',
           flexDirection: 'column'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: leftOpen ? 'space-between' : 'center', gap: 10, marginBottom: leftOpen ? 12 : 6 }}>
-          {leftOpen ? <div style={{ fontSize: 18, fontWeight: 700 }}>Sky Chart</div> : null}
+          {leftOpen ? (
+            <div style={{ fontSize: 18, fontWeight: 700 }}>
+              {viewMode === 'vinyl' ? 'Vinyl Poster' : viewMode === 'age' ? 'Age Mosaic' : 'Sky Chart'}
+            </div>
+          ) : null}
           <button
             onClick={() => setLeftOpen((v) => !v)}
             title={leftOpen ? 'Kontrolleri gizle' : 'Kontrolleri göster'}
@@ -836,6 +1560,1149 @@ export default function Page() {
 
         {!leftOpen ? null : (
           <>
+            <div
+              style={{
+                padding: 12,
+                border: '1px solid #e5e7eb',
+                borderRadius: 12,
+                background: '#fff',
+                display: 'grid',
+                gap: 10,
+                marginBottom: 12
+              }}
+            >
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  onClick={generateFn}
+                  disabled={busy}
+                  style={{ padding: '10px 12px', border: '1px solid #111', background: '#111', color: '#fff', cursor: 'pointer', flex: '1 1 auto' }}
+                >
+                  {busy ? 'Üretiliyor…' : 'Generate'}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!activeSvg) return;
+                    setDownloadBusy(true);
+                    setError('');
+                    try {
+                      const svg = await prepareSvgForDownload(activeSvg);
+                      downloadSvg(svg, `${activeSvgName}.svg`);
+                    } catch (e: any) {
+                      setError(e?.message ?? String(e));
+                    } finally {
+                      setDownloadBusy(false);
+                    }
+                  }}
+                  disabled={!canDownload || downloadBusy}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #ddd',
+                    background: '#fff',
+                    cursor: canDownload && !downloadBusy ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  SVG
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!activeSvg) return;
+                    setDownloadBusy(true);
+                    setError('');
+                    try {
+                      const svg = await prepareSvgForDownload(activeSvg);
+                      await downloadPng(svg, `${activeSvgName}.png`, 3);
+                    } catch (e: any) {
+                      setError(e?.message ?? String(e));
+                    } finally {
+                      setDownloadBusy(false);
+                    }
+                  }}
+                  disabled={!canDownload || downloadBusy}
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid #ddd',
+                    background: '#fff',
+                    cursor: canDownload && !downloadBusy ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  PNG
+                </button>
+                <button onClick={copyLink} style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>
+                  Link
+                </button>
+              </div>
+              {error ? <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div> : null}
+              {downloadBusy ? <div style={{ fontSize: 12, color: '#6b7280' }}>Dosya hazırlanıyor (fontlar gömülüyor)…</div> : null}
+              <div style={{ fontSize: 12, color: '#6b7280' }}>
+                İpucu: Ayarları değiştirdikten sonra buradan tekrar Generate diyebilirsin (scroll gerekmez).
+              </div>
+            </div>
+
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', paddingRight: 4, paddingBottom: 10 }}>
+          {viewMode === 'vinyl' ? (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 800 }}>Vinyl Poster</div>
+
+              <Section title="Boyut & Renk" tone={1}>
+                <Field label="Poster boyutu">
+                  <select
+                    value={vinyl.size}
+                    onChange={(e) => setVinyl((v) => ({ ...v, size: e.target.value as VinylParams['size'] }))}
+                    style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                  >
+                    <option value="a4">A4 (595x842)</option>
+                    <option value="square">Square (1024x1024)</option>
+                    <option value="16x20">16x20 in (1152x1440)</option>
+                    <option value="20x20">20x20 in (1440x1440)</option>
+                  </select>
+                </Field>
+
+                <Field label={`Plak çapı: ${(vinyl.diskDiameter / 72).toFixed(1)} in`}>
+                  <input
+                    type="range"
+                    min={8 * 72}
+                    max={15.5 * 72}
+                    step={1}
+                    value={vinyl.diskDiameter}
+                    onChange={(e) => setVinyl((v) => ({ ...v, diskDiameter: Number(e.target.value) }))}
+                  />
+                </Field>
+
+                <Field label="Renk paleti">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+                    {posterPalettes.map((p) => {
+                      const active = vinyl.palette === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          onClick={() =>
+                            setVinyl((s) => ({
+                              ...s,
+                              palette: p.key,
+                              inkColor: s.inkColor === defaultVinyl.inkColor ? p.ink : s.inkColor
+                            }))
+                          }
+                          title={p.label}
+                          style={{
+                            height: 44,
+                            border: active ? '2px solid #111' : '1px solid #cbd5e1',
+                            background: `linear-gradient(135deg, ${p.bg} 0%, ${p.bg} 72%, ${p.ink} 72%, ${p.ink} 100%)`,
+                            cursor: 'pointer',
+                            position: 'relative'
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              inset: 6,
+                              border: `2px solid ${p.ink}`,
+                              opacity: 0.75,
+                              boxShadow: active ? '0 0 0 3px rgba(17,24,39,0.12)' : undefined
+                            }}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+
+                <Field label="Yazi / cizgi rengi (hex)">
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <input
+                      value={vinyl.inkColor}
+                      onChange={(e) => setVinyl((v) => ({ ...v, inkColor: e.target.value }))}
+                      placeholder="#1b1b1b"
+                      style={{ padding: 10, border: '1px solid #ddd' }}
+                    />
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                      {[
+                        { label: '#1b1b1b', v: '#1b1b1b' },
+                        { label: '#d9d9d9', v: '#d9d9d9' },
+                        { label: '#ffffff', v: '#ffffff' },
+                        { label: '#fbab29', v: '#fbab29' }
+                      ].map((c) => {
+                        const active = vinyl.inkColor.trim().toLowerCase() === c.v;
+                        return (
+                          <button
+                            key={c.v}
+                            onClick={() => setVinyl((v) => ({ ...v, inkColor: c.v }))}
+                            title={c.label}
+                            style={{
+                              width: 34,
+                              height: 28,
+                              borderRadius: 8,
+                              border: active ? '2px solid #111' : '1px solid #cbd5e1',
+                              background: c.v,
+                              cursor: 'pointer'
+                            }}
+                          />
+                        );
+                      })}
+                      <span style={{ fontSize: 12, color: '#6b7280' }}>Hızlı seçim</span>
+                    </div>
+                  </div>
+                </Field>
+
+                <Field label="Arka plan deseni">
+                  <select
+                    value={vinyl.backgroundTexture}
+                    onChange={(e) => setVinyl((v) => ({ ...v, backgroundTexture: e.target.value as VinylParams['backgroundTexture'] }))}
+                    style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                  >
+                    <option value="solid">Solid</option>
+                    <option value="paper">Paper</option>
+                    <option value="marble">Marble</option>
+                    <option value="noise">Noise</option>
+                  </select>
+                </Field>
+              </Section>
+
+              <Section title="Görseller" tone={2} description="Yüklenen görseller tarayıcıda saklanır; linke dahil edilmez.">
+                <Field label="Plak resmi (opsiyonel, daha gerçekçi)">
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const input = e.currentTarget;
+                        const f = input?.files?.[0];
+                        if (!f) return;
+                        const dataUrl = await downscaleImageToDataUrl(f, 1200, 'image/jpeg', 0.88);
+                        setVinyl((v) => ({ ...v, recordImageDataUrl: dataUrl }));
+                        if (input) input.value = '';
+                      }}
+                    />
+                    {vinyl.recordImageDataUrl ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button
+                          onClick={() => setVinyl((v) => ({ ...v, recordImageDataUrl: '' }))}
+                          style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                        >
+                          Kaldır
+                        </button>
+                        <img
+                          src={vinyl.recordImageDataUrl}
+                          alt="Record"
+                          style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }}
+                        />
+                        <span style={{ fontSize: 12, color: '#6b7280' }}>Seçildi</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>SVG içi “foto” görünüm için önerilir.</div>
+                    )}
+                  </div>
+                </Field>
+
+                <Field label="Label resmi (opsiyonel)">
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const input = e.currentTarget;
+                        const f = input?.files?.[0];
+                        if (!f) return;
+                        const dataUrl = await downscaleImageToDataUrl(f, 700, 'image/jpeg', 0.88);
+                        setVinyl((v) => ({ ...v, labelImageDataUrl: dataUrl }));
+                        if (input) input.value = '';
+                      }}
+                    />
+                    {vinyl.labelImageDataUrl ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button
+                          onClick={() => setVinyl((v) => ({ ...v, labelImageDataUrl: '' }))}
+                          style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                        >
+                          Kaldır
+                        </button>
+                        <img
+                          src={vinyl.labelImageDataUrl}
+                          alt="Label"
+                          style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 999, border: '1px solid #e5e7eb' }}
+                        />
+                        <span style={{ fontSize: 12, color: '#6b7280' }}>Seçildi</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>İstersen gerçek label görseli ekleyebilirsin.</div>
+                    )}
+                  </div>
+                </Field>
+              </Section>
+
+              <Section title="Ring Yazıları" tone={3}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Ring sayısı: ${vinyl.ringCountMax}`}>
+                    <input
+                      type="range"
+                      min={1}
+                      max={16}
+                      step={1}
+                      value={vinyl.ringCountMax}
+                      onChange={(e) => setVinyl((v) => ({ ...v, ringCountMax: Number(e.target.value) }))}
+                    />
+                  </Field>
+                  <Field label={`Ring font: ${vinyl.ringFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={8}
+                      max={24}
+                      step={1}
+                      value={vinyl.ringFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, ringFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Letter spacing: ${vinyl.ringLetterSpacing.toFixed(1)}`}>
+                    <input
+                      type="range"
+                      min={-2}
+                      max={12}
+                      step={0.1}
+                      value={vinyl.ringLetterSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, ringLetterSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                  <Field label={`Satır aralığı: ${vinyl.ringLineGap.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={12}
+                      step={1}
+                      value={vinyl.ringLineGap}
+                      onChange={(e) => setVinyl((v) => ({ ...v, ringLineGap: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Şarkı sözleri (outer rings)">
+                  <textarea
+                    value={vinyl.outerText}
+                    onChange={(e) => setVinyl((v) => ({ ...v, outerText: e.target.value }))}
+                    rows={6}
+                    style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+                  />
+                </Field>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  Not: Çok uzun sözler linke sığmayabilir; paylaşım linkinde en fazla ~600 karakter saklıyoruz.
+                </div>
+              </Section>
+
+              <Section title="Center Etiket" tone={1}>
+                <Field label="Center Title">
+                  <input value={vinyl.title} onChange={(e) => setVinyl((v) => ({ ...v, title: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+                </Field>
+                <Field label="Song Title">
+                  <input value={vinyl.songTitle} onChange={(e) => setVinyl((v) => ({ ...v, songTitle: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+                </Field>
+                <Field label="Artist">
+                  <input value={vinyl.artist} onChange={(e) => setVinyl((v) => ({ ...v, artist: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Başlık font">
+                    <select
+                      value={vinyl.titleFont}
+                      onChange={(e) => setVinyl((v) => ({ ...v, titleFont: e.target.value as VinylParams['titleFont'] }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="prata">Prata</option>
+                      <option value="serif">Serif</option>
+                      <option value="sans">Sans</option>
+                      <option value="mono">Mono</option>
+                    </select>
+                  </Field>
+                  <Field label={`Başlık size: ${vinyl.titleFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={12}
+                      max={140}
+                      step={1}
+                      value={vinyl.titleFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, titleFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+                <Field label={`Başlık kavis: ${vinylTitleArcCurvature.toFixed(2)}`}>
+                  <input
+                    type="range"
+                    min={0.15}
+                    max={1.40}
+                    step={0.01}
+                    value={vinylTitleArcCurvature}
+                    onChange={(e) => setVinyl((v) => ({ ...v, titleArcCurvature: Number(e.target.value) }))}
+                  />
+                </Field>
+                <Field label={`Arc genişliği: ${vinylTitleArcWidth.toFixed(2)}`}>
+                  <input
+                    type="range"
+                    min={0.45}
+                    max={0.95}
+                    step={0.01}
+                    value={vinylTitleArcWidth}
+                    onChange={(e) => setVinyl((v) => ({ ...v, titleArcWidth: Number(e.target.value) }))}
+                  />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Song/Artist font">
+                    <select
+                      value={vinyl.metaFont}
+                      onChange={(e) => setVinyl((v) => ({ ...v, metaFont: e.target.value as VinylParams['metaFont'] }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="signika">Signika</option>
+                      <option value="sans">Sans</option>
+                      <option value="serif">Serif</option>
+                      <option value="mono">Mono</option>
+                    </select>
+                  </Field>
+                  <Field label={`Song/Artist size: ${vinyl.metaFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={9}
+                      max={80}
+                      step={1}
+                      value={vinyl.metaFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, metaFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={vinyl.showCenterGuides}
+                    onChange={(e) => setVinyl((v) => ({ ...v, showCenterGuides: e.target.checked }))}
+                  />
+                  Merkez çizgileri
+                </label>
+              </Section>
+
+              <Section title="Alt Metin 1" tone={2} description="İsimler bloğu tamamen bağımsızdır.">
+                <Field label="İsimler metni">
+                  <textarea
+                    value={vinyl.names}
+                    onChange={(e) => setVinyl((v) => ({ ...v, names: e.target.value }))}
+                    rows={3}
+                    style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+                  />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="İsimler font">
+                    <select
+                      value={vinyl.namesFont}
+                      onChange={(e) => setVinyl((v) => ({ ...v, namesFont: e.target.value as VinylParams['namesFont'] }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="jimmy-script">Jimmy Script</option>
+                      <option value="serif">Serif</option>
+                      <option value="sans">Sans</option>
+                      <option value="cursive">Cursive</option>
+                    </select>
+                  </Field>
+                  <Field label={`İsimler size: ${vinyl.namesFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={10}
+                      max={160}
+                      step={1}
+                      value={vinyl.namesFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, namesFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Harf aralığı: ${vinylNamesLetterSpacing.toFixed(1)}`}>
+                    <input
+                      type="range"
+                      min={-1}
+                      max={20}
+                      step={0.1}
+                      value={vinylNamesLetterSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, namesLetterSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                  <Field label={`Satır aralığı: ${vinylNamesLineSpacing.toFixed(2)}`}>
+                    <input
+                      type="range"
+                      min={0.8}
+                      max={3}
+                      step={0.05}
+                      value={vinylNamesLineSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, namesLineSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <Field label={`İsimler Y konumu: ${vinylNamesYOffset.toFixed(0)}`}>
+                  <input
+                    type="range"
+                    min={-260}
+                    max={260}
+                    step={1}
+                    value={vinylNamesYOffset}
+                    onChange={(e) => setVinyl((v) => ({ ...v, namesYOffset: Number(e.target.value) }))}
+                  />
+                </Field>
+              </Section>
+
+              <Section title="Alt Metin 2" tone={3} description="Tarih/alt bilgi bloğu tamamen bağımsızdır.">
+                <Field label="Tarih metni">
+                  <textarea
+                    value={vinyl.dateLine}
+                    onChange={(e) => setVinyl((v) => ({ ...v, dateLine: e.target.value }))}
+                    rows={3}
+                    style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+                  />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label="Tarih font">
+                    <select
+                      value={vinyl.dateFont}
+                      onChange={(e) => setVinyl((v) => ({ ...v, dateFont: e.target.value as VinylParams['dateFont'] }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="signika">Signika</option>
+                      <option value="sans">Sans</option>
+                      <option value="serif">Serif</option>
+                      <option value="mono">Mono</option>
+                    </select>
+                  </Field>
+                  <Field label={`Tarih size: ${vinyl.dateFontSize.toFixed(0)}`}>
+                    <input
+                      type="range"
+                      min={9}
+                      max={80}
+                      step={1}
+                      value={vinyl.dateFontSize}
+                      onChange={(e) => setVinyl((v) => ({ ...v, dateFontSize: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Harf aralığı: ${vinylDateLetterSpacing.toFixed(1)}`}>
+                    <input
+                      type="range"
+                      min={-1}
+                      max={20}
+                      step={0.1}
+                      value={vinylDateLetterSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, dateLetterSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                  <Field label={`Satır aralığı: ${vinylDateLineSpacing.toFixed(2)}`}>
+                    <input
+                      type="range"
+                      min={0.8}
+                      max={3}
+                      step={0.05}
+                      value={vinylDateLineSpacing}
+                      onChange={(e) => setVinyl((v) => ({ ...v, dateLineSpacing: Number(e.target.value) }))}
+                    />
+                  </Field>
+                </div>
+
+                <Field label={`Tarih Y konumu: ${vinylDateYOffset.toFixed(0)}`}>
+                  <input
+                    type="range"
+                    min={-260}
+                    max={260}
+                    step={1}
+                    value={vinylDateYOffset}
+                    onChange={(e) => setVinyl((v) => ({ ...v, dateYOffset: Number(e.target.value) }))}
+                  />
+                </Field>
+              </Section>
+            </div>
+          ) : null}
+
+          {viewMode === 'age' ? (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 800 }}>Age Mosaic</div>
+
+              <Section title="Boyut & Yaş" tone={1}>
+                <Field label="Poster boyutu">
+                  <select
+                    value={age.size}
+                    onChange={(e) => {
+                      const s = e.target.value as AgeParams['size'];
+                      setAge((a) => {
+                        const presets: Record<AgeParams['size'], Partial<AgeParams>> = {
+                          a4: { ageFontSize: 460, ageY: 320, captionY: 720, subCaptionY: 750, tileSize: 34 },
+                          square: { ageFontSize: 660, ageY: 410, captionY: 870, subCaptionY: 900, tileSize: 48 },
+                          '16x20': { ageFontSize: 820, ageY: 520, captionY: 1200, subCaptionY: 1245, tileSize: 64 },
+                          '20x20': { ageFontSize: 900, ageY: 560, captionY: 1180, subCaptionY: 1220, tileSize: 72 },
+                          '20x16': { ageFontSize: 720, ageY: 420, captionY: 980, subCaptionY: 1030, tileSize: 72 }
+                        };
+                        return { ...a, ...presets[s], size: s };
+                      });
+                    }}
+                    style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                  >
+                    <option value="a4">A4 (595x842)</option>
+                    <option value="square">Square (1024x1024)</option>
+                    <option value="16x20">16x20 in (1152x1440)</option>
+                    <option value="20x20">20x20 in (1440x1440)</option>
+                    <option value="20x16">20x16 in (1440x1152)</option>
+                  </select>
+                </Field>
+
+                <Field label="Yaş (ör: 70)">
+                  <input value={age.ageText} onChange={(e) => setAge((a) => ({ ...a, ageText: e.target.value }))} style={{ padding: 10, border: '1px solid #ddd' }} />
+                </Field>
+              </Section>
+
+              <Section title="Fotoğraflar" tone={2} description="Yüklediğin fotoğraflar tarayıcıda saklanır; paylaşım linkine eklenmez.">
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={async (e) => {
+                      const input = e.currentTarget;
+                      const files = Array.from(input?.files ?? []);
+                      if (!files.length) return;
+                      const imgs: string[] = [];
+                      for (const f of files.slice(0, 30)) {
+                        try {
+                          const dataUrl = await downscaleImageToDataUrl(f, 900, 'image/jpeg', 0.86, ageCropSquare);
+                          imgs.push(dataUrl);
+                        } catch {
+                          // ignore individual file
+                        }
+                      }
+                      setAgeImages((cur) => [...imgs, ...cur].slice(0, 40));
+                      setAgeUseFolder(false);
+                      if (input) input.value = '';
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setAgeImages([])}
+                      disabled={!ageImages.length}
+                      style={{
+                        padding: '8px 10px',
+                        border: '1px solid #cbd5e1',
+                        background: '#fff',
+                        cursor: ageImages.length ? 'pointer' : 'not-allowed'
+                      }}
+                    >
+                      Temizle
+                    </button>
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>{ageImages.length ? `${ageImages.length} foto` : 'Foto yok → placeholder renkler'}</span>
+                  </div>
+                  {ageImages.length ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6 }}>
+                      {ageImages.slice(0, 12).map((src, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setAgeImages((arr) => arr.filter((_, i) => i !== idx))}
+                          title="Kaldır"
+                          style={{ padding: 0, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', borderRadius: 8, overflow: 'hidden' }}
+                        >
+                          <img src={src} alt={`img${idx}`} style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', display: 'block' }} />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                    <input type="checkbox" checked={ageCropSquare} onChange={(e) => setAgeCropSquare(e.target.checked)} />
+                    Yükleme sırasında kare kırp (merkez) (önerilen)
+                  </label>
+                </div>
+              </Section>
+
+              <Section title="Test: Klasör seç" tone={3} description="Farklı oranlarda çok sayıda görselle hızlı test. Bu görseller localStorage’a kaydedilmez.">
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    {...({ webkitdirectory: 'true', directory: 'true' } as any)}
+                    onChange={async (e) => {
+                      const input = e.currentTarget;
+                      const files = shuffledCopy(Array.from(input?.files ?? []).filter((f) => (f.type || '').startsWith('image/')));
+                      if (!files.length) return;
+                      setBusy(true);
+                      setError('');
+                      try {
+                        const imgs: string[] = [];
+                        for (const f of files.slice(0, 140)) {
+                          try {
+                            // Test mode: preserve original aspect ratios (don't square-crop).
+                            const dataUrl = await downscaleImageToDataUrl(f, 700, 'image/jpeg', 0.84, false);
+                            imgs.push(dataUrl);
+                          } catch {
+                            // ignore per-file
+                          }
+                        }
+                        setAgeFolderImages(imgs);
+                        setAgeUseFolder(true);
+                        setAgeFolderUseCount((n) => Math.max(1, Math.min(n, imgs.length || 1)));
+                      } catch (err: any) {
+                        setError(err?.message ?? String(err));
+                      } finally {
+                        setBusy(false);
+                      }
+                      if (input) input.value = '';
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={ageUseFolder}
+                        onChange={(e) => setAgeUseFolder(e.target.checked)}
+                        disabled={!ageFolderImages.length}
+                      />
+                      Klasör görsellerini kullan
+                    </label>
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>
+                      {ageFolderImages.length ? `${ageFolderImages.length} görsel yüklü` : 'Henüz klasör seçilmedi'}
+                    </span>
+                    {ageFolderImages.length ? (
+                      <button
+                        onClick={() => setAgeFolderImages((arr) => shuffledCopy(arr))}
+                        style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                        title="Görsel sırasını karıştır (yerleşim de değişir)"
+                      >
+                        Karıştır
+                      </button>
+                    ) : null}
+                    {ageFolderImages.length ? (
+                      <button
+                        onClick={() => {
+                          setAgeFolderImages([]);
+                          setAgeUseFolder(false);
+                        }}
+                        style={{ padding: '8px 10px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                      >
+                        Temizle
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {ageFolderImages.length ? (
+                    <Field label={`Kullanılacak görsel sayısı: ${Math.min(ageFolderUseCount, ageFolderImages.length)}`}>
+                      <input
+                        type="range"
+                        min={1}
+                        max={Math.min(120, ageFolderImages.length)}
+                        step={1}
+                        value={Math.min(ageFolderUseCount, ageFolderImages.length)}
+                        onChange={(e) => setAgeFolderUseCount(Number(e.target.value))}
+                      />
+                    </Field>
+                  ) : null}
+
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>
+                    Not: Klasör testinde görseller kare kırpılmaz; oranlar korunur (müşteri fotoğrafları gibi).
+                  </div>
+                </div>
+              </Section>
+
+              <Section title="Yerleşim" tone={1} description="Fotoğrafların tile’lara yerleşimi + yoğunluk ayarları.">
+                <Field label="Foto yerleşimi (fit)">
+                  <select
+                    value={age.imageFit}
+                    onChange={(e) => setAge((a) => ({ ...a, imageFit: e.target.value === 'contain' ? 'contain' : 'cover' }))}
+                    style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                  >
+                    <option value="cover">Cover (kırp + doldur)</option>
+                    <option value="contain">Contain (kırpma yok)</option>
+                  </select>
+                </Field>
+                {age.imageFit === 'contain' ? (
+                  <Field label="Contain fill">
+                    <select
+                      value={age.containFill}
+                      onChange={(e) => setAge((a) => ({ ...a, containFill: e.target.value === 'solid' ? 'solid' : 'blur' }))}
+                      style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                    >
+                      <option value="blur">Blur fill (boşlukları doldurur)</option>
+                      <option value="solid">Solid bg (boşluklar görünür)</option>
+                    </select>
+                  </Field>
+                ) : null}
+                {age.imageFit === 'cover' ? (
+                  <Field label={`Crop randomness: ${(age.imageJitter * 100).toFixed(0)}%`}>
+                    <input type="range" min={0} max={1} step={0.05} value={age.imageJitter} onChange={(e) => setAge((a) => ({ ...a, imageJitter: Number(e.target.value) }))} />
+                  </Field>
+                ) : null}
+
+                <Field label="Tile layout">
+                  <select
+                    value={age.tileLayout}
+                    onChange={(e) =>
+                      setAge((a) => {
+                        const nextLayout = e.target.value === 'grid' ? 'grid' : 'stagger';
+                        return { ...a, tileLayout: nextLayout, tilePositionJitter: nextLayout === 'grid' ? 0 : a.tilePositionJitter };
+                      })
+                    }
+                    style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                  >
+                    <option value="stagger">Stagger (asimetrik)</option>
+                    <option value="grid">Grid (simetrik)</option>
+                  </select>
+                </Field>
+                <Field label={`Tile position jitter: ${age.tilePositionJitter.toFixed(0)}px`}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={28}
+                    step={1}
+                    value={age.tilePositionJitter}
+                    onChange={(e) => setAge((a) => ({ ...a, tilePositionJitter: Number(e.target.value) }))}
+                    disabled={age.tileLayout === 'grid'}
+                  />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={`Tile size: ${age.tileSize.toFixed(0)}`}>
+                    <input type="range" min={18} max={140} step={1} value={age.tileSize} onChange={(e) => setAge((a) => ({ ...a, tileSize: Number(e.target.value) }))} />
+                  </Field>
+                  <Field label={`Gap: ${age.tileGap.toFixed(0)}`}>
+                    <input type="range" min={0} max={12} step={1} value={age.tileGap} onChange={(e) => setAge((a) => ({ ...a, tileGap: Number(e.target.value) }))} />
+                  </Field>
+                </div>
+
+                <Field label={`Image bleed: ${(age.tileBleed * 100).toFixed(0)}%`}>
+                  <input type="range" min={0} max={0.6} step={0.02} value={age.tileBleed} onChange={(e) => setAge((a) => ({ ...a, tileBleed: Number(e.target.value) }))} />
+                </Field>
+              </Section>
+
+              <Section title="Renkler" tone={2}>
+                <Field label="Arka plan rengi (hex)">
+                  <input value={age.bgColor} onChange={(e) => setAge((a) => ({ ...a, bgColor: e.target.value }))} placeholder="#ffffff" style={{ padding: 10, border: '1px solid #ddd' }} />
+                </Field>
+                <Field label="Yazı rengi (hex)">
+                  <input value={age.inkColor} onChange={(e) => setAge((a) => ({ ...a, inkColor: e.target.value }))} placeholder="#111111" style={{ padding: 10, border: '1px solid #ddd' }} />
+                </Field>
+              </Section>
+
+              <Section title="Çerçeve" tone={3}>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                  <input type="checkbox" checked={age.frame} onChange={(e) => setAge((a) => ({ ...a, frame: e.target.checked }))} />
+                  Çerçeve (frame)
+                </label>
+                {age.frame ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={`Frame width: ${age.frameWidth.toFixed(1)}`}>
+                      <input type="range" min={1} max={14} step={0.5} value={age.frameWidth} onChange={(e) => setAge((a) => ({ ...a, frameWidth: Number(e.target.value) }))} />
+                    </Field>
+                    <Field label={`Frame inset: ${age.frameInset.toFixed(0)}`}>
+                      <input type="range" min={0} max={60} step={1} value={age.frameInset} onChange={(e) => setAge((a) => ({ ...a, frameInset: Number(e.target.value) }))} />
+                    </Field>
+                  </div>
+                ) : null}
+              </Section>
+
+              <Section title="Age yazısı" tone={1}>
+                <Field label={`Age font size: ${age.ageFontSize.toFixed(0)}`}>
+                  <input type="range" min={240} max={1200} step={2} value={age.ageFontSize} onChange={(e) => setAge((a) => ({ ...a, ageFontSize: Number(e.target.value) }))} />
+                </Field>
+                <Field label={`Age Y: ${age.ageY.toFixed(0)}`}>
+                  <input
+                    type="range"
+                    min={Math.round(ageCanvas.margin)}
+                    max={Math.round(ageCanvas.H - ageCanvas.margin)}
+                    step={2}
+                    value={age.ageY}
+                    onChange={(e) => setAge((a) => ({ ...a, ageY: Number(e.target.value) }))}
+                  />
+                </Field>
+              </Section>
+
+              <Section title="Alt yazılar" tone={2} description="Uzun metinlerde wrap + text box width + max lines ile taşmayı engelleyebilirsin.">
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'grid', gap: 10, padding: 12, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12 }}>
+                    <div style={{ fontWeight: 800, fontSize: 13 }}>Caption</div>
+                    <Field label="Metin (satır satır)">
+                      <textarea
+                        value={age.caption}
+                        onChange={(e) => setAge((a) => ({ ...a, caption: e.target.value }))}
+                        rows={2}
+                        style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+                      />
+                    </Field>
+                    <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                      <input type="checkbox" checked={age.captionAutoWrap} onChange={(e) => setAge((a) => ({ ...a, captionAutoWrap: e.target.checked }))} />
+                      Otomatik satır kır (wrap)
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                      <Field label={`Text box width: ${(age.captionBoxWidthPct * 100).toFixed(0)}%`}>
+                        <input
+                          type="range"
+                          min={0.4}
+                          max={1.0}
+                          step={0.02}
+                          value={age.captionBoxWidthPct}
+                          onChange={(e) => setAge((a) => ({ ...a, captionBoxWidthPct: Number(e.target.value) }))}
+                        />
+                      </Field>
+                      <Field label={`Box height: ${age.captionBoxHeightLines.toFixed(1)} lines`}>
+                        <input
+                          type="range"
+                          min={1.0}
+                          max={10.0}
+                          step={0.2}
+                          value={age.captionBoxHeightLines}
+                          onChange={(e) => setAge((a) => ({ ...a, captionBoxHeightLines: Number(e.target.value) }))}
+                        />
+                      </Field>
+                      <Field label={`Max lines: ${age.captionMaxLines}`}>
+                        <input
+                          type="range"
+                          min={1}
+                          max={6}
+                          step={1}
+                          value={age.captionMaxLines}
+                          onChange={(e) => setAge((a) => ({ ...a, captionMaxLines: Number(e.target.value) }))}
+                        />
+                      </Field>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label="Font (preset)">
+                        <select
+                          value={age.captionFontFamily}
+                          onChange={(e) => setAge((a) => ({ ...a, captionFontFamily: e.target.value }))}
+                          style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                        >
+                          {AGE_FONT_PRESETS.map((f) => (
+                            <option key={f.key} value={f.family}>
+                              {f.label}
+                            </option>
+                          ))}
+                          <option value={age.captionFontFamily}>Custom</option>
+                        </select>
+                      </Field>
+                      <Field label="Font family (custom)">
+                        <input
+                          value={age.captionFontFamily}
+                          onChange={(e) => setAge((a) => ({ ...a, captionFontFamily: e.target.value }))}
+                          style={{ padding: 10, border: '1px solid #ddd' }}
+                        />
+                      </Field>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label={`Size: ${age.captionFontSize.toFixed(0)}`}>
+                        <input
+                          type="range"
+                          min={10}
+                          max={200}
+                          step={1}
+                          value={age.captionFontSize}
+                          onChange={(e) => setAge((a) => ({ ...a, captionFontSize: Number(e.target.value) }))}
+                        />
+                      </Field>
+                      <Field label={`Y: ${age.captionY.toFixed(0)}`}>
+                        <input
+                          type="range"
+                          min={Math.round(ageCanvas.H * 0.55)}
+                          max={Math.round(ageCanvas.H - ageCanvas.margin)}
+                          step={2}
+                          value={age.captionY}
+                          onChange={(e) => setAge((a) => ({ ...a, captionY: Number(e.target.value) }))}
+                        />
+                      </Field>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label={`Weight: ${Math.round(age.captionFontWeight)}`}>
+                        <input
+                          type="range"
+                          min={100}
+                          max={900}
+                          step={50}
+                          value={age.captionFontWeight}
+                          onChange={(e) => setAge((a) => ({ ...a, captionFontWeight: Number(e.target.value) }))}
+                        />
+                      </Field>
+                      <Field label={`Letter spacing: ${age.captionLetterSpacing.toFixed(1)}px`}>
+                        <input
+                          type="range"
+                          min={-2}
+                          max={24}
+                          step={0.5}
+                          value={age.captionLetterSpacing}
+                          onChange={(e) => setAge((a) => ({ ...a, captionLetterSpacing: Number(e.target.value) }))}
+                        />
+                      </Field>
+                    </div>
+
+                    <Field label={`Line spacing: ${age.captionLineSpacing.toFixed(2)}`}>
+                      <input
+                        type="range"
+                        min={0.8}
+                        max={2.2}
+                        step={0.05}
+                        value={age.captionLineSpacing}
+                        onChange={(e) => setAge((a) => ({ ...a, captionLineSpacing: Number(e.target.value) }))}
+                      />
+                    </Field>
+
+                    <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                      <input type="checkbox" checked={age.captionUppercase} onChange={(e) => setAge((a) => ({ ...a, captionUppercase: e.target.checked }))} />
+                      Caption UPPERCASE
+                    </label>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 10, padding: 12, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12 }}>
+                    <div style={{ fontWeight: 800, fontSize: 13 }}>Subcaption</div>
+                    <Field label="Metin (satır satır)">
+                      <textarea
+                        value={age.subCaption}
+                        onChange={(e) => setAge((a) => ({ ...a, subCaption: e.target.value }))}
+                        rows={2}
+                        style={{ padding: 10, border: '1px solid #ddd', resize: 'vertical' }}
+                      />
+                    </Field>
+                    <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={age.subCaptionAutoWrap}
+                        onChange={(e) => setAge((a) => ({ ...a, subCaptionAutoWrap: e.target.checked }))}
+                      />
+                      Otomatik satır kır (wrap)
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                      <Field label={`Text box width: ${(age.subCaptionBoxWidthPct * 100).toFixed(0)}%`}>
+                        <input
+                          type="range"
+                          min={0.4}
+                          max={1.0}
+                          step={0.02}
+                          value={age.subCaptionBoxWidthPct}
+                          onChange={(e) => setAge((a) => ({ ...a, subCaptionBoxWidthPct: Number(e.target.value) }))}
+                        />
+                      </Field>
+                      <Field label={`Box height: ${age.subCaptionBoxHeightLines.toFixed(1)} lines`}>
+                        <input
+                          type="range"
+                          min={1.0}
+                          max={12.0}
+                          step={0.2}
+                          value={age.subCaptionBoxHeightLines}
+                          onChange={(e) => setAge((a) => ({ ...a, subCaptionBoxHeightLines: Number(e.target.value) }))}
+                        />
+                      </Field>
+                      <Field label={`Max lines: ${age.subCaptionMaxLines}`}>
+                        <input
+                          type="range"
+                          min={1}
+                          max={8}
+                          step={1}
+                          value={age.subCaptionMaxLines}
+                          onChange={(e) => setAge((a) => ({ ...a, subCaptionMaxLines: Number(e.target.value) }))}
+                        />
+                      </Field>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label="Font (preset)">
+                        <select
+                          value={age.subCaptionFontFamily}
+                          onChange={(e) => setAge((a) => ({ ...a, subCaptionFontFamily: e.target.value }))}
+                          style={{ padding: 10, border: '1px solid #ddd', background: '#fff' }}
+                        >
+                          {AGE_FONT_PRESETS.map((f) => (
+                            <option key={f.key} value={f.family}>
+                              {f.label}
+                            </option>
+                          ))}
+                          <option value={age.subCaptionFontFamily}>Custom</option>
+                        </select>
+                      </Field>
+                      <Field label="Font family (custom)">
+                        <input
+                          value={age.subCaptionFontFamily}
+                          onChange={(e) => setAge((a) => ({ ...a, subCaptionFontFamily: e.target.value }))}
+                          style={{ padding: 10, border: '1px solid #ddd' }}
+                        />
+                      </Field>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label={`Size: ${age.subCaptionFontSize.toFixed(0)}`}>
+                        <input
+                          type="range"
+                          min={10}
+                          max={120}
+                          step={1}
+                          value={age.subCaptionFontSize}
+                          onChange={(e) => setAge((a) => ({ ...a, subCaptionFontSize: Number(e.target.value) }))}
+                        />
+                      </Field>
+                      <Field label={`Y: ${age.subCaptionY.toFixed(0)}`}>
+                        <input
+                          type="range"
+                          min={Math.round(ageCanvas.H * 0.55)}
+                          max={Math.round(ageCanvas.H - ageCanvas.margin)}
+                          step={2}
+                          value={age.subCaptionY}
+                          onChange={(e) => setAge((a) => ({ ...a, subCaptionY: Number(e.target.value) }))}
+                        />
+                      </Field>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label={`Weight: ${Math.round(age.subCaptionFontWeight)}`}>
+                        <input
+                          type="range"
+                          min={100}
+                          max={900}
+                          step={50}
+                          value={age.subCaptionFontWeight}
+                          onChange={(e) => setAge((a) => ({ ...a, subCaptionFontWeight: Number(e.target.value) }))}
+                        />
+                      </Field>
+                      <Field label={`Letter spacing: ${age.subCaptionLetterSpacing.toFixed(1)}px`}>
+                        <input
+                          type="range"
+                          min={-2}
+                          max={24}
+                          step={0.5}
+                          value={age.subCaptionLetterSpacing}
+                          onChange={(e) => setAge((a) => ({ ...a, subCaptionLetterSpacing: Number(e.target.value) }))}
+                        />
+                      </Field>
+                    </div>
+
+                    <Field label={`Line spacing: ${age.subCaptionLineSpacing.toFixed(2)}`}>
+                      <input
+                        type="range"
+                        min={0.8}
+                        max={2.2}
+                        step={0.05}
+                        value={age.subCaptionLineSpacing}
+                        onChange={(e) => setAge((a) => ({ ...a, subCaptionLineSpacing: Number(e.target.value) }))}
+                      />
+                    </Field>
+
+                    <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={age.subCaptionUppercase}
+                        onChange={(e) => setAge((a) => ({ ...a, subCaptionUppercase: e.target.checked }))}
+                      />
+                      Subcaption UPPERCASE
+                    </label>
+                  </div>
+                </div>
+              </Section>
+            </div>
+          ) : null}
+
+          {viewMode !== 'vinyl' && viewMode !== 'age' ? (
+            <>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button
             onClick={() => setLocationMode('city')}
@@ -1270,39 +3137,9 @@ export default function Page() {
             </div>
           ) : null}
         </div>
-
-        <div style={{ height: 14 }} />
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={generate}
-            disabled={busy}
-            style={{ padding: '10px 12px', border: '1px solid #111', background: '#111', color: '#fff', cursor: 'pointer' }}
-          >
-            {busy ? 'Üretiliyor…' : 'Generate'}
-          </button>
-          <button
-            onClick={() => downloadSvg(viewMode === 'poster' ? posterSvg : chartSvg, viewMode === 'poster' ? 'star-poster.svg' : 'sky-chart.svg')}
-            disabled={viewMode === 'poster' ? !posterSvg : !chartSvg}
-            style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-          >
-            Download SVG
-          </button>
-          <button
-            onClick={() => downloadPng(viewMode === 'poster' ? posterSvg : chartSvg, viewMode === 'poster' ? 'star-poster.png' : 'sky-chart.png', 3)}
-            disabled={viewMode === 'poster' ? !posterSvg : !chartSvg}
-            style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-          >
-            Download PNG
-          </button>
-          <button
-            onClick={copyLink}
-            style={{ padding: '10px 12px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}
-          >
-            Copy Link
-          </button>
-        </div>
-
-        {error ? <div style={{ marginTop: 10, color: '#b91c1c', fontSize: 13 }}>{error}</div> : null}
+        </>
+          ) : null}
+            </div>
           </>
         )}
       </div>
@@ -1332,16 +3169,40 @@ export default function Page() {
             >
               Chart
             </button>
+            <button
+              onClick={() => setViewMode('vinyl')}
+              style={{
+                padding: '8px 10px',
+                border: '1px solid #ddd',
+                background: viewMode === 'vinyl' ? '#111' : '#fff',
+                color: viewMode === 'vinyl' ? '#fff' : '#111'
+              }}
+            >
+              Vinyl
+            </button>
+            <button
+              onClick={() => setViewMode('age')}
+              style={{
+                padding: '8px 10px',
+                border: '1px solid #ddd',
+                background: viewMode === 'age' ? '#111' : '#fff',
+                color: viewMode === 'age' ? '#fff' : '#111'
+              }}
+            >
+              Age
+            </button>
             <div style={{ fontSize: 12, color: '#6b7280' }}>Preview</div>
           </div>
 
           <div
             style={{ border: '1px solid #e5e7eb', background: '#fff' }}
-            dangerouslySetInnerHTML={{ __html: viewMode === 'poster' ? posterSvg : chartSvg }}
+            dangerouslySetInnerHTML={{ __html: viewMode === 'age' ? ageSvg : viewMode === 'vinyl' ? vinylSvg : viewMode === 'poster' ? posterSvg : chartSvg }}
           />
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
-            Not: Zaman girdisi seçilen konumun lokal saatine göre yorumlanır. PDF için tarayıcıdan yazdır (Print) kullanabilirsin.
-          </div>
+          {viewMode !== 'vinyl' && viewMode !== 'age' ? (
+            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
+              Not: Zaman girdisi seçilen konumun lokal saatine göre yorumlanır. PDF için tarayıcıdan yazdır (Print) kullanabilirsin.
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1382,7 +3243,18 @@ export default function Page() {
           </div>
         ) : null}
 
-        {!rightOpen ? null : <div style={{ display: 'grid', gap: 10 }}>
+        {!rightOpen ? null : viewMode === 'vinyl' || viewMode === 'age' ? (
+          <div style={{ display: 'grid', gap: 10, fontSize: 13, color: '#374151' }}>
+            <div style={{ padding: 12, background: '#fff', border: '1px solid #eee' }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>{viewMode === 'vinyl' ? 'Vinyl modu' : 'Age Mosaic modu'}</div>
+              <div>
+                {viewMode === 'vinyl'
+                  ? 'Vinyl poster ayarları soldaki menüde. Buradaki “Poster Tasarımı” ayarları Sky Poster için geçerli.'
+                  : 'Age Mosaic ayarları soldaki menüde. Buradaki “Poster Tasarımı” ayarları Sky Poster için geçerli.'}
+              </div>
+            </div>
+          </div>
+        ) : <div style={{ display: 'grid', gap: 10 }}>
           <Field label="Poster boyutu">
             <select
               value={poster.size}

@@ -2,9 +2,14 @@ import { clamp01 } from './astro';
 import { buildChartGeometry } from './geometry';
 import type { PosterRequest } from './types';
 import { DateTime } from 'luxon';
+import { AstroTime, MoonPhase } from 'astronomy-engine';
 
 function svgEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function svgAttrEscape(s: string): string {
+  return svgEscape(s).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
 function moonIlluminatedPath(cx: number, cy: number, r: number, phaseDeg: number, mirrorHorizontal: boolean): string {
@@ -16,13 +21,14 @@ function moonIlluminatedPath(cx: number, cy: number, r: number, phaseDeg: number
 
   const n = 48;
   const pts: { x: number; y: number }[] = [];
+  const mx = mirrorHorizontal ? -1 : 1;
   for (let i = 0; i <= n; i++) {
     const t = (-Math.PI / 2) + (i * Math.PI) / n;
-    pts.push({ x: cx + r * Math.cos(t), y: cy + r * Math.sin(t) });
+    pts.push({ x: cx + mx * r * Math.cos(t), y: cy + r * Math.sin(t) });
   }
   for (let i = n; i >= 0; i--) {
     const t = (-Math.PI / 2) + (i * Math.PI) / n;
-    pts.push({ x: cx + sign * rx * Math.cos(t), y: cy + r * Math.sin(t) });
+    pts.push({ x: cx + mx * sign * rx * Math.cos(t), y: cy + r * Math.sin(t) });
   }
 
   const d = pts
@@ -83,6 +89,16 @@ function getPalette(name: PosterRequest['poster']['palette']): Palette {
       return { bg: '#151c2d', ink: '#f4c25b', mutedInk: 'rgba(244,194,91,0.35)', accent: '#f4c25b' };
     case 'night-gold':
       return { bg: '#24283a', ink: '#fbab29', mutedInk: 'rgba(251,171,41,0.35)', accent: '#fbab29' };
+    case 'twilight-blue':
+      return { bg: '#1f2a44', ink: '#d7e3ff', mutedInk: 'rgba(215,227,255,0.40)', accent: '#d7e3ff' };
+    case 'storm-gray':
+      return { bg: '#2a2f39', ink: '#e8e9ee', mutedInk: 'rgba(232,233,238,0.40)', accent: '#e8e9ee' };
+    case 'mocha':
+      return { bg: '#3b2d2a', ink: '#f2d8c8', mutedInk: 'rgba(242,216,200,0.40)', accent: '#f2d8c8' };
+    case 'soft-sage':
+      return { bg: '#25352f', ink: '#d8e7de', mutedInk: 'rgba(216,231,222,0.40)', accent: '#d8e7de' };
+    case 'blush-night':
+      return { bg: '#3a2733', ink: '#f5d7e2', mutedInk: 'rgba(245,215,226,0.40)', accent: '#f5d7e2' };
     case 'cream-ink':
       return { bg: '#fbf5ea', ink: '#1b1b1b', mutedInk: 'rgba(27,27,27,0.35)', accent: '#1b1b1b' };
     case 'slate':
@@ -97,6 +113,8 @@ function getPalette(name: PosterRequest['poster']['palette']): Palette {
       return { bg: '#2a0f1a', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
     case 'sand':
       return { bg: '#f7f3e8', ink: '#1b1b1b', mutedInk: 'rgba(27,27,27,0.35)', accent: '#1b1b1b' };
+    case 'pearl':
+      return { bg: '#f2f0ea', ink: '#202020', mutedInk: 'rgba(32,32,32,0.35)', accent: '#202020' };
     case 'midnight':
     default:
       return { bg: '#0b1020', ink: '#ffffff', mutedInk: 'rgba(255,255,255,0.40)', accent: '#ffffff' };
@@ -127,7 +145,10 @@ export function renderPosterSvg(req: PosterRequest): string {
   const date = new Date(timeUtcIso);
   if (Number.isNaN(date.getTime())) throw new Error('Invalid timeUtcIso');
 
-  const geomLayout = poster.size === 'a4' ? 'a4' : 'square';
+  const size = poster.size;
+  const showMoonPhase = !!poster.showMoonPhase;
+  const moonImageUrl = (poster.moonPhaseImageUrl || '/moon.png').trim() || '/moon.png';
+  const geomLayout = size === 'a4' || size === 'a2' || size === 'us-letter' || size === '18x24' ? 'a4' : 'square';
   const geom = buildChartGeometry({ latitude, longitude, date, params, layout: geomLayout });
 
   const palette = getPalette(poster.palette);
@@ -152,17 +173,111 @@ export function renderPosterSvg(req: PosterRequest): string {
   }
 
   // Poster layout regions
-  const size = poster.size;
-  const margin = size === '16x20' || size === '20x20' ? 72 : size === 'square' ? 70 : 48;
+  const margin =
+    showMoonPhase
+      ? 72
+      : size === '16x20' || size === '20x20'
+      ? 72
+      : size === 'square'
+        ? 70
+        : size === 'a2'
+          ? 96
+        : size === '18x24'
+            ? 80
+            : size === 'us-letter'
+              ? 46
+              : 48;
   const frameInset = poster.borderInset;
   const borderW = poster.borderWidth;
 
-  const W = size === '16x20' ? 16 * 72 : size === '20x20' ? 20 * 72 : size === 'square' ? 1024 : 595;
-  const H = size === '16x20' ? 20 * 72 : size === '20x20' ? 20 * 72 : size === 'square' ? 1024 : 842;
-  const chartDiameter = poster.chartDiameter > 0 ? poster.chartDiameter : size === 'square' ? 760 : 520;
-  const chartR = chartDiameter / 2;
-  const chartCx = W / 2;
-  const chartCy = size === 'square' ? H * 0.44 : size === 'a4' ? 320 : margin + frameInset + chartR + 28;
+  const W =
+    showMoonPhase
+      ? 24 * 72
+      : size === 'a2'
+      ? 1191
+      : size === 'us-letter'
+        ? 612
+        : size === '16x20'
+          ? 16 * 72
+          : size === '18x24'
+            ? 18 * 72
+            : size === '20x20'
+              ? 20 * 72
+              : size === 'square'
+                ? 1024
+                : 595;
+  const H =
+    showMoonPhase
+      ? 18 * 72
+      : size === 'a2'
+      ? 1684
+      : size === 'us-letter'
+        ? 792
+        : size === '16x20'
+          ? 20 * 72
+          : size === '18x24'
+            ? 24 * 72
+            : size === '20x20'
+              ? 20 * 72
+              : size === 'square'
+                ? 1024
+                : 842;
+  const defaultChartDiameter =
+    showMoonPhase
+      ? 10 * 72
+      : size === 'a2'
+      ? 11.97 * 72
+      : size === 'us-letter'
+        ? 408.5
+        : size === '18x24'
+          ? 12.92 * 72
+          : size === '16x20'
+            ? 12.16 * 72
+            : size === '20x20'
+              ? 13.585 * 72
+              : size === 'square'
+                ? 722
+                : 494;
+  const chartDiameter = poster.chartDiameter > 0 ? poster.chartDiameter : defaultChartDiameter;
+  let chartR = chartDiameter / 2;
+
+  let chartCx = W / 2;
+  let chartCy =
+    size === 'square' || size === '20x20'
+      ? H * 0.44
+      : size === 'a4'
+        ? 320
+        : margin + frameInset + chartR + (size === 'us-letter' ? 16 : 28);
+
+  let moonCx = 0;
+  let moonCy = 0;
+  let moonR = 0;
+  let moonPhaseReduced = 0;
+  let moonWaxing = true;
+
+  if (showMoonPhase) {
+    const frameLeft = margin + frameInset;
+    const frameRight = W - margin - frameInset;
+    const frameTop = margin + frameInset;
+    const frameBottom = H - margin - frameInset;
+    const gap = 54;
+    const moonPhaseScale = 1.25;
+    const maxRByWidth = Math.max(80, (frameRight - frameLeft - gap) / 4);
+    const topBandHeight = (frameBottom - frameTop) * 0.72;
+    const maxRByHeight = Math.max(80, (topBandHeight - 18) / 2);
+    const baseR = Math.max(120, Math.min(chartR, maxRByWidth, maxRByHeight));
+    chartR = Math.min(baseR * moonPhaseScale, maxRByWidth, maxRByHeight);
+    moonR = chartR;
+    const pairCenterX = (frameLeft + frameRight) / 2;
+    const centerDistance = chartR * 2 + gap;
+    moonCx = pairCenterX - centerDistance / 2;
+    chartCx = pairCenterX + centerDistance / 2;
+    chartCy = frameTop + chartR + 10;
+    moonCy = chartCy;
+    const moonPhaseDeg = MoonPhase(new AstroTime(date));
+    moonPhaseReduced = moonPhaseDeg <= 180 ? moonPhaseDeg : 360 - moonPhaseDeg;
+    moonWaxing = moonPhaseDeg <= 180;
+  }
 
   const title = (poster.title || '').trim();
   const subtitle = (poster.subtitle || '').trim();
@@ -281,8 +396,8 @@ export function renderPosterSvg(req: PosterRequest): string {
   const minNamesFont = 12;
   const minMetaFont = 10;
 
-  const chartBottom = chartCy + chartR;
-  const regionTop = chartBottom + (size === 'square' ? 52 : 46);
+  const topVisualBottom = showMoonPhase ? Math.max(chartCy + chartR, moonCy + moonR) : chartCy + chartR;
+  const regionTop = topVisualBottom + (showMoonPhase ? 64 : size === 'square' ? 52 : 46);
   const regionBottom = H - margin - (size === 'square' ? 52 : 54);
   const regionH = Math.max(0, regionBottom - regionTop);
 
@@ -348,6 +463,37 @@ export function renderPosterSvg(req: PosterRequest): string {
     <clipPath id="clipCircle">
       <circle cx="${chartCx}" cy="${chartCy}" r="${chartR}"/>
     </clipPath>
+    ${
+      showMoonPhase
+        ? `<clipPath id="moonClip"><circle cx="${moonCx}" cy="${moonCy}" r="${moonR}"/></clipPath>
+    <radialGradient id="moonShadeRadial" cx="${moonWaxing ? '34%' : '66%'}" cy="46%" r="78%">
+      <stop offset="0%" stop-color="rgba(0,0,0,0.00)"/>
+      <stop offset="58%" stop-color="rgba(0,0,0,0.16)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.44)"/>
+    </radialGradient>
+    <linearGradient id="moonShadowLinear" x1="${moonWaxing ? '0%' : '100%'}" y1="0%" x2="${moonWaxing ? '100%' : '0%'}" y2="0%">
+      <stop offset="0%" stop-color="rgba(0,0,0,0.72)"/>
+      <stop offset="60%" stop-color="rgba(0,0,0,0.15)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.02)"/>
+    </linearGradient>
+    <filter id="moonSoftBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="${Math.max(1.6, moonR * 0.012).toFixed(2)}"/>
+    </filter>
+    <filter id="moonDropShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="${Math.max(2, moonR * 0.02).toFixed(2)}" stdDeviation="${Math.max(2.5, moonR * 0.02).toFixed(2)}" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+    <mask id="moonLitMask">
+      <rect x="0" y="0" width="${W}" height="${H}" fill="black"/>
+      ${
+        moonPhaseReduced > 179.4
+          ? `<circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="white"/>`
+          : moonPhaseReduced < 0.6
+            ? ''
+            : `<path d="${moonIlluminatedPath(moonCx, moonCy, moonR, moonPhaseReduced, !moonWaxing)}" fill="white"/>`
+      }
+    </mask>`
+        : ''
+    }
   </defs>
   <g clip-path="url(#clipCircle)">
     <g transform="${transform}">
@@ -442,6 +588,19 @@ export function renderPosterSvg(req: PosterRequest): string {
       </g>
     </g>
   </g>
+  ${
+    showMoonPhase
+      ? `<g>
+    <g filter="url(#moonDropShadow)">
+      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="rgba(0,0,0,0.50)"/>
+      <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" opacity="0.36"/>
+      <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" mask="url(#moonLitMask)" opacity="1"/>
+      <rect x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" fill="url(#moonShadowLinear)" clip-path="url(#moonClip)" opacity="0.42" filter="url(#moonSoftBlur)"/>
+      <rect x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" fill="url(#moonShadeRadial)" clip-path="url(#moonClip)" opacity="0.36"/>
+    </g>
+  </g>`
+      : ''
+  }
   ${azScale.join('\n  ')}
   ${textBlock.join('\n  ')}
   ${metaLines.join('\n  ')}
