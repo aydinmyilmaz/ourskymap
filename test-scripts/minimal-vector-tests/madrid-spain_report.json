@@ -1,0 +1,15 @@
+{
+  "place": "Madrid, Spain",
+  "lat": 40.416782,
+  "lon": -3.703507,
+  "radius_m": 9000.0,
+  "network_type": "drive_service",
+  "map_output": "test-scripts/minimal-vector-tests/madrid-spain_map.png",
+  "poster_output": "test-scripts/minimal-vector-tests/madrid-spain_poster.png",
+  "timings": {
+    "roads_fetch_project_s": 227.346,
+    "water_fetch_s": 3.886,
+    "map_draw_s": 11.059,
+    "total_s": 277.777
+  }
+}
