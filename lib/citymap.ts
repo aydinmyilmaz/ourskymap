@@ -1,7 +1,17 @@
 import type { PosterParams } from './types';
 
 type CityMapSize = 'a2' | 'us-letter' | '16x20' | '18x24';
-type MapStyleKey = 'mono' | 'natural' | 'earth' | 'old-navy' | 'coral' | 'teal' | 'cobalt' | 'noir';
+type MapStyleKey =
+  | 'mono'
+  | 'natural'
+  | 'earth'
+  | 'old-navy'
+  | 'coral'
+  | 'teal'
+  | 'cobalt'
+  | 'noir'
+  | 'minimal-vector'
+  | 'prettymaps-minimal';
 
 export type CityMapRequest = {
   latitude: number;
@@ -75,6 +85,8 @@ function styleTone(style: MapStyleKey): Tone | null {
       return { dark: '#2a4b75', light: '#cad9ea' };
     case 'noir':
       return { dark: '#17181c', light: '#dbdde2' };
+    case 'minimal-vector':
+    case 'prettymaps-minimal':
     case 'natural':
     default:
       return null;
@@ -167,18 +179,53 @@ function wrapX(x: number, n: number): number {
   return ((x % n) + n) % n;
 }
 
-async function fetchTileAsDataUrl(z: number, x: number, y: number): Promise<string> {
-  const url = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'space-map citymap renderer'
-    },
-    cache: 'no-store'
-  });
-  if (!res.ok) throw new Error(`Tile fetch failed (${res.status})`);
-  const ab = await res.arrayBuffer();
-  const base64 = Buffer.from(ab).toString('base64');
-  return `data:image/png;base64,${base64}`;
+function tileUrlsForStyle(style: MapStyleKey, z: number, x: number, y: number): string[] {
+  const geoapifyKey = (process.env.GEOAPIFY_API_KEY || '').trim();
+  const urls: string[] = [];
+  const pushGeoapify = (name: string) => {
+    if (!geoapifyKey) return;
+    urls.push(`https://maps.geoapify.com/v1/tile/${name}/${z}/${x}/${y}.png?apiKey=${geoapifyKey}`);
+  };
+
+  if (style === 'minimal-vector') {
+    pushGeoapify('osm-bright-grey');
+    pushGeoapify('osm-bright-smooth');
+    urls.push(`https://basemaps.cartocdn.com/light_nolabels/${z}/${x}/${y}.png`);
+    urls.push(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${z}/${y}/${x}`);
+    return urls;
+  }
+
+  if (style === 'prettymaps-minimal') {
+    pushGeoapify('osm-bright-grey');
+    pushGeoapify('klokantech-basic');
+    urls.push(`https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`);
+    urls.push(`https://basemaps.cartocdn.com/light_nolabels/${z}/${x}/${y}.png`);
+    return urls;
+  }
+
+  urls.push(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`);
+  urls.push(`https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`);
+  return urls;
+}
+
+async function fetchTileAsDataUrl(urls: string[]): Promise<string> {
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'space-map citymap renderer'
+        },
+        cache: 'no-store'
+      });
+      if (!res.ok) continue;
+      const ab = await res.arrayBuffer();
+      const base64 = Buffer.from(ab).toString('base64');
+      return `data:image/png;base64,${base64}`;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error('Tile fetch failed');
 }
 
 async function getStaticMapTiles(
@@ -186,7 +233,8 @@ async function getStaticMapTiles(
   longitude: number,
   zoom: number,
   width: number,
-  height: number
+  height: number,
+  style: MapStyleKey
 ): Promise<MapTile[]> {
   const z = Math.max(4, Math.min(19, Math.round(zoom)));
   const tileSize = 256;
@@ -210,8 +258,9 @@ async function getStaticMapTiles(
       const wrappedTx = wrapX(tx, n);
       const drawX = tx * tileSize - topLeftPxX;
       const drawY = ty * tileSize - topLeftPxY;
+      const urls = tileUrlsForStyle(style, z, wrappedTx, ty);
       tasks.push(
-        fetchTileAsDataUrl(z, wrappedTx, ty)
+        fetchTileAsDataUrl(urls)
           .then((href) => ({ href, x: drawX, y: drawY, w: tileSize, h: tileSize }))
           .catch(() => null)
       );
@@ -234,7 +283,7 @@ export async function renderCityMapSvg(req: CityMapRequest): Promise<string> {
 
   let mapTiles: MapTile[] = [];
   try {
-    mapTiles = await getStaticMapTiles(req.latitude, req.longitude, req.zoom, mapW, mapH);
+    mapTiles = await getStaticMapTiles(req.latitude, req.longitude, req.zoom, mapW, mapH, req.mapStyle ?? 'natural');
   } catch {
     mapTiles = [];
   }
@@ -281,7 +330,15 @@ export async function renderCityMapSvg(req: CityMapRequest): Promise<string> {
     `
     : '';
 
-  const styleFilter = tone ? `filter="url(#mapTone)"` : '';
+  const filterId =
+    styleKey === 'minimal-vector'
+      ? 'mapMinimalVector'
+      : styleKey === 'prettymaps-minimal'
+        ? 'mapPrettymapsMinimal'
+        : tone
+          ? 'mapTone'
+          : '';
+  const styleFilter = filterId ? `filter="url(#${filterId})"` : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
@@ -305,6 +362,32 @@ export async function renderCityMapSvg(req: CityMapRequest): Promise<string> {
     }
     <filter id="markerShadow" x="-100%" y="-100%" width="300%" height="300%">
       <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <filter id="mapMinimalVector" x="-8%" y="-8%" width="116%" height="116%">
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="2.35" intercept="-0.95"/>
+        <feFuncG type="linear" slope="2.35" intercept="-0.95"/>
+        <feFuncB type="linear" slope="2.35" intercept="-0.95"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="0.92" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="0.92" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="0.92" offset="0"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="mapPrettymapsMinimal" x="-8%" y="-8%" width="116%" height="116%">
+      <feColorMatrix type="saturate" values="0.14"/>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.75" intercept="-0.48"/>
+        <feFuncG type="linear" slope="1.75" intercept="-0.48"/>
+        <feFuncB type="linear" slope="1.75" intercept="-0.48"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="0.95" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="0.95" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="0.95" offset="0"/>
+      </feComponentTransfer>
     </filter>
     <clipPath id="mapClip">
       <rect x="${mapX}" y="${mapY}" width="${mapW}" height="${mapH}" rx="0" ry="0"/>

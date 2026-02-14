@@ -5,7 +5,17 @@ import type { PosterParams } from '../../lib/types';
 
 type CitySize = 'a2' | 'us-letter' | '16x20' | '18x24';
 type FontPresetKey = 'calligraphy' | 'serif' | 'gothic' | 'times';
-type MapStyleKey = 'mono' | 'natural' | 'earth' | 'old-navy' | 'coral' | 'teal' | 'cobalt' | 'noir';
+type MapStyleKey =
+  | 'mono'
+  | 'natural'
+  | 'earth'
+  | 'old-navy'
+  | 'coral'
+  | 'teal'
+  | 'cobalt'
+  | 'noir'
+  | 'minimal-vector'
+  | 'prettymaps-minimal';
 
 type GeocodeResult = {
   lat: number;
@@ -28,6 +38,8 @@ const FONT_PRESETS: { key: FontPresetKey; label: string }[] = [
 ];
 
 const MAP_STYLES: { key: MapStyleKey; label: string }[] = [
+  { key: 'minimal-vector', label: 'Minimal Vector Poster' },
+  { key: 'prettymaps-minimal', label: 'Prettymaps Minimal' },
   { key: 'mono', label: 'Mono' },
   { key: 'natural', label: 'Natural' },
   { key: 'earth', label: 'Earth' },
