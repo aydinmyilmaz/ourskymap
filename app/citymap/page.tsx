@@ -267,8 +267,8 @@ export default function CityMapPage() {
           </div>
         </div>
         <nav className="menu">
-          <a href="/design">Star Map</a>
-          <a href="/what-is-star-map">What is Star Map?</a>
+          <a href="/ourskymap">Sky Map</a>
+          <a href="/what-is-star-map">What is Sky Map?</a>
           <a href="/faq">FAQ</a>
           <a href="/blog">Blog</a>
         </nav>

@@ -85,6 +85,20 @@ function getPalette(name: PosterRequest['poster']['palette']): Palette {
   switch (name) {
     case 'classic-black':
       return { bg: '#0b0b0d', ink: '#f6f6f7', mutedInk: 'rgba(246,246,247,0.55)', accent: '#f6f6f7' };
+    case 'graphite':
+      return { bg: '#4a5368', ink: '#f2f4f8', mutedInk: 'rgba(242,244,248,0.42)', accent: '#f2f4f8' };
+    case 'deep-navy':
+      return { bg: '#09105f', ink: '#f1f4ff', mutedInk: 'rgba(241,244,255,0.42)', accent: '#f1f4ff' };
+    case 'royal-blue':
+      return { bg: '#365b8e', ink: '#eef4ff', mutedInk: 'rgba(238,244,255,0.42)', accent: '#eef4ff' };
+    case 'ocean-teal':
+      return { bg: '#2c8d84', ink: '#eefcf9', mutedInk: 'rgba(238,252,249,0.42)', accent: '#eefcf9' };
+    case 'mustard-gold':
+      return { bg: '#deae00', ink: '#1d1a14', mutedInk: 'rgba(29,26,20,0.36)', accent: '#1d1a14' };
+    case 'burnt-orange':
+      return { bg: '#d3854f', ink: '#1f1510', mutedInk: 'rgba(31,21,16,0.36)', accent: '#1f1510' };
+    case 'terracotta-red':
+      return { bg: '#d45745', ink: '#fff4f0', mutedInk: 'rgba(255,244,240,0.44)', accent: '#fff4f0' };
     case 'navy-gold':
       return { bg: '#151c2d', ink: '#f4c25b', mutedInk: 'rgba(244,194,91,0.35)', accent: '#f4c25b' };
     case 'night-gold':
@@ -333,8 +347,10 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   const labelFill = palette.mutedInk;
 
+  // Keep poster content margins stable, but let optional frame sit closer to page corners.
+  const frameEdgeInset = Math.max(16, margin * 0.26) + frameInset;
   const frame = poster.border
-    ? `<rect x="${margin + frameInset}" y="${margin + frameInset}" width="${W - 2 * (margin + frameInset)}" height="${H - 2 * (margin + frameInset)}" fill="none" stroke="${palette.ink}" stroke-width="${borderW}" opacity="0.9"/>`
+    ? `<rect x="${frameEdgeInset}" y="${frameEdgeInset}" width="${W - 2 * frameEdgeInset}" height="${H - 2 * frameEdgeInset}" fill="none" stroke="${palette.ink}" stroke-width="${borderW}" opacity="0.9"/>`
     : '';
 
   const fontFamily = (k: PosterRequest['poster']['titleFont'] | PosterRequest['poster']['namesFont'] | PosterRequest['poster']['metaFont']) => {
@@ -350,7 +366,7 @@ export function renderPosterSvg(req: PosterRequest): string {
       case 'sans':
         return 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
       case 'cursive':
-        return 'cursive, ui-serif, Georgia, Times New Roman, serif';
+        return "'Great Vibes', 'Allura', 'Alex Brush', 'Jimmy Script', cursive, ui-serif, Georgia, Times New Roman, serif";
       case 'serif':
       default:
         return 'ui-serif, Georgia, Times New Roman, serif';

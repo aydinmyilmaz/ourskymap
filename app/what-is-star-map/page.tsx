@@ -1,74 +1,146 @@
-export default function WhatIsStarMapPage() {
-  const pageStyle = { maxWidth: 860, margin: '0 auto', padding: '40px 20px 64px', color: '#121826' } as const;
-  const heroStyle = { marginBottom: 22 } as const;
-  const eyebrowStyle = {
-    textTransform: 'uppercase',
-    letterSpacing: '0.08em',
-    fontSize: 12,
-    color: '#586074',
-    margin: '0 0 10px'
-  } as const;
-  const h1Style = { margin: '0 0 12px', fontSize: 34, lineHeight: 1.2 } as const;
-  const h2Style = { margin: '0 0 10px', fontSize: 22 } as const;
-  const pStyle = { margin: 0, color: '#394150', lineHeight: 1.6 } as const;
-  const cardStyle = {
-    background: '#f7f9fc',
-    border: '1px solid #d8e0ea',
-    borderRadius: 16,
-    padding: 18,
-    marginTop: 14
-  } as const;
-  const listStyle = { margin: 0, paddingLeft: 20, color: '#2f3848', lineHeight: 1.8 } as const;
-  const actionsStyle = { marginTop: 20, display: 'flex', gap: 12, flexWrap: 'wrap' } as const;
-  const linkStyle = {
-    textDecoration: 'none',
-    border: '1px solid #cad4e2',
-    background: '#fff',
-    color: '#111827',
-    borderRadius: 12,
-    padding: '10px 14px',
-    fontWeight: 600
-  } as const;
+import styles from './page.module.css';
 
+const features = [
+  {
+    title: 'Precise Location',
+    text: 'Enter any city in the world and we render the exact sky alignment for that place.'
+  },
+  {
+    title: 'Moment in Time',
+    text: 'Pick any date and time, past or future, and freeze that celestial moment forever.'
+  },
+  {
+    title: 'Heartfelt Message',
+    text: 'Personalize your design with names, title and a meaningful line that tells your story.'
+  }
+];
+
+const testimonials = [
+  '"The print came out amazing and the quality felt premium. It became our favorite wall piece."',
+  '"Fast delivery, beautiful design and very easy customization. Perfect gift for anniversaries."',
+  '"I ordered one for my sister and she cried when she opened it. Highly recommended."'
+];
+
+const faq = [
+  {
+    q: 'Are the sky maps astronomically accurate?',
+    a: 'Yes. We use real sky data to display stars and constellations for your selected location, date and time.'
+  },
+  {
+    q: 'What information do I need to provide?',
+    a: 'Only a location and date. Time is optional, and you can add title, names and custom text lines.'
+  },
+  {
+    q: 'How are the files delivered?',
+    a: 'After checkout you can download high-quality digital files instantly. A copy can also be emailed.'
+  },
+  {
+    q: 'Can I create one for a future date?',
+    a: 'Absolutely. You can generate designs for past, present or future moments.'
+  }
+];
+
+export default function WhatIsStarMapPage() {
   return (
-    <main style={pageStyle}>
-      <section style={heroStyle}>
-        <p style={eyebrowStyle}>What is Star Map</p>
-        <h1 style={h1Style}>A personalized map of the sky from your special moment.</h1>
-        <p style={pStyle}>
-          A star map poster recreates how the night sky looked from a selected location, date and time.
-          It turns that exact sky into a clean print design that you can personalize with title, names,
-          and location text.
+    <main className={styles.page}>
+      <section className={styles.hero}>
+        <div className={styles.heroText}>
+          <p className={styles.eyebrow}>What is Sky Map?</p>
+          <h1>
+            Written in the stars,
+            <br />
+            <span>Your core memories.</span>
+          </h1>
+          <p>
+            Capture the celestial beauty of your most cherished moments with bespoke sky maps, showing
+            the exact alignment of stars when your story began.
+          </p>
+          <div className={styles.heroActions}>
+            <a className={styles.primaryBtn} href="/ourskymap">
+              Create Your Sky Map
+            </a>
+            <div className={styles.rating}>4.9/5 from 200+ reviews</div>
+          </div>
+        </div>
+        <div className={styles.heroOrbWrap} aria-hidden>
+          <div className={styles.heroOrb} />
+        </div>
+      </section>
+
+      <section className={styles.centerIntro}>
+        <h2>
+          What is a <span>Sky Map?</span>
+        </h2>
+        <p>
+          A sky map is a unique representation of the night sky from a specific place and time. Whether
+          it marks when you met, got married, or welcomed new life, it turns that exact sky into a
+          timeless keepsake.
         </p>
       </section>
 
-      <section style={cardStyle}>
-        <h2 style={h2Style}>How it works</h2>
-        <ol style={listStyle}>
-          <li>Choose a location and date/time.</li>
-          <li>Generate the star map for that moment.</li>
-          <li>Customize palette, frame, title and text lines.</li>
-          <li>Export and print as a keepsake gift.</li>
-        </ol>
+      <section className={styles.features}>
+        {features.map((item) => (
+          <article key={item.title} className={styles.featureCard}>
+            <h3>{item.title}</h3>
+            <p>{item.text}</p>
+          </article>
+        ))}
       </section>
 
-      <section style={cardStyle}>
-        <h2 style={h2Style}>Popular occasions</h2>
-        <ul style={listStyle}>
-          <li>Weddings and anniversaries</li>
-          <li>Birthdays and newborn gifts</li>
-          <li>Engagements and first-date memories</li>
-          <li>Housewarmings and long-distance keepsakes</li>
-        </ul>
+      <section className={styles.testimonials}>
+        {testimonials.map((quote) => (
+          <blockquote key={quote} className={styles.quoteCard}>
+            {quote}
+          </blockquote>
+        ))}
       </section>
 
-      <section style={actionsStyle}>
-        <a href="/design" style={linkStyle}>
-          Open Designer
-        </a>
-        <a href="/faq" style={linkStyle}>
-          Read FAQ
-        </a>
+      <section className={styles.journey}>
+        <h2>
+          The <span>Journey</span>
+        </h2>
+        <p>Creating your personalized celestial keepsake is simple and magical.</p>
+        <div className={styles.steps}>
+          <div className={styles.step}>
+            <div className={styles.stepNumber}>1</div>
+            <h4>Select Your Moment</h4>
+            <p>Choose the date, time, and location that matter most.</p>
+          </div>
+          <div className={styles.step}>
+            <div className={styles.stepNumber}>2</div>
+            <h4>Customize Your Design</h4>
+            <p>Pick style, palette, frame and typography for your story.</p>
+          </div>
+          <div className={styles.step}>
+            <div className={styles.stepNumber}>3</div>
+            <h4>Receive Your Keepsake</h4>
+            <p>Download your print-ready file instantly after checkout.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.faq}>
+        <h2>
+          Questions &amp; <span>Answers</span>
+        </h2>
+        {faq.map((item) => (
+          <article key={item.q} className={styles.faqItem}>
+            <h3>{item.q}</h3>
+            <p>{item.a}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className={styles.bottomCta}>
+        <h2>Your moment deserves a sky of its own.</h2>
+        <div className={styles.heroActions}>
+          <a className={styles.primaryBtn} href="/ourskymap">
+            Start Designing
+          </a>
+          <a className={styles.ghostBtn} href="/faq">
+            Read FAQ
+          </a>
+        </div>
       </section>
     </main>
   );

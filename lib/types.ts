@@ -45,6 +45,13 @@ export type PosterParams = {
   size: 'a4' | 'square' | '16x20' | '20x20' | 'a2' | 'us-letter' | '18x24';
   palette:
     | 'classic-black'
+    | 'graphite'
+    | 'deep-navy'
+    | 'royal-blue'
+    | 'ocean-teal'
+    | 'mustard-gold'
+    | 'burnt-orange'
+    | 'terracotta-red'
     | 'midnight'
     | 'navy-gold'
     | 'cream-ink'

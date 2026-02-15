@@ -26,3 +26,9 @@ Open `http://localhost:3000`.
 - The app generates SVG server-side in `app/api/chart/route.ts`.
 - Location search uses Nominatim via `app/api/geocode/route.ts`.
 - Star/constellation datasets are in `data/`.
+
+## Technical docs
+
+- OurSkyMap routing/API migration notes: `docs/OURSKYMAP_TECHNICAL.md`
+- Checkout coupon flow: `docs/CHECKOUT_COUPON_FLOW.md`
+- Star density normalization note: `docs/STAR_DENSITY_NORMALIZATION_NOTE.md`

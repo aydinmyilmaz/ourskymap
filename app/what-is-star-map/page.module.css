@@ -1,0 +1,318 @@
+.page {
+  --bg-0: #030726;
+  --bg-1: #0a1038;
+  --line: rgba(113, 142, 240, 0.12);
+  --text: #eaf0ff;
+  --muted: #aab5d1;
+  --accent: #8fb1ff;
+  --card: rgba(17, 24, 62, 0.68);
+  min-height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 78% 14%, rgba(126, 168, 255, 0.28), transparent 30%),
+    radial-gradient(circle at 12% 40%, rgba(98, 143, 255, 0.08), transparent 38%),
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px),
+    linear-gradient(160deg, var(--bg-0), var(--bg-1) 40%, #040826);
+  background-size: auto, auto, 72px 72px, 72px 72px, auto;
+  padding: 44px 28px 88px;
+}
+
+.hero,
+.centerIntro,
+.features,
+.testimonials,
+.journey,
+.faq,
+.bottomCta {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 40px;
+  align-items: center;
+  padding: 12px 0 56px;
+}
+
+.heroText h1 {
+  margin: 10px 0 18px;
+  font-size: clamp(40px, 7vw, 76px);
+  line-height: 1.03;
+  letter-spacing: -0.02em;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.heroText h1 span,
+.centerIntro h2 span,
+.journey h2 span,
+.faq h2 span {
+  color: var(--accent);
+}
+
+.heroText p {
+  margin: 0;
+  max-width: 640px;
+  line-height: 1.7;
+  color: var(--muted);
+  font-size: 26px;
+}
+
+.eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #cfd8ff;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.heroActions {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.primaryBtn,
+.ghostBtn {
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 13px 24px;
+  font-weight: 700;
+  font-size: 15px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.primaryBtn {
+  color: #eaf0ff;
+  background: linear-gradient(135deg, #6f93f8, #7da0ff);
+  box-shadow: 0 12px 28px rgba(82, 127, 255, 0.35);
+}
+
+.ghostBtn {
+  color: #cfd9fb;
+  border: 1px solid rgba(160, 182, 245, 0.45);
+  background: rgba(17, 25, 60, 0.45);
+}
+
+.primaryBtn:hover,
+.ghostBtn:hover {
+  transform: translateY(-1px);
+}
+
+.rating {
+  color: #dbe4ff;
+  font-size: 18px;
+}
+
+.heroOrbWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.heroOrb {
+  width: min(44vw, 590px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid rgba(231, 238, 255, 0.72);
+  box-shadow:
+    0 0 0 10px rgba(110, 148, 255, 0.08),
+    0 0 55px rgba(123, 166, 255, 0.38),
+    inset 0 0 60px rgba(132, 167, 255, 0.18);
+  background:
+    radial-gradient(circle at 30% 22%, rgba(194, 216, 255, 0.36), transparent 34%),
+    radial-gradient(circle at 72% 58%, rgba(100, 133, 218, 0.24), transparent 44%),
+    radial-gradient(circle at center, #121e4d 0%, #091131 75%);
+  position: relative;
+  overflow: hidden;
+}
+
+.heroOrb::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(240, 246, 255, 0.95) 1px, transparent 1px);
+  background-size: 18px 18px;
+  opacity: 0.7;
+}
+
+.heroOrb::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  border: 1px solid rgba(214, 225, 255, 0.55);
+}
+
+.centerIntro {
+  text-align: center;
+  max-width: 960px;
+  padding: 30px 0 24px;
+}
+
+.centerIntro h2,
+.journey h2,
+.faq h2,
+.bottomCta h2 {
+  margin: 0;
+  font-size: clamp(38px, 4vw, 66px);
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.centerIntro p,
+.journey > p {
+  margin: 20px auto 0;
+  max-width: 880px;
+  color: var(--muted);
+  font-size: 34px;
+  line-height: 1.7;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 38px;
+}
+
+.featureCard {
+  background: var(--card);
+  border: 1px solid rgba(139, 166, 243, 0.24);
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.featureCard h3,
+.faqItem h3,
+.step h4 {
+  margin: 0 0 10px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 32px;
+  font-weight: 500;
+}
+
+.featureCard p,
+.quoteCard,
+.faqItem p,
+.step p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 24px;
+}
+
+.testimonials {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.quoteCard {
+  background: rgba(12, 18, 51, 0.72);
+  border: 1px solid rgba(137, 163, 238, 0.18);
+  border-radius: 16px;
+  padding: 22px;
+  font-style: italic;
+}
+
+.journey {
+  text-align: center;
+  margin-top: 74px;
+}
+
+.steps {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.step {
+  padding: 10px 16px;
+}
+
+.stepNumber {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  color: #dce8ff;
+  background: radial-gradient(circle at 30% 30%, #7f9fff, #2d437a);
+  box-shadow: 0 0 22px rgba(107, 147, 255, 0.4);
+}
+
+.faq {
+  margin-top: 74px;
+}
+
+.faq h2 {
+  text-align: center;
+}
+
+.faqItem {
+  padding: 22px 0;
+  border-bottom: 1px solid rgba(151, 175, 245, 0.16);
+}
+
+.bottomCta {
+  margin-top: 62px;
+  text-align: center;
+}
+
+.bottomCta h2 {
+  font-size: clamp(30px, 3.5vw, 52px);
+}
+
+@media (max-width: 1200px) {
+  .hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .heroText p {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .heroActions {
+    justify-content: center;
+  }
+
+  .heroOrb {
+    width: min(80vw, 560px);
+  }
+
+  .features,
+  .testimonials,
+  .steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .page {
+    padding: 28px 18px 66px;
+  }
+
+  .featureCard,
+  .quoteCard {
+    padding: 18px;
+  }
+
+  .heroActions {
+    gap: 12px;
+  }
+}
