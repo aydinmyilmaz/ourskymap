@@ -67,7 +67,7 @@ export default function BlogPage() {
         ))}
       </div>
 
-      <a href="/design" style={backStyle}>
+      <a href="/ourskymap" style={backStyle}>
         Back to Designer
       </a>
     </main>

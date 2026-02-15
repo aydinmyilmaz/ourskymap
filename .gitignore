@@ -28,6 +28,7 @@ __pycache__/
 *.svg
 *.png
 !public/moon.png
+!public/logo_ourskymap_round.png
 
 # Local caches / downloads
 *.bsp
@@ -45,3 +46,6 @@ yas_kutlama_*.jpg
 # Env
 .env
 .env.*
+
+# Local/unused branding temp files
+public/logo_favicon.jpeg
