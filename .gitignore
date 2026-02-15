@@ -42,6 +42,7 @@ age_test_images_2/
 photos/
 photos
 yas_kutlama_*.jpg
+test-scripts/mapbox-minimal-tests*/
 
 # Env
 .env

@@ -1,17 +1,8 @@
 import type { PosterParams } from './types';
 
 type CityMapSize = 'a2' | 'us-letter' | '16x20' | '18x24';
-type MapStyleKey =
-  | 'mono'
-  | 'natural'
-  | 'earth'
-  | 'old-navy'
-  | 'coral'
-  | 'teal'
-  | 'cobalt'
-  | 'noir'
-  | 'minimal-vector'
-  | 'prettymaps-minimal';
+type PinStyle = 'none' | 'classic' | 'love' | 'pushpin' | 'heart' | 'cross' | 'home' | 'graduation';
+type MapShape = 'rectangle' | 'circle';
 
 export type CityMapRequest = {
   latitude: number;
@@ -24,18 +15,24 @@ export type CityMapRequest = {
   borderWidth: number;
   borderInset: number;
   zoom: number;
-  monochrome: boolean;
-  mapStyle?: MapStyleKey;
+  mapImageDataUrl: string;
+  mapShape?: MapShape;
   showMarker: boolean;
+  pinStyle?: PinStyle;
+  uppercaseTitle?: boolean;
   title: string;
   subtitle: string;
   metaText: string;
+  textYOffset?: number;
   titleFont: 'serif' | 'sans' | 'mono' | 'prata';
   namesFont: 'serif' | 'sans' | 'cursive' | 'jimmy-script';
   metaFont: 'sans' | 'serif' | 'mono' | 'signika';
   titleFontSize: number;
   namesFontSize: number;
   metaFontSize: number;
+  motorwayWidth?: number;
+  primaryRoadWidth?: number;
+  minorRoadWidth?: number;
 };
 
 type Palette = {
@@ -44,53 +41,12 @@ type Palette = {
   mutedInk: string;
 };
 
-type Tone = {
-  dark: string;
-  light: string;
-};
-
 function svgEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function svgAttrEscape(s: string): string {
   return svgEscape(s).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-}
-
-function hexPairToDec(v: string): number {
-  return parseInt(v, 16);
-}
-
-function hexToRgb01(hex: string): { r: number; g: number; b: number } {
-  const h = hex.trim().replace('#', '');
-  const r = hexPairToDec(h.slice(0, 2)) / 255;
-  const g = hexPairToDec(h.slice(2, 4)) / 255;
-  const b = hexPairToDec(h.slice(4, 6)) / 255;
-  return { r, g, b };
-}
-
-function styleTone(style: MapStyleKey): Tone | null {
-  switch (style) {
-    case 'mono':
-      return { dark: '#3b3f44', light: '#edf0f2' };
-    case 'earth':
-      return { dark: '#4a5b4d', light: '#d6d8bf' };
-    case 'old-navy':
-      return { dark: '#24344f', light: '#d8d0b8' };
-    case 'coral':
-      return { dark: '#9f4a5d', light: '#f0d3c2' };
-    case 'teal':
-      return { dark: '#285e61', light: '#c8ddd2' };
-    case 'cobalt':
-      return { dark: '#2a4b75', light: '#cad9ea' };
-    case 'noir':
-      return { dark: '#17181c', light: '#dbdde2' };
-    case 'minimal-vector':
-    case 'prettymaps-minimal':
-    case 'natural':
-    default:
-      return null;
-  }
 }
 
 function getPalette(name: CityMapRequest['palette']): Palette {
@@ -152,274 +108,117 @@ function getPosterSize(size: CityMapSize): { width: number; height: number; marg
   return { width: 16 * 72, height: 20 * 72, margin: 72, chartTopOffset: 18 };
 }
 
-type MapTile = {
-  href: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-};
+function renderMarker(pinStyle: PinStyle | undefined, x: number, y: number, ink: string): string {
+  const pinColor = '#d9242b';
+  const classic = `
+    <g filter="url(#markerShadow)">
+      <circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="14" fill="${pinColor}" opacity="0.94"/>
+      <path d="M ${x.toFixed(2)} ${(y + 25).toFixed(2)} L ${(x - 8).toFixed(2)} ${(y + 11).toFixed(2)} L ${(x + 8).toFixed(2)} ${(y + 11).toFixed(2)} Z" fill="${pinColor}" opacity="0.92"/>
+    </g>
+    <circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" fill="#ffffff"/>
+  `;
 
-function clampLat(lat: number): number {
-  return Math.max(-85.05112878, Math.min(85.05112878, lat));
-}
+  if (!pinStyle || pinStyle === 'classic') return classic;
+  if (pinStyle === 'none') return '';
 
-function lonToTileX(lon: number, zoom: number): number {
-  const n = 2 ** zoom;
-  return ((lon + 180) / 360) * n;
-}
-
-function latToTileY(lat: number, zoom: number): number {
-  const n = 2 ** zoom;
-  const latRad = (clampLat(lat) * Math.PI) / 180;
-  return ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
-}
-
-function wrapX(x: number, n: number): number {
-  return ((x % n) + n) % n;
-}
-
-function tileUrlsForStyle(style: MapStyleKey, z: number, x: number, y: number): string[] {
-  const geoapifyKey = (process.env.GEOAPIFY_API_KEY || '').trim();
-  const urls: string[] = [];
-  const pushGeoapify = (name: string) => {
-    if (!geoapifyKey) return;
-    urls.push(`https://maps.geoapify.com/v1/tile/${name}/${z}/${x}/${y}.png?apiKey=${geoapifyKey}`);
+  const glyphByStyle: Record<Exclude<PinStyle, 'none' | 'classic'>, string> = {
+    love: '❤',
+    pushpin: '•',
+    heart: '♥',
+    cross: '✕',
+    home: '⌂',
+    graduation: '★'
   };
+  const glyph = glyphByStyle[pinStyle];
+  const fontSize = pinStyle === 'home' ? 30 : pinStyle === 'pushpin' ? 44 : 28;
 
-  if (style === 'minimal-vector') {
-    pushGeoapify('osm-bright-grey');
-    pushGeoapify('osm-bright-smooth');
-    urls.push(`https://basemaps.cartocdn.com/light_nolabels/${z}/${x}/${y}.png`);
-    urls.push(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${z}/${y}/${x}`);
-    return urls;
-  }
-
-  if (style === 'prettymaps-minimal') {
-    pushGeoapify('osm-bright-grey');
-    pushGeoapify('klokantech-basic');
-    urls.push(`https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`);
-    urls.push(`https://basemaps.cartocdn.com/light_nolabels/${z}/${x}/${y}.png`);
-    return urls;
-  }
-
-  urls.push(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`);
-  urls.push(`https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`);
-  return urls;
-}
-
-async function fetchTileAsDataUrl(urls: string[]): Promise<string> {
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'space-map citymap renderer'
-        },
-        cache: 'no-store'
-      });
-      if (!res.ok) continue;
-      const ab = await res.arrayBuffer();
-      const base64 = Buffer.from(ab).toString('base64');
-      return `data:image/png;base64,${base64}`;
-    } catch {
-      continue;
-    }
-  }
-  throw new Error('Tile fetch failed');
-}
-
-async function getStaticMapTiles(
-  latitude: number,
-  longitude: number,
-  zoom: number,
-  width: number,
-  height: number,
-  style: MapStyleKey
-): Promise<MapTile[]> {
-  const z = Math.max(4, Math.min(19, Math.round(zoom)));
-  const tileSize = 256;
-  const n = 2 ** z;
-
-  const centerPxX = lonToTileX(longitude, z) * tileSize;
-  const centerPxY = latToTileY(latitude, z) * tileSize;
-  const topLeftPxX = centerPxX - width / 2;
-  const topLeftPxY = centerPxY - height / 2;
-
-  const startTileX = Math.floor(topLeftPxX / tileSize);
-  const startTileY = Math.floor(topLeftPxY / tileSize);
-  const endTileX = Math.floor((topLeftPxX + width - 1) / tileSize);
-  const endTileY = Math.floor((topLeftPxY + height - 1) / tileSize);
-
-  const tasks: Promise<MapTile | null>[] = [];
-
-  for (let ty = startTileY; ty <= endTileY; ty++) {
-    if (ty < 0 || ty >= n) continue;
-    for (let tx = startTileX; tx <= endTileX; tx++) {
-      const wrappedTx = wrapX(tx, n);
-      const drawX = tx * tileSize - topLeftPxX;
-      const drawY = ty * tileSize - topLeftPxY;
-      const urls = tileUrlsForStyle(style, z, wrappedTx, ty);
-      tasks.push(
-        fetchTileAsDataUrl(urls)
-          .then((href) => ({ href, x: drawX, y: drawY, w: tileSize, h: tileSize }))
-          .catch(() => null)
-      );
-    }
-  }
-
-  const tiles = (await Promise.all(tasks)).filter(Boolean) as MapTile[];
-  return tiles;
+  return `
+    <g filter="url(#markerShadow)">
+      <circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="20" fill="#ffffff" stroke="${ink}" stroke-width="1.25" opacity="0.95"/>
+      <text x="${x.toFixed(2)}" y="${(y + fontSize * 0.34).toFixed(2)}" text-anchor="middle" fill="${pinColor}" font-size="${fontSize}" font-family="'Signika', ui-sans-serif, system-ui">
+        ${svgEscape(glyph)}
+      </text>
+    </g>
+  `;
 }
 
 export async function renderCityMapSvg(req: CityMapRequest): Promise<string> {
   const { width: W, height: H, margin, chartTopOffset } = getPosterSize(req.size);
   const palette = getPalette(req.palette);
   const ink = req.inkColor.trim() ? req.inkColor : palette.ink;
+  const mapShape: MapShape = req.mapShape === 'circle' ? 'circle' : 'rectangle';
+  const isCircle = mapShape === 'circle';
   const frameInset = req.borderInset;
   const mapX = margin + frameInset;
   const mapW = W - 2 * (margin + frameInset);
   const mapH = Math.max(220, H * 0.57);
   const mapY = margin + frameInset + chartTopOffset;
+  const circleBaseRadius = Math.min(mapW, mapH) / 2;
+  const circleRadius = isCircle ? circleBaseRadius * 0.97 : circleBaseRadius;
+  const circleCx = mapX + mapW / 2;
+  const circleCy = mapY + mapH / 2 + (isCircle ? circleBaseRadius * 0.03 : 0);
 
-  let mapTiles: MapTile[] = [];
-  try {
-    mapTiles = await getStaticMapTiles(req.latitude, req.longitude, req.zoom, mapW, mapH, req.mapStyle ?? 'natural');
-  } catch {
-    mapTiles = [];
+  const mapImageDataUrl = (req.mapImageDataUrl || '').trim();
+  if (!/^data:image\/(png|jpeg|jpg|webp);base64,/i.test(mapImageDataUrl)) {
+    throw new Error('mapImageDataUrl is required (vector capture only).');
   }
 
-  const titleY = mapY + mapH + Math.max(52, H * 0.06);
-  const subtitleY = titleY + Math.max(50, H * 0.038);
-  const metaY = subtitleY + Math.max(42, H * 0.03);
+  const textTopGap = isCircle ? Math.max(86, H * 0.085) : Math.max(52, H * 0.06);
+  const textYOffset = Math.max(-220, Math.min(220, Number(req.textYOffset ?? 0)));
+  const textStartY = (isCircle ? circleCy + circleRadius : mapY + mapH) + textTopGap + textYOffset;
+  const titleY = textStartY;
+  const subtitleY = titleY + (isCircle ? Math.max(58, H * 0.044) : Math.max(50, H * 0.038));
+  const metaY = subtitleY + (isCircle ? Math.max(46, H * 0.032) : Math.max(42, H * 0.03));
   const markerX = mapX + mapW / 2;
-  const markerY = mapY + mapH / 2;
-  const styleKey: MapStyleKey = req.mapStyle ?? (req.monochrome ? 'mono' : 'natural');
-  const tone = styleTone(styleKey);
-  const darkTone = tone ? hexToRgb01(tone.dark) : null;
-  const lightTone = tone ? hexToRgb01(tone.light) : null;
+  const markerY = isCircle ? circleCy : mapY + mapH / 2;
+  const titleFontSize = Math.max(12, req.titleFontSize) * (isCircle ? 1.14 : 1);
+  const subtitleFontSize = Math.max(10, req.namesFontSize) * (isCircle ? 1.12 : 1);
+  const metaFontSize = Math.max(9, req.metaFontSize) * (isCircle ? 1.08 : 1);
 
   const frame = req.border
     ? `<rect x="${mapX}" y="${mapY}" width="${mapW}" height="${H - 2 * (margin + frameInset)}" fill="none" stroke="${ink}" stroke-width="${Math.max(0.5, req.borderWidth)}" opacity="0.9"/>`
     : '';
+  const mapClipShape =
+    isCircle
+      ? `<circle cx="${circleCx}" cy="${circleCy}" r="${circleRadius}"/>`
+      : `<rect x="${mapX}" y="${mapY}" width="${mapW}" height="${mapH}" rx="0" ry="0"/>`;
+  const mapOutline =
+    isCircle
+      ? `<circle cx="${circleCx}" cy="${circleCy}" r="${circleRadius}" fill="none" stroke="${palette.mutedInk}" stroke-width="1"/>`
+      : `<rect x="${mapX}" y="${mapY}" width="${mapW}" height="${mapH}" fill="none" stroke="${palette.mutedInk}" stroke-width="1"/>`;
+  const imagePreserve = isCircle ? 'xMidYMid slice' : 'none';
 
-  const fallbackPattern = `
-    <rect x="${mapX}" y="${mapY}" width="${mapW}" height="${mapH}" fill="#eef1f4"/>
-    <g stroke="#d6dbe1" stroke-width="1">
-      ${Array.from({ length: 18 })
-        .map((_, i) => {
-          const y = mapY + (i * mapH) / 17;
-          return `<line x1="${mapX}" y1="${y.toFixed(2)}" x2="${(mapX + mapW).toFixed(2)}" y2="${y.toFixed(2)}"/>`;
-        })
-        .join('')}
-      ${Array.from({ length: 14 })
-        .map((_, i) => {
-          const x = mapX + (i * mapW) / 13;
-          return `<line x1="${x.toFixed(2)}" y1="${mapY}" x2="${x.toFixed(2)}" y2="${(mapY + mapH).toFixed(2)}"/>`;
-        })
-        .join('')}
-    </g>
-  `;
-
-  const marker = req.showMarker
-    ? `
-      <g filter="url(#markerShadow)">
-        <circle cx="${markerX.toFixed(2)}" cy="${markerY.toFixed(2)}" r="14" fill="${ink}" opacity="0.92"/>
-        <path d="M ${markerX.toFixed(2)} ${(markerY + 25).toFixed(2)} L ${(markerX - 8).toFixed(2)} ${(markerY + 11).toFixed(2)} L ${(markerX + 8).toFixed(2)} ${(markerY + 11).toFixed(2)} Z" fill="${ink}" opacity="0.9"/>
-      </g>
-      <circle cx="${markerX.toFixed(2)}" cy="${markerY.toFixed(2)}" r="4" fill="#ffffff"/>
-    `
-    : '';
-
-  const filterId =
-    styleKey === 'minimal-vector'
-      ? 'mapMinimalVector'
-      : styleKey === 'prettymaps-minimal'
-        ? 'mapPrettymapsMinimal'
-        : tone
-          ? 'mapTone'
-          : '';
-  const styleFilter = filterId ? `filter="url(#${filterId})"` : '';
+  const marker = req.showMarker ? renderMarker(req.pinStyle, markerX, markerY, ink) : '';
+  const titleText = req.uppercaseTitle === false ? req.title || '' : (req.title || '').toUpperCase();
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>
-    ${
-      tone && darkTone && lightTone
-        ? `<filter id="mapTone" x="-6%" y="-6%" width="112%" height="112%">
-      <feColorMatrix type="saturate" values="0"/>
-      <feComponentTransfer>
-        <feFuncR type="table" tableValues="${darkTone.r.toFixed(4)} ${lightTone.r.toFixed(4)}"/>
-        <feFuncG type="table" tableValues="${darkTone.g.toFixed(4)} ${lightTone.g.toFixed(4)}"/>
-        <feFuncB type="table" tableValues="${darkTone.b.toFixed(4)} ${lightTone.b.toFixed(4)}"/>
-      </feComponentTransfer>
-      <feComponentTransfer>
-        <feFuncR type="gamma" amplitude="1" exponent="0.92" offset="0"/>
-        <feFuncG type="gamma" amplitude="1" exponent="0.92" offset="0"/>
-        <feFuncB type="gamma" amplitude="1" exponent="0.92" offset="0"/>
-      </feComponentTransfer>
-    </filter>`
-        : ''
-    }
     <filter id="markerShadow" x="-100%" y="-100%" width="300%" height="300%">
       <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.35"/>
     </filter>
-    <filter id="mapMinimalVector" x="-8%" y="-8%" width="116%" height="116%">
-      <feColorMatrix type="saturate" values="0"/>
-      <feComponentTransfer>
-        <feFuncR type="linear" slope="2.35" intercept="-0.95"/>
-        <feFuncG type="linear" slope="2.35" intercept="-0.95"/>
-        <feFuncB type="linear" slope="2.35" intercept="-0.95"/>
-      </feComponentTransfer>
-      <feComponentTransfer>
-        <feFuncR type="gamma" amplitude="1" exponent="0.92" offset="0"/>
-        <feFuncG type="gamma" amplitude="1" exponent="0.92" offset="0"/>
-        <feFuncB type="gamma" amplitude="1" exponent="0.92" offset="0"/>
-      </feComponentTransfer>
-    </filter>
-    <filter id="mapPrettymapsMinimal" x="-8%" y="-8%" width="116%" height="116%">
-      <feColorMatrix type="saturate" values="0.14"/>
-      <feComponentTransfer>
-        <feFuncR type="linear" slope="1.75" intercept="-0.48"/>
-        <feFuncG type="linear" slope="1.75" intercept="-0.48"/>
-        <feFuncB type="linear" slope="1.75" intercept="-0.48"/>
-      </feComponentTransfer>
-      <feComponentTransfer>
-        <feFuncR type="gamma" amplitude="1" exponent="0.95" offset="0"/>
-        <feFuncG type="gamma" amplitude="1" exponent="0.95" offset="0"/>
-        <feFuncB type="gamma" amplitude="1" exponent="0.95" offset="0"/>
-      </feComponentTransfer>
-    </filter>
     <clipPath id="mapClip">
-      <rect x="${mapX}" y="${mapY}" width="${mapW}" height="${mapH}" rx="0" ry="0"/>
+      ${mapClipShape}
     </clipPath>
   </defs>
 
   <rect x="0" y="0" width="${W}" height="${H}" fill="${palette.bg}"/>
   ${frame}
 
-  ${
-    mapTiles.length > 0
-      ? `<g clip-path="url(#mapClip)" ${styleFilter}>
-        ${mapTiles
-          .map(
-            (t) =>
-              `<image href="${svgAttrEscape(t.href)}" x="${(mapX + t.x).toFixed(2)}" y="${(mapY + t.y).toFixed(2)}" width="${t.w}" height="${t.h}" preserveAspectRatio="none"/>`
-          )
-          .join('')}
-      </g>`
-      : fallbackPattern
-  }
+  <g clip-path="url(#mapClip)">
+    <image href="${svgAttrEscape(mapImageDataUrl)}" x="${mapX}" y="${mapY}" width="${mapW}" height="${mapH}" preserveAspectRatio="${imagePreserve}"/>
+  </g>
 
-  <rect x="${mapX}" y="${mapY}" width="${mapW}" height="${mapH}" fill="none" stroke="${palette.mutedInk}" stroke-width="1"/>
+  ${mapOutline}
   ${marker}
 
-  <text x="${W / 2}" y="${titleY.toFixed(2)}" text-anchor="middle" fill="${ink}" font-family="${fontFamily(req.titleFont)}" font-size="${Math.max(12, req.titleFontSize).toFixed(2)}" font-weight="600" letter-spacing="0.03em">
-    ${svgEscape((req.title || '').toUpperCase())}
+  <text x="${W / 2}" y="${titleY.toFixed(2)}" text-anchor="middle" fill="${ink}" font-family="${fontFamily(req.titleFont)}" font-size="${titleFontSize.toFixed(2)}" font-weight="600" letter-spacing="0.03em">
+    ${svgEscape(titleText)}
   </text>
-  <text x="${W / 2}" y="${subtitleY.toFixed(2)}" text-anchor="middle" fill="${ink}" font-family="${fontFamily(req.namesFont)}" font-size="${Math.max(10, req.namesFontSize).toFixed(2)}">
+  <text x="${W / 2}" y="${subtitleY.toFixed(2)}" text-anchor="middle" fill="${ink}" font-family="${fontFamily(req.namesFont)}" font-size="${subtitleFontSize.toFixed(2)}">
     ${svgEscape(req.subtitle)}
   </text>
-  <text x="${W / 2}" y="${metaY.toFixed(2)}" text-anchor="middle" fill="${palette.mutedInk}" font-family="${fontFamily(req.metaFont)}" font-size="${Math.max(9, req.metaFontSize).toFixed(2)}" letter-spacing="0.16em">
+  <text x="${W / 2}" y="${metaY.toFixed(2)}" text-anchor="middle" fill="${palette.mutedInk}" font-family="${fontFamily(req.metaFont)}" font-size="${metaFontSize.toFixed(2)}" letter-spacing="0.16em">
     ${svgEscape(req.metaText)}
   </text>
 </svg>`;

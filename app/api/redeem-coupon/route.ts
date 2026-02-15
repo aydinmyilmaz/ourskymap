@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { renderPosterSvg } from '../../../lib/poster';
 import type { CheckoutDraft } from '../../../lib/checkout';
+import { renderCityMapSvg, type CityMapRequest } from '../../../lib/citymap';
+import type { PosterRequest } from '../../../lib/types';
 import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 import JSZip from 'jszip';
 import sharp from 'sharp';
@@ -146,9 +148,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const isCityDraft = draft.productType === 'city';
     let svg = '';
     try {
-      svg = renderPosterSvg(draft.renderRequest);
+      if (isCityDraft) {
+        svg = await renderCityMapSvg(draft.renderRequest as CityMapRequest);
+      } else {
+        svg = renderPosterSvg(draft.renderRequest as PosterRequest);
+      }
     } catch {
       svg = draft.previewSvg;
     }
@@ -159,7 +166,9 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-    svg = withAbsoluteMoonUrl(svg, req);
+    if (!isCityDraft) {
+      svg = withAbsoluteMoonUrl(svg, req);
+    }
 
     const safeCode = couponCode.replace(/[^a-zA-Z0-9_-]/g, '_');
     const ts = Date.now();
@@ -168,9 +177,10 @@ export async function POST(req: Request) {
     const pdf = await makePdfFromPng(png, svgW, svgH);
 
     const zip = new JSZip();
-    zip.file(`ourskymap-${safeCode}.svg`, svg);
-    zip.file(`ourskymap-${safeCode}.png`, png);
-    zip.file(`ourskymap-${safeCode}.pdf`, pdf);
+    const filePrefix = isCityDraft ? 'citymap' : 'ourskymap';
+    zip.file(`${filePrefix}-${safeCode}.svg`, svg);
+    zip.file(`${filePrefix}-${safeCode}.png`, png);
+    zip.file(`${filePrefix}-${safeCode}.pdf`, pdf);
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
 
     const fileName = `star-maps/${safeCode}-${ts}.zip`;
@@ -192,10 +202,10 @@ export async function POST(req: Request) {
         used_at: new Date().toISOString(),
         customer_email: email,
         location: draft.mapData.city,
-        date: draft.mapData.date,
-        time: draft.mapData.time,
+        date: draft.mapData.date ?? '',
+        time: draft.mapData.time ?? '',
         title: draft.mapData.title,
-        names: draft.mapData.names,
+        names: draft.mapData.names ?? '',
         font: draft.mapData.font,
         pdf_url: fileUrl
       })
