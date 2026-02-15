@@ -5,10 +5,10 @@ export const runtime = 'nodejs';
 
 function fileNameFor(orderCode: string, contentType: string): string {
   const safe = orderCode.replace(/[^a-zA-Z0-9_-]/g, '_');
-  if (contentType.includes('zip')) return `ourskymap-${safe}.zip`;
-  if (contentType.includes('pdf')) return `star-map-${safe}.pdf`;
-  if (contentType.includes('svg')) return `star-map-${safe}.svg`;
-  return `star-map-${safe}.bin`;
+  if (contentType.includes('zip')) return `custom-map-${safe}.zip`;
+  if (contentType.includes('pdf')) return `custom-map-${safe}.pdf`;
+  if (contentType.includes('svg')) return `custom-map-${safe}.svg`;
+  return `custom-map-${safe}.bin`;
 }
 
 export async function GET(req: Request) {

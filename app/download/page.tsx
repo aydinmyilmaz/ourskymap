@@ -51,10 +51,10 @@ export default function DownloadPage() {
         {!loading && data?.success ? (
           <>
             <div className="emoji">✓</div>
-            <h1>Your Sky Map is Ready!</h1>
+            <h1>Your Map is Ready!</h1>
             <p className="meta">Order: #{data.orderCode}</p>
             <p className="sub">
-              {data.customerEmail ? `A copy is associated with ${data.customerEmail}.` : 'Your file is ready for download.'}
+              {data.customerEmail ? `A copy is associated with ${data.customerEmail}.` : 'Your custom map file is ready for download.'}
             </p>
             <a
               href={data.orderCode ? `/api/download-order-file?orderCode=${encodeURIComponent(data.orderCode)}` : '#'}

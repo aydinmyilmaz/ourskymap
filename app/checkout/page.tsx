@@ -22,17 +22,20 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const isCity = draft?.productType === 'city';
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(CHECKOUT_DRAFT_KEY);
+      const raw =
+        window.localStorage.getItem(CHECKOUT_DRAFT_KEY) ??
+        window.sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
       if (!raw) {
         router.replace('/ourskymap');
         return;
       }
       const parsed = JSON.parse(raw) as CheckoutDraft;
       if (!parsed?.previewSvg || !parsed?.renderRequest || !parsed?.mapData) {
-        router.replace('/ourskymap');
+        router.replace(parsed?.productType === 'city' ? '/citymap' : '/ourskymap');
         return;
       }
       setDraft(parsed);
@@ -86,21 +89,25 @@ export default function CheckoutPage() {
       <div className="starsLayer" />
       <main className="container">
         <section className="left">
-          <h1>Your Custom Sky Map</h1>
-          <p>Capture your special moment under the stars with our personalized sky maps.</p>
+          <h1>{isCity ? 'Your Custom City Map' : 'Your Custom Sky Map'}</h1>
+          <p>
+            {isCity
+              ? 'Create your personalized city map and receive print-ready files instantly.'
+              : 'Capture your special moment under the stars with our personalized sky maps.'}
+          </p>
           <div className="previewCard">
             <div className="previewMount" dangerouslySetInnerHTML={{ __html: draft.previewSvg }} />
           </div>
           <ul className="benefits">
-            <li>High-quality digital sky map design</li>
+            <li>{isCity ? 'High-quality digital city map design' : 'High-quality digital sky map design'}</li>
             <li>Instant download after purchase</li>
-            <li>Customized to your special date and location</li>
+            <li>Customized to your special location and style</li>
           </ul>
         </section>
 
         <section className="right">
           <h2>Complete Your Order</h2>
-          <p className="sub">Enter your details to receive your custom sky map</p>
+          <p className="sub">Enter your details to receive your custom {isCity ? 'city map' : 'sky map'}</p>
 
           <form onSubmit={handleCouponSubmit} className="form">
             <label>
@@ -112,7 +119,7 @@ export default function CheckoutPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              <small>We’ll send your sky map to this email</small>
+              <small>We’ll send your {isCity ? 'city map' : 'sky map'} to this email</small>
             </label>
 
             <div className="field">

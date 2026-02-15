@@ -526,6 +526,7 @@ export default function DesignPage() {
 
       const draft: CheckoutDraft = {
         createdAtIso: new Date().toISOString(),
+        productType: 'sky',
         previewSvg: svg,
         renderRequest,
         mapData: {
@@ -546,7 +547,12 @@ export default function DesignPage() {
         }
       };
 
-      window.localStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify(draft));
+      const draftRaw = JSON.stringify(draft);
+      try {
+        window.localStorage.setItem(CHECKOUT_DRAFT_KEY, draftRaw);
+      } catch {
+        window.sessionStorage.setItem(CHECKOUT_DRAFT_KEY, draftRaw);
+      }
       router.push('/checkout');
     } catch (e: any) {
       setError(e?.message ?? String(e));
