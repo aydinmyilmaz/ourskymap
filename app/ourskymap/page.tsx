@@ -14,6 +14,7 @@ type SizePreset = {
 };
 
 type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x20' | 'a2' | '18x24' | '20x20' | 'a1' | '24x32' | 'moon-phase' | 'sky-photo';
+type PosterType = 'single' | 'companion';
 type InkPresetKey = 'gold' | 'silver';
 
 type FontPresetKey = 'calligraphy' | 'signature' | 'serif' | 'gothic' | 'times';
@@ -40,6 +41,16 @@ const SIZE_PRESETS: SizePreset[] = [
   { key: 'moon-phase', title: 'Moon Companion', sub: '24 x 18 in', compact: true },
   { key: 'sky-photo', title: 'Photo Companion', sub: '24 x 18 in', compact: true }
 ];
+const DEFAULT_SINGLE_SIZE: DesignSize = '16x20';
+const DEFAULT_COMPANION_SIZE: DesignSize = 'moon-phase';
+const COMPANION_SIZE_SET = new Set<DesignSize>(['moon-phase', 'sky-photo']);
+
+function isCompanionSize(size: DesignSize): boolean {
+  return COMPANION_SIZE_SET.has(size);
+}
+
+const SINGLE_SIZE_PRESETS = SIZE_PRESETS.filter((item) => !isCompanionSize(item.key));
+const COMPANION_SIZE_PRESETS = SIZE_PRESETS.filter((item) => isCompanionSize(item.key));
 
 const FONT_PRESETS: { key: FontPresetKey; label: string }[] = [
   { key: 'calligraphy', label: 'Calligraphy' },
@@ -67,34 +78,90 @@ const INK_PRESETS: { key: InkPresetKey; label: string; hex: string }[] = [
 ];
 
 const defaultParams: RenderParams = {
+  // TR: Tema paleti. dark = koyu arka plan, light = acik arka plan.
+  // EN: Visual theme. dark = dark background, light = bright background.
   theme: 'dark',
+  // TR: Azimut halka/olcegi gorunsun mu? true acik, false kapali.
+  // EN: Shows azimuth ring/scale. true = on, false = off.
   showAzimuthScale: true,
+  // TR: Enlem-boylam (graticule) cizgileri gorunsun mu? true acik, false kapali.
+  // EN: Shows latitude/longitude grid (graticule). true = on, false = off.
   showCoordinateGrid: false,
+  // TR: Grid adimi (derece). Artarsa cizgi sayisi azalir, azalirsa grid siklasir.
+  // EN: Grid step in degrees. Higher = fewer lines, lower = denser grid.
   coordinateGridStepDeg: 20,
+  // TR: Yildiz isim etiketleri. true acik, false kapali.
+  // EN: Star name labels. true = on, false = off.
   labelStarNames: true,
+  // TR: Takimyildizi isim etiketleri. true acik, false kapali.
+  // EN: Constellation name labels. true = on, false = off.
   labelConstellations: true,
+  // TR: Gunes/Ay/Gezegen etiketleri. true acik, false kapali.
+  // EN: Solar-system labels (Sun/Moon/planets). true = on, false = off.
   labelSolarSystem: true,
+  // TR: Haritayi yatay ayna yapar. true ise saga-sola aynalanir.
+  // EN: Mirrors chart horizontally. true flips left-right orientation.
   mirrorHorizontal: true,
+  // TR: Gunes Sistemi cisimlerini cizer. true acik, false kapali.
+  // EN: Renders solar-system bodies. true = on, false = off.
   showSolarSystem: true,
+  // TR: Derin uzay objelerini (DSO) cizer. true acik, false kapali.
+  // EN: Renders deep-sky objects (DSO). true = on, false = off.
   showDeepSky: false,
+  // TR: DSO isimlerini yazar. showDeepSky false ise etkisi olmaz.
+  // EN: Writes DSO labels. No visible effect when showDeepSky is false.
   labelDeepSky: false,
+  // TR: Yildiz kumesi modu: all = tum yildizlar, constellations = sadece takimyildizi yildizlari, none = hicbiri.
+  // EN: Star source mode: all, constellation-only, or none.
   starMode: 'all',
-  magnitudeLimit: 8,
-  minStarSize: 1,
-  starSizeMin: 0.75,
-  starSizeMax: 5.0,
-  starSizeGamma: 1.8,
-  starAlpha: 1.0,
+  // TR: Gorunen en soluk yildiz siniri (mag). Artarsa daha cok (daha soluk) yildiz gelir; azalirsa daha az yildiz kalir.
+  // EN: Faint-star cutoff (magnitude). Higher includes dimmer stars; lower keeps only brighter stars.
+  magnitudeLimit: 10,
+  // TR: Yildiz ciziminde minimum piksel boyutu filtresi. Artarsa kucuk yildizlar elenir; azalirsa daha cok yildiz gorunur.
+  // EN: Minimum drawn star size filter. Higher removes tiny stars; lower keeps more of them.
+  minStarSize: 2,
+  // TR: Yildiz boyut alt siniri. Artarsa tum yildizlarin taban boyutu buyur; azalirsa genel gorunum incelir.
+  // EN: Minimum star size baseline. Higher makes all stars larger; lower makes overall stars smaller.
+  starSizeMin: 1.2,
+  // TR: Yildiz boyut ust siniri. Artarsa en parlak yildizlar daha buyuk olur; azalirsa ust boyut kisilir.
+  // EN: Maximum star size cap. Higher enlarges brightest stars; lower limits their size.
+  starSizeMax: 6.0,
+  // TR: Yildiz boyut dagilimi egri parametresi. Artarsa orta/soluk yildizlar daha da kuculur, parlaklar daha baskin olur; azalirsa dagilim dengelenir.
+  // EN: Star size curve (gamma). Higher shrinks mid/faint stars and emphasizes bright ones; lower flattens the size spread.
+  starSizeGamma: 2,
+  // TR: Yildiz opakligi. Artarsa daha opak/parlak, azalirsa daha seffaf olur. Not: render tarafinda 0..1 araligina clamp edilir.
+  // EN: Star opacity. Higher is more opaque, lower is more transparent. Note: renderer clamps this to 0..1.
+  starAlpha: 5.0,
+  // TR: Takimyildizi dugum (vertex) noktalarini vurgular. true acik, false kapali.
+  // EN: Emphasizes constellation vertices. true = on, false = off.
   emphasizeVertices: true,
+  // TR: Vertex boyut alt siniri. Artarsa tum vertex noktalar daha iri baslar.
+  // EN: Minimum vertex size. Higher increases baseline vertex dot size.
   vertexSizeMin: 3.0,
-  vertexSizeMax: 22.0,
-  vertexSizeGamma: 1.2,
-  vertexAlpha: 0.95,
+  // TR: Vertex boyut ust siniri. Artarsa en parlak vertexler daha buyuk olur.
+  // EN: Maximum vertex size. Higher enlarges brightest/emphasized vertices.
+  vertexSizeMax: 30.0, // `ONEMLI
+  // TR: Vertex boyut dagilim egri parametresi. Artarsa fark artar (parlaklar daha belirgin), azalirsa boyutlar birbirine yaklasir.
+  // EN: Vertex size gamma curve. Higher increases contrast; lower makes vertex sizes more uniform.
+  vertexSizeGamma: 1.5, // ONEMLI
+  // TR: Vertex opakligi. Artarsa daha gorunur, azalirsa daha soluk.
+  // EN: Vertex opacity. Higher is stronger, lower is fainter.
+  vertexAlpha: 1,
+  // TR: Takimyildizi cizgi kalinligi. Artarsa cizgiler kalinlasir, azalirsa incelir.
+  // EN: Constellation line thickness. Higher = thicker lines, lower = thinner.
   constellationLineWidth: 0.6,
-  constellationLineAlpha: 0.8,
-  eclipticAlpha: 0.35,
+  // TR: Takimyildizi cizgi opakligi. Artarsa daha belirgin, azalirsa daha seffaf.
+  // EN: Constellation line opacity. Higher = more visible, lower = more transparent.
+  constellationLineAlpha: 0.0,
+  // TR: Ekliptik cizgisi opakligi. Artarsa belirginlesir, azalirsa siliklesir.
+  // EN: Ecliptic line opacity. Higher = more visible, lower = subtler.
+  eclipticAlpha: 0.0,
+  // TR: Azimut halkasinin ic cizgi kalinligi. Artarsa ic halka kalinlasir.
+  // EN: Inner azimuth ring stroke width. Higher makes the inner ring thicker.
   azimuthRingInnerWidth: 1.2,
-  azimuthRingOuterWidth: 0.8
+  // TR: Azimut halkasinin dis cizgi kalinligi. Artarsa dis halka kalinlasir.
+  // EN: Outer azimuth ring stroke width. Higher makes the outer ring thicker.
+  azimuthRingOuterWidth: 0.0
 };
 
 const INCH = 72;
@@ -202,9 +269,9 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     namesFontSize: 23,
     metaFontSize: 9.2,
     pageMargin: 0.8 * INCH,
-    ringInnerWidth: 4,
+    ringInnerWidth: 5,
     ringGap: 8,
-    ringOuterWidth: 5,
+    ringOuterWidth: 3,
     metaLetterSpacing: 1.8,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -215,9 +282,9 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     namesFontSize: 23,
     metaFontSize: 9.2,
     pageMargin: 1.4 * INCH,
-    ringInnerWidth: 4,
+    ringInnerWidth: 5,
     ringGap: 8,
-    ringOuterWidth: 5,
+    ringOuterWidth: 3,
     metaLetterSpacing: 1.8,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -229,8 +296,8 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     metaFontSize: 12,
     pageMargin: 1.1 * INCH,
     ringInnerWidth: 5,
-    ringGap: 9,
-    ringOuterWidth: 5,
+    ringGap: 8,
+    ringOuterWidth: 3,
     metaLetterSpacing: 2.2,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -241,9 +308,9 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     namesFontSize: 32,
     metaFontSize: 13.5,
     pageMargin: 4.6 * CM,
-    ringInnerWidth: 6,
-    ringGap: 10,
-    ringOuterWidth: 6,
+    ringInnerWidth: 5,
+    ringGap: 8,
+    ringOuterWidth: 3,
     metaLetterSpacing: 2.8,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -254,9 +321,9 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     namesFontSize: 24,
     metaFontSize: 10,
     pageMargin: 0.9 * INCH,
-    ringInnerWidth: 4,
+    ringInnerWidth: 5,
     ringGap: 8,
-    ringOuterWidth: 5,
+    ringOuterWidth: 3,
     metaLetterSpacing: 2,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -267,9 +334,9 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     namesFontSize: 35.5,
     metaFontSize: 14.3,
     pageMargin: 1.2 * INCH,
-    ringInnerWidth: 6,
-    ringGap: 10,
-    ringOuterWidth: 6,
+    ringInnerWidth: 5,
+    ringGap: 8,
+    ringOuterWidth: 3,
     metaLetterSpacing: 3,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -280,9 +347,9 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     namesFontSize: 44,
     metaFontSize: 18,
     pageMargin: 1.6 * INCH,
-    ringInnerWidth: 8,
-    ringGap: 12,
-    ringOuterWidth: 7,
+    ringInnerWidth: 5,
+    ringGap: 8,
+    ringOuterWidth: 3,
     metaLetterSpacing: 3.8,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -293,9 +360,9 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     namesFontSize: 45,
     metaFontSize: 18.6,
     pageMargin: 6.6 * CM,
-    ringInnerWidth: 8,
-    ringGap: 12,
-    ringOuterWidth: 7,
+    ringInnerWidth: 6,
+    ringGap: 8,
+    ringOuterWidth: 3,
     metaLetterSpacing: 4.2,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -307,8 +374,8 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     metaFontSize: 21,
     pageMargin: 1.7 * INCH,
     ringInnerWidth: 9,
-    ringGap: 13,
-    ringOuterWidth: 8,
+    ringGap: 15,
+    ringOuterWidth: 6,
     metaLetterSpacing: 4.8,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -320,8 +387,8 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     metaFontSize: 16,
     pageMargin: 1.4 * INCH,
     ringInnerWidth: 8,
-    ringGap: 12,
-    ringOuterWidth: 7,
+    ringGap: 13,
+    ringOuterWidth: 6,
     metaLetterSpacing: 3.6,
     metaLineSpacing: 1.5,
     metaUppercase: true
@@ -414,7 +481,7 @@ const defaultPoster: PosterParams = {
 
 function mapFontPresetToPoster(fontPreset: FontPresetKey): Pick<PosterParams, 'titleFont' | 'namesFont' | 'metaFont'> {
   if (fontPreset === 'calligraphy') {
-    return { titleFont: 'prata', namesFont: 'cursive', metaFont: 'signika' };
+    return { titleFont: 'prata', namesFont: 'jimmy-script', metaFont: 'signika' };
   }
   if (fontPreset === 'signature') {
     return { titleFont: 'prata', namesFont: 'cursive', metaFont: 'signika' };
@@ -468,6 +535,17 @@ function formatMetaLine(dateIso: string, timeValue: string, showTime: boolean, l
   return `${topLine}\n${datePart} | ${timePart}`;
 }
 
+function formatDateForReview(dateIso: string): string {
+  const d = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return dateIso;
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(d);
+}
+
 function normalizePlaceLabel(label: string): string {
   const chunk = label
     .split(',')
@@ -504,7 +582,7 @@ function Toggle({
 
 export default function DesignPage() {
   const router = useRouter();
-  const [size, setSize] = useState<DesignSize>('16x20');
+  const [size, setSize] = useState<DesignSize>(DEFAULT_SINGLE_SIZE);
   const [frameOn, setFrameOn] = useState(false);
   const [palette, setPalette] = useState<PosterParams['palette']>('navy-blue');
   const [inkPreset, setInkPreset] = useState<InkPresetKey>('gold');
@@ -516,9 +594,7 @@ export default function DesignPage() {
   const [time, setTime] = useState('21:00');
   const [showTimeLine, setShowTimeLine] = useState(false);
   const showConstellations = true;
-  const [showStarNames, setShowStarNames] = useState(true);
-  const [showConstellationNames, setShowConstellationNames] = useState(true);
-  const [showPlanetNames, setShowPlanetNames] = useState(true);
+  const [showNames, setShowNames] = useState(true);
   const [showGraticule, setShowGraticule] = useState(false);
   const [title, setTitle] = useState('We met under this sky');
   const [fontPreset, setFontPreset] = useState<FontPresetKey>('calligraphy');
@@ -544,13 +620,33 @@ export default function DesignPage() {
   const [posterSvg, setPosterSvg] = useState('');
   const [busy, setBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutConfirmOpen, setCheckoutConfirmOpen] = useState(false);
   const [error, setError] = useState('');
   const latestRequestRef = useRef(0);
   const companionPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const selectedPalette = useMemo(() => findPalette(palette), [palette]);
   const selectedInk = useMemo(() => INK_PRESETS.find((item) => item.key === inkPreset) ?? INK_PRESETS[0], [inkPreset]);
+  const selectedFont = useMemo(() => FONT_PRESETS.find((item) => item.key === fontPreset) ?? FONT_PRESETS[0], [fontPreset]);
+  const selectedSizePreset = useMemo(() => SIZE_PRESETS.find((item) => item.key === size), [size]);
   const effectiveTheme = selectedPalette.tone;
+  const posterType: PosterType = isCompanionSize(size) ? 'companion' : 'single';
+  const sizeOptions = posterType === 'companion' ? COMPANION_SIZE_PRESETS : SINGLE_SIZE_PRESETS;
+  const reviewLocation = useMemo(() => normalizePlaceLabel(locationLabel || cityQuery) || 'Custom location', [cityQuery, locationLabel]);
+  const reviewLocationLine = useMemo(
+    () => locationLine.trim() || formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery),
+    [cityQuery, date, locationLabel, locationLine, showTimeLine, time]
+  );
+  const reviewDateText = useMemo(() => formatDateForReview(date), [date]);
+  const reviewTimeText = useMemo(
+    () =>
+      /^\d{2}:\d{2}$/.test(time)
+        ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(
+            new Date(`2000-01-01T${time}:00`)
+          )
+        : time,
+    [time]
+  );
   const companionPreviewTransform = useMemo(() => {
     if (!companionPhotoMeta) return { width: PHOTO_PREVIEW_SIZE, height: PHOTO_PREVIEW_SIZE, x: 0, y: 0 };
     const baseScale = Math.max(
@@ -634,6 +730,17 @@ export default function DesignPage() {
       window.clearTimeout(timer);
     };
   }, [companionPhotoMeta, companionPhotoOffsetX, companionPhotoOffsetY, companionPhotoZoom]);
+
+  useEffect(() => {
+    if (!checkoutConfirmOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setCheckoutConfirmOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [checkoutConfirmOpen]);
 
   const previewBg = useMemo(() => {
     return effectiveTheme === 'dark'
@@ -760,9 +867,9 @@ export default function DesignPage() {
         ...defaultParams,
         theme: effectiveTheme,
         showCoordinateGrid: showGraticule,
-        labelStarNames: showStarNames,
-        labelConstellations: showConstellationNames,
-        labelSolarSystem: showPlanetNames,
+        labelStarNames: showNames,
+        labelConstellations: showNames,
+        labelSolarSystem: showNames,
         constellationLineAlpha: 0.7,
         mirrorHorizontal: true
       };
@@ -776,9 +883,7 @@ export default function DesignPage() {
         throw new Error('Please upload a photo for the Photo Companion layout.');
       }
 
-      const mappedFont = usesCompanionCircle
-        ? ({ titleFont: 'prata', namesFont: 'cursive', metaFont: 'signika' } as const)
-        : mapFontPresetToPoster(fontPreset);
+      const mappedFont = mapFontPresetToPoster(fontPreset);
       const bySize = defaultPosterBySize[size];
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
@@ -859,9 +964,7 @@ export default function DesignPage() {
     inkPreset,
     palette,
     showTimeLine,
-    showStarNames,
-    showConstellationNames,
-    showPlanetNames,
+    showNames,
     showGraticule,
     size,
     effectiveTheme,
@@ -872,6 +975,26 @@ export default function DesignPage() {
   useEffect(() => {
     void generate();
   }, [generate]);
+
+  const persistCheckoutDraft = useCallback((draftRaw: string): boolean => {
+    const storages = [window.localStorage, window.sessionStorage];
+    for (const storage of storages) {
+      try {
+        storage.removeItem(CHECKOUT_DRAFT_KEY);
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+    for (const storage of storages) {
+      try {
+        storage.setItem(CHECKOUT_DRAFT_KEY, draftRaw);
+        return true;
+      } catch {
+        // try next storage
+      }
+    }
+    return false;
+  }, []);
 
   const handleCheckout = useCallback(async () => {
     setCheckoutBusy(true);
@@ -907,9 +1030,9 @@ export default function DesignPage() {
         ...defaultParams,
         theme: effectiveTheme,
         showCoordinateGrid: showGraticule,
-        labelStarNames: showStarNames,
-        labelConstellations: showConstellationNames,
-        labelSolarSystem: showPlanetNames,
+        labelStarNames: showNames,
+        labelConstellations: showNames,
+        labelSolarSystem: showNames,
         constellationLineAlpha: 0.7,
         mirrorHorizontal: true
       };
@@ -923,9 +1046,7 @@ export default function DesignPage() {
         throw new Error('Please upload a photo for the Photo Companion layout.');
       }
 
-      const mappedFont = usesCompanionCircle
-        ? ({ titleFont: 'prata', namesFont: 'cursive', metaFont: 'signika' } as const)
-        : mapFontPresetToPoster(fontPreset);
+      const mappedFont = mapFontPresetToPoster(fontPreset);
       const bySize = defaultPosterBySize[size];
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
@@ -1000,9 +1121,9 @@ export default function DesignPage() {
           names,
           font: FONT_PRESETS.find((x) => x.key === fontPreset)?.label || 'Calligraphy',
           showConstellations,
-          showStarNames,
-          showConstellationNames,
-          showPlanetNames,
+          showStarNames: showNames,
+          showConstellationNames: showNames,
+          showPlanetNames: showNames,
           showGraticule,
           palette,
           inkColor: selectedInk.hex,
@@ -1018,10 +1139,8 @@ export default function DesignPage() {
       };
 
       const draftRaw = JSON.stringify(draft);
-      try {
-        window.localStorage.setItem(CHECKOUT_DRAFT_KEY, draftRaw);
-      } catch {
-        window.sessionStorage.setItem(CHECKOUT_DRAFT_KEY, draftRaw);
+      if (!persistCheckoutDraft(draftRaw)) {
+        throw new Error('Browser storage is full. Please close some tabs or clear site data, then try again.');
       }
       router.push('/checkout');
     } catch (e: any) {
@@ -1044,11 +1163,10 @@ export default function DesignPage() {
     names,
     inkPreset,
     palette,
+    persistCheckoutDraft,
     router,
     showTimeLine,
-    showStarNames,
-    showConstellationNames,
-    showPlanetNames,
+    showNames,
     showGraticule,
     size,
     time,
@@ -1086,9 +1204,29 @@ export default function DesignPage() {
         <aside className="rightPanel">
           <div className="panelBlock sizeFrameBlock">
             <div className="stackField">
+              <label>Select Poster Type</label>
+              <select
+                className="dashedInput"
+                value={posterType}
+                onChange={(e) => {
+                  const nextType = e.target.value as PosterType;
+                  setSize((prev) => {
+                    if (nextType === 'companion') {
+                      return isCompanionSize(prev) ? prev : DEFAULT_COMPANION_SIZE;
+                    }
+                    return isCompanionSize(prev) ? DEFAULT_SINGLE_SIZE : prev;
+                  });
+                }}
+              >
+                <option value="single">Single</option>
+                <option value="companion">Companion</option>
+              </select>
+            </div>
+
+            <div className="stackField">
               <label>Select Poster Size</label>
               <select className="dashedInput" value={size} onChange={(e) => setSize(e.target.value as DesignSize)}>
-                {SIZE_PRESETS.map((item) => (
+                {sizeOptions.map((item) => (
                   <option key={item.key} value={item.key}>
                     {item.title} - {item.sub}
                   </option>
@@ -1332,10 +1470,8 @@ export default function DesignPage() {
 
           <div className="panelBlock softD">
             <div className="toggleLocked">Constellation lines are always ON (required).</div>
-            <Toggle checked={showStarNames} onChange={setShowStarNames} label="Show Star Names" />
-            <Toggle checked={showConstellationNames} onChange={setShowConstellationNames} label="Show Constellation Names" />
-            <Toggle checked={showPlanetNames} onChange={setShowPlanetNames} label="Show Planet Names" />
-            <Toggle checked={showGraticule} onChange={setShowGraticule} label="Show Graticule" />
+            <Toggle checked={showNames} onChange={setShowNames} label="Show Names" />
+            <Toggle checked={showGraticule} onChange={setShowGraticule} label="Show Grids" />
           </div>
 
           <div className="panelBlock softC">
@@ -1375,7 +1511,7 @@ export default function DesignPage() {
             <button
               type="button"
               className="checkoutBtn"
-              onClick={() => void handleCheckout()}
+              onClick={() => setCheckoutConfirmOpen(true)}
               disabled={busy || checkoutBusy}
             >
               {checkoutBusy ? 'Preparing...' : busy ? 'Updating...' : 'Checkout'}
@@ -1384,6 +1520,79 @@ export default function DesignPage() {
           </div>
         </aside>
       </main>
+
+      {checkoutConfirmOpen ? (
+        <div className="confirmOverlay" role="dialog" aria-modal="true" aria-label="Confirm poster details" onClick={() => setCheckoutConfirmOpen(false)}>
+          <div className="confirmCard" onClick={(e) => e.stopPropagation()}>
+            <div className="confirmHeader">
+              <div>
+                <div className="confirmEyebrow">Review Before Checkout</div>
+                <h3>Confirm Your Poster Details</h3>
+                <p>Please check spelling and date/location info before continuing.</p>
+              </div>
+              <button type="button" className="confirmCloseBtn" onClick={() => setCheckoutConfirmOpen(false)} aria-label="Close review popup">
+                ×
+              </button>
+            </div>
+
+            <div className="confirmGrid">
+              <div className="confirmItem">
+                <span>Poster Size</span>
+                <strong>{selectedSizePreset ? `${selectedSizePreset.title} (${selectedSizePreset.sub})` : size}</strong>
+              </div>
+              <div className="confirmItem">
+                <span>Font Preset</span>
+                <strong>{selectedFont.label}</strong>
+              </div>
+              <div className="confirmItem full">
+                <span>Title</span>
+                <strong>{title.trim() || '—'}</strong>
+              </div>
+              <div className="confirmItem full">
+                <span>Names</span>
+                <strong>{names.trim() || '—'}</strong>
+              </div>
+              <div className="confirmItem">
+                <span>Location</span>
+                <strong>{reviewLocation}</strong>
+              </div>
+              <div className="confirmItem">
+                <span>Date</span>
+                <strong>{reviewDateText}</strong>
+              </div>
+              <div className="confirmItem">
+                <span>Time</span>
+                <strong>{reviewTimeText || '—'}</strong>
+              </div>
+              <div className="confirmItem">
+                <span>Time Visibility</span>
+                <strong>{showTimeLine ? 'Shown on poster' : 'Hidden on poster'}</strong>
+              </div>
+              <div className="confirmItem full">
+                <span>Location/Date Text</span>
+                <strong className="confirmValueMultiline">{reviewLocationLine}</strong>
+              </div>
+            </div>
+
+            <div className="confirmActions">
+              <button type="button" className="confirmBackBtn" onClick={() => setCheckoutConfirmOpen(false)}>
+                Go Back and Edit
+              </button>
+              <button
+                type="button"
+                className="confirmApproveBtn"
+                onClick={() => {
+                  setCheckoutConfirmOpen(false);
+                  void handleCheckout();
+                }}
+                disabled={busy || checkoutBusy}
+              >
+                {checkoutBusy ? 'Preparing...' : 'Confirm and Continue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <style jsx>{`
         .designRoot :global(*),
@@ -2061,6 +2270,144 @@ export default function DesignPage() {
           font-size: 13px;
         }
 
+        .confirmOverlay {
+          position: fixed;
+          inset: 0;
+          z-index: 120;
+          display: grid;
+          place-items: center;
+          padding: 24px;
+          background: rgba(7, 10, 16, 0.52);
+          backdrop-filter: blur(7px);
+        }
+
+        .confirmCard {
+          width: min(760px, calc(100vw - 32px));
+          max-height: min(88vh, 840px);
+          overflow: auto;
+          background: linear-gradient(180deg, #fdfefe 0%, #f4f7fb 100%);
+          border: 1px solid #cfd8e6;
+          border-radius: 18px;
+          box-shadow: 0 24px 70px rgba(10, 16, 31, 0.35);
+          padding: 20px 20px 18px;
+        }
+
+        .confirmHeader {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 14px;
+        }
+
+        .confirmEyebrow {
+          font-size: 11px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: #64748b;
+          font-weight: 700;
+        }
+
+        .confirmHeader h3 {
+          margin: 6px 0 4px;
+          font-size: 24px;
+          line-height: 1.2;
+          color: #0f172a;
+        }
+
+        .confirmHeader p {
+          margin: 0;
+          font-size: 13px;
+          color: #4b5563;
+        }
+
+        .confirmCloseBtn {
+          width: 38px;
+          height: 38px;
+          border-radius: 11px;
+          border: 1px solid #c8d2e0;
+          background: #ffffff;
+          color: #1f2937;
+          cursor: pointer;
+          font-size: 26px;
+          line-height: 1;
+          display: grid;
+          place-items: center;
+        }
+
+        .confirmGrid {
+          margin-top: 16px;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .confirmItem {
+          border: 1px solid #d7deea;
+          background: rgba(255, 255, 255, 0.9);
+          border-radius: 12px;
+          padding: 10px 12px;
+          display: grid;
+          gap: 5px;
+        }
+
+        .confirmItem.full {
+          grid-column: 1 / -1;
+        }
+
+        .confirmItem span {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+          color: #64748b;
+        }
+
+        .confirmItem strong {
+          font-size: 15px;
+          font-weight: 600;
+          color: #0f172a;
+          line-height: 1.35;
+        }
+
+        .confirmValueMultiline {
+          white-space: pre-line;
+        }
+
+        .confirmActions {
+          margin-top: 16px;
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+        }
+
+        .confirmBackBtn,
+        .confirmApproveBtn {
+          min-height: 46px;
+          border-radius: 12px;
+          padding: 0 16px;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          border: 1px solid transparent;
+        }
+
+        .confirmBackBtn {
+          background: #ffffff;
+          color: #1f2937;
+          border-color: #c8d2e0;
+        }
+
+        .confirmApproveBtn {
+          background: #101215;
+          color: #ffffff;
+          border-color: #101215;
+        }
+
+        .confirmApproveBtn:disabled {
+          opacity: 0.7;
+          cursor: wait;
+        }
+
         @media (max-width: 1280px) {
           .layout {
             grid-template-columns: 1fr;
@@ -2107,6 +2454,29 @@ export default function DesignPage() {
             position: static;
             transform: none;
             justify-self: start;
+          }
+
+          .confirmOverlay {
+            padding: 14px;
+          }
+
+          .confirmCard {
+            width: min(760px, calc(100vw - 16px));
+            padding: 16px 14px 14px;
+            max-height: min(92vh, 860px);
+          }
+
+          .confirmGrid {
+            grid-template-columns: 1fr;
+          }
+
+          .confirmActions {
+            flex-direction: column-reverse;
+          }
+
+          .confirmBackBtn,
+          .confirmApproveBtn {
+            width: 100%;
           }
         }
       `}</style>

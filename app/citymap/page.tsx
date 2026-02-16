@@ -202,7 +202,7 @@ const FONT_CARD_STYLE: Record<FontPresetKey, string> = {
   'elegant-serif': "'Prata', Georgia, serif",
   'high-contrast': "Didot, 'Bodoni MT', 'Times New Roman', serif",
   'mono-modern': "'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace",
-  signature: "'Jimmy Script', 'Brush Script MT', cursive",
+  signature: 'Great Vibes, Allura, Brush Script MT, cursive',
   atlas: "'Garamond', 'Palatino Linotype', serif",
   timeless: "'Times New Roman', Georgia, serif"
 };
