@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
+import type { PosterRequest } from '../../lib/types';
 
 type PaymentMethod = 'coupon' | 'paypal';
+type FlatExportEngine = 'server' | 'browser';
 
 type RedeemResponse = {
   success: boolean;
@@ -13,16 +15,126 @@ type RedeemResponse = {
   downloadUrl?: string | null;
 };
 
+const TARGET_EXPORT_DPI = 300;
+const BASE_SVG_DPI = 72;
+const MAX_CLIENT_EXPORT_PIXELS = 40_000_000;
+
+function getRasterScale(svgWidth: number, svgHeight: number): number {
+  const targetScale = TARGET_EXPORT_DPI / BASE_SVG_DPI;
+  const basePixels = Math.max(1, svgWidth * svgHeight);
+  const capByPixels = Math.sqrt(MAX_CLIENT_EXPORT_PIXELS / basePixels);
+  const scale = Math.max(1, Math.min(targetScale, capByPixels));
+  return Number(scale.toFixed(3));
+}
+
+function parseSvgSize(svg: string): { width: number; height: number } {
+  const viewBoxMatch = svg.match(/viewBox=["']\s*[-\d.]+\s+[-\d.]+\s+([-\d.]+)\s+([-\d.]+)\s*["']/i);
+  if (viewBoxMatch) {
+    const width = Number.parseFloat(viewBoxMatch[1] || '');
+    const height = Number.parseFloat(viewBoxMatch[2] || '');
+    if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+      return { width, height };
+    }
+  }
+  const widthMatch = svg.match(/\bwidth=["']\s*([-\d.]+)(?:px)?\s*["']/i);
+  const heightMatch = svg.match(/\bheight=["']\s*([-\d.]+)(?:px)?\s*["']/i);
+  const width = Number.parseFloat(widthMatch?.[1] || '');
+  const height = Number.parseFloat(heightMatch?.[1] || '');
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+    return { width, height };
+  }
+  return { width: 1200, height: 1800 };
+}
+
+function withAbsoluteMoonUrl(svg: string): string {
+  const absoluteMoon = `${window.location.origin}/moon.png`;
+  return svg
+    .replaceAll('href="/moon.png"', `href="${absoluteMoon}"`)
+    .replaceAll("href='/moon.png'", `href='${absoluteMoon}'`)
+    .replaceAll('xlink:href="/moon.png"', `xlink:href="${absoluteMoon}"`)
+    .replaceAll("xlink:href='/moon.png'", `xlink:href='${absoluteMoon}'`);
+}
+
+async function svgToPngBytes(svg: string, width: number, height: number): Promise<Uint8Array> {
+  const scale = getRasterScale(width, height);
+  const outW = Math.max(1, Math.round(width * scale));
+  const outH = Math.max(1, Math.round(height * scale));
+  const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl = URL.createObjectURL(svgBlob);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const next = new Image();
+      next.decoding = 'async';
+      next.onload = () => resolve(next);
+      next.onerror = () => reject(new Error('Could not rasterize SVG in browser mode.'));
+      next.src = svgUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) throw new Error('Canvas context is unavailable in browser mode.');
+    ctx.drawImage(img, 0, 0, outW, outH);
+    const pngBlob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error('PNG encode failed in browser mode.'));
+          return;
+        }
+        resolve(blob);
+      }, 'image/png');
+    });
+    return new Uint8Array(await pngBlob.arrayBuffer());
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
+async function downloadFlatBrowserZip(args: { svg: string; filePrefix: string; fileCode: string }): Promise<void> {
+  const [{ PDFDocument }, zipMod] = await Promise.all([import('pdf-lib'), import('jszip')]);
+  const JSZipCtor = zipMod.default;
+  const svg = withAbsoluteMoonUrl(args.svg);
+  const { width, height } = parseSvgSize(svg);
+  const pngBytes = await svgToPngBytes(svg, width, height);
+
+  const pdfDoc = await PDFDocument.create();
+  const pngImage = await pdfDoc.embedPng(pngBytes);
+  const page = pdfDoc.addPage([width, height]);
+  page.drawImage(pngImage, { x: 0, y: 0, width, height });
+  const pdfBytes = await pdfDoc.save();
+
+  const zip = new JSZipCtor();
+  zip.file(`${args.filePrefix}-${args.fileCode}.svg`, svg);
+  zip.file(`${args.filePrefix}-${args.fileCode}.png`, pngBytes);
+  zip.file(`${args.filePrefix}-${args.fileCode}.pdf`, pdfBytes);
+  const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(zipBlob);
+  link.href = url;
+  link.download = `${args.filePrefix}-${args.fileCode}.zip`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.setTimeout(() => URL.revokeObjectURL(url), 15_000);
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const [draft, setDraft] = useState<CheckoutDraft | null>(null);
   const [email, setEmail] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('coupon');
+  const [flatExportEngine, setFlatExportEngine] = useState<FlatExportEngine>('server');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const isCity = draft?.productType === 'city';
+  const isFlatSky = useMemo(() => {
+    if (!draft || isCity) return false;
+    const maybe = draft.renderRequest as PosterRequest;
+    return (maybe?.poster?.inkFinish ?? 'flat') === 'flat';
+  }, [draft, isCity]);
 
   useEffect(() => {
     try {
@@ -46,8 +158,10 @@ export default function CheckoutPage() {
 
   const canSubmit = useMemo(() => {
     if (paymentMethod !== 'coupon') return false;
-    return !!email.trim() && !!couponCode.trim() && !loading;
-  }, [couponCode, email, loading, paymentMethod]);
+    if (loading) return false;
+    if (isFlatSky && flatExportEngine === 'browser') return true;
+    return !!email.trim() && !!couponCode.trim();
+  }, [couponCode, email, flatExportEngine, isFlatSky, loading, paymentMethod]);
 
   async function handleCouponSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,6 +171,20 @@ export default function CheckoutPage() {
     setInfo('');
 
     try {
+      if (paymentMethod === 'coupon' && isFlatSky && flatExportEngine === 'browser') {
+        const startedAt = performance.now();
+        const safeCode = (couponCode.trim() || `browser-${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+        const filePrefix = isCity ? 'citymap' : 'ourskymap';
+        await downloadFlatBrowserZip({
+          svg: draft.previewSvg,
+          filePrefix,
+          fileCode: safeCode
+        });
+        const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
+        setInfo(`Browser export completed in ${elapsed}s (dev test mode, coupon not redeemed).`);
+        return;
+      }
+
       const res = await fetch('/api/redeem-coupon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,7 +245,7 @@ export default function CheckoutPage() {
                 placeholder="your.email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
+                required={!(isFlatSky && flatExportEngine === 'browser')}
               />
               <small>We’ll send your {isCity ? 'city map' : 'sky map'} to this email</small>
             </label>
@@ -156,16 +284,51 @@ export default function CheckoutPage() {
                   placeholder="Enter coupon code"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  required
+                  required={!(isFlatSky && flatExportEngine === 'browser')}
                 />
               </label>
+            ) : null}
+
+            {isFlatSky ? (
+              <div className="field">
+                <span>Developer Test: Flat Export Engine</span>
+                <div className="engineToggle" role="tablist" aria-label="Flat export engine">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={flatExportEngine === 'server'}
+                    className={`engineBtn ${flatExportEngine === 'server' ? 'active' : ''}`}
+                    onClick={() => setFlatExportEngine('server')}
+                  >
+                    Server
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={flatExportEngine === 'browser'}
+                    className={`engineBtn ${flatExportEngine === 'browser' ? 'active' : ''}`}
+                    onClick={() => setFlatExportEngine('browser')}
+                  >
+                    Browser (Test)
+                  </button>
+                </div>
+                {flatExportEngine === 'browser' ? (
+                  <small>Browser mode is temporary test flow; email/coupon are optional and coupon is not redeemed.</small>
+                ) : (
+                  <small>Server mode keeps normal coupon + order flow.</small>
+                )}
+              </div>
             ) : null}
 
             {error ? <p className="error">{error}</p> : null}
             {info ? <p className="info">{info}</p> : null}
 
             <button type="submit" className="submitBtn" disabled={!canSubmit}>
-              {loading ? 'Processing...' : 'Continue with Coupon'}
+              {loading
+                ? 'Processing...'
+                : paymentMethod === 'coupon' && isFlatSky && flatExportEngine === 'browser'
+                  ? 'Download in Browser (Test)'
+                  : 'Continue with Coupon'}
             </button>
           </form>
 
@@ -320,6 +483,27 @@ export default function CheckoutPage() {
           border-color: #5e4df3;
           background: linear-gradient(90deg, #4e38df 0%, #5f44f6 100%);
           color: #ffffff;
+        }
+        .engineToggle {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .engineBtn {
+          height: 46px;
+          border-radius: 10px;
+          border: 1px solid #4e648e;
+          background: #2b3f62;
+          color: #dbe7ff;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .engineBtn.active {
+          border-color: #f6c54f;
+          background: #3f4f6e;
+          color: #fff7de;
+          box-shadow: 0 0 0 1px rgba(246, 197, 79, 0.3);
         }
         .submitBtn {
           margin-top: 8px;

@@ -1,0 +1,15 @@
+.git
+.gitignore
+.DS_Store
+node_modules
+.next
+tmp
+.tmp-smoke
+venv-kolaj
+age_test_images
+age_test_images_2
+photos
+cache
+test-scripts
+docs
+README.md
