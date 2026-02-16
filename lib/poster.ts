@@ -298,6 +298,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   if (Number.isNaN(date.getTime())) throw new Error('Invalid timeUtcIso');
 
   const size = poster.size;
+  const is12x12Layout = size === '12x12';
   const showMoonPhase = !!poster.showMoonPhase;
   const showCompanionPhoto = !!poster.showCompanionPhoto && !!(poster.companionPhotoImageUrl || '').trim();
   const showCompanionCircle = showMoonPhase || showCompanionPhoto;
@@ -526,12 +527,14 @@ export function renderPosterSvg(req: PosterRequest): string {
   const regionBottom = H - margin - (isSquareTextLayout ? 52 : 54);
   const regionH = Math.max(0, regionBottom - regionTop);
 
-  const titleLineHeight = () => titleFont * 1.12;
-  const namesLineHeight = () => namesFont * 1.18;
-  const metaLineHeight = () => metaFont * metaLineSpacing;
+  const titleLineHeight = () => titleFont * (is12x12Layout ? 1.06 : 1.12);
+  const namesLineHeight = () => namesFont * (is12x12Layout ? 1.11 : 1.18);
+  const effectiveMetaLineSpacing = is12x12Layout ? Math.max(1.15, metaLineSpacing - 0.12) : metaLineSpacing;
+  const metaLineHeight = () => metaFont * effectiveMetaLineSpacing;
 
-  const gap1 = 14;
-  const gap2 = 16;
+  const gap1 = is12x12Layout ? 10 : 14;
+  const gap2 = is12x12Layout ? 10 : 16;
+  const textBlockYOffset = is12x12Layout ? -20 : 0;
 
   const calcNeeded = () => {
     let h = 0;
@@ -550,7 +553,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   }
 
   const textBlock: string[] = [];
-  let y = regionTop + Math.max(0, (regionH - calcNeeded()) / 2);
+  let y = regionTop + Math.max(0, (regionH - calcNeeded()) / 2) + textBlockYOffset;
 
   if (titleLines.length) {
     for (const line of titleLines) {

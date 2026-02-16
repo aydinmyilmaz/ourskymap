@@ -318,7 +318,7 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
   '12x12': {
     chartDiameter: 8.5 * INCH,
     titleFontSize: 19,
-    namesFontSize: 24,
+    namesFontSize: 30,
     metaFontSize: 10,
     pageMargin: 0.9 * INCH,
     ringInnerWidth: 5,
