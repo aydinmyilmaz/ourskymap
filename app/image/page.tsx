@@ -54,6 +54,9 @@ type PersonLayer = {
   height: number;
   scale: number;
   rotationDeg: number;
+  cropTopPct: number;
+  cropLeftPct: number;
+  cropRightPct: number;
 };
 
 type TextLayer = {
@@ -302,6 +305,24 @@ const BACKGROUND_COLOR_SWATCHES = [
   '#1e293b'
 ];
 
+const TEXT_COLOR_SWATCHES = [
+  '#ffffff',
+  '#f8fafc',
+  '#111827',
+  '#fde68a',
+  '#fca5a5',
+  '#93c5fd',
+  '#86efac',
+  '#c4b5fd',
+  '#67e8f9',
+  '#fb7185',
+  '#22d3ee',
+  '#38bdf8',
+  '#e2e8f0',
+  '#eab308',
+  '#cbd5e1'
+];
+
 function findTextStylePreset(key: TextStyleKey): TextStylePreset {
   return TEXT_STYLE_PRESETS.find((preset) => preset.key === key) ?? TEXT_STYLE_PRESETS[0];
 }
@@ -389,12 +410,16 @@ export default function ImageDesignPage() {
   const [backgroundHexInput, setBackgroundHexInput] = useState('#101217');
   const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
   const [backgroundExplore, setBackgroundExplore] = useState(false);
+  const [textColorExplore, setTextColorExplore] = useState(false);
   const [fontExplore, setFontExplore] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [processError, setProcessError] = useState('');
   const [textError, setTextError] = useState('');
   const [backgroundError, setBackgroundError] = useState('');
+  const [textColorHexInput, setTextColorHexInput] = useState('#f8fafc');
+  const [textColorError, setTextColorError] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [processingLabel, setProcessingLabel] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
@@ -403,6 +428,7 @@ export default function ImageDesignPage() {
   const layerDragRef = useRef<LayerDragState | null>(null);
   const textDragRef = useRef<TextDragState | null>(null);
   const selectionGestureRef = useRef<SelectionGestureState | null>(null);
+  const draftRef = useRef<SelectionDraft | null>(null);
   const photosRef = useRef<UploadedPhoto[]>([]);
   const backgroundImageUrlRef = useRef('');
   const processingRef = useRef(false);
@@ -490,6 +516,10 @@ export default function ImageDesignPage() {
         : BACKGROUND_COLOR_SWATCHES.slice(0, BACKGROUND_SWATCH_COLLAPSED),
     [backgroundExplore]
   );
+  const visibleTextColors = useMemo(
+    () => (textColorExplore ? TEXT_COLOR_SWATCHES : TEXT_COLOR_SWATCHES.slice(0, BACKGROUND_SWATCH_COLLAPSED)),
+    [textColorExplore]
+  );
   const visibleTextStyles = useMemo(
     () => (fontExplore ? TEXT_STYLE_PRESETS : TEXT_STYLE_PRESETS.slice(0, FONT_SWATCH_COLLAPSED)),
     [fontExplore]
@@ -508,6 +538,11 @@ export default function ImageDesignPage() {
   );
   const canCheckout = layers.length > 0 || textLayers.length > 0;
   const draftRect = draftToRect(draft);
+
+  useEffect(() => {
+    if (!activeTextLayer) return;
+    setTextColorHexInput(activeTextLayer.color);
+  }, [activeTextLayer?.id, activeTextLayer?.color]);
 
   useEffect(() => {
     if (!activePhoto) {
@@ -610,6 +645,22 @@ export default function ImageDesignPage() {
     setBackgroundError('');
   }, []);
 
+  const applyTextHex = useCallback(
+    (raw: string) => {
+      if (!activeTextId) return;
+      const value = raw.trim();
+      if (!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(value)) {
+        setTextColorError('Enter a valid HEX color, e.g. #f8fafc');
+        return;
+      }
+      setTextLayers((prev) =>
+        prev.map((layer) => (layer.id === activeTextId ? { ...layer, color: value } : layer))
+      );
+      setTextColorError('');
+    },
+    [activeTextId]
+  );
+
   const handleBackgroundImageFile = useCallback(async (file: File | null | undefined) => {
     if (!file) return;
     setBackgroundError('');
@@ -664,6 +715,7 @@ export default function ImageDesignPage() {
             startY: y,
             baseRect: selected
           };
+          draftRef.current = null;
           setDraft(null);
           e.currentTarget.setPointerCapture(e.pointerId);
           return;
@@ -677,6 +729,7 @@ export default function ImageDesignPage() {
           startY: y,
           baseRect: selected
         };
+        draftRef.current = null;
         setDraft(null);
         e.currentTarget.setPointerCapture(e.pointerId);
         return;
@@ -694,6 +747,13 @@ export default function ImageDesignPage() {
         currentX: x,
         currentY: y
       });
+      draftRef.current = {
+        pointerId: e.pointerId,
+        startX: x,
+        startY: y,
+        currentX: x,
+        currentY: y
+      };
       selectionGestureRef.current = {
         pointerId: e.pointerId,
         mode: 'draw'
@@ -716,10 +776,11 @@ export default function ImageDesignPage() {
       const y = clamp((e.clientY - bounds.top) / bounds.height, 0, 1);
 
       if (gesture.mode === 'draw') {
-        setDraft((prev) => {
-          if (!prev || prev.pointerId !== e.pointerId) return prev;
-          return { ...prev, currentX: x, currentY: y };
-        });
+        const current = draftRef.current;
+        if (!current || current.pointerId !== e.pointerId) return;
+        const nextDraft: SelectionDraft = { ...current, currentX: x, currentY: y };
+        draftRef.current = nextDraft;
+        setDraft(nextDraft);
         return;
       }
 
@@ -782,43 +843,44 @@ export default function ImageDesignPage() {
       }
 
       if (gesture.mode !== 'draw') {
+        draftRef.current = null;
         setDraft(null);
         return;
       }
 
-      setDraft((prev) => {
-        if (!prev || prev.pointerId !== e.pointerId) return null;
-        const next = rectFromDraft(prev);
-        if (next.w < MIN_SELECTION_SIZE || next.h < MIN_SELECTION_SIZE) {
-          return null;
-        }
-        let appended = false;
-        setPhotos((photoList) =>
-          photoList.map((photo) => {
-            if (photo.id !== activePhotoId) return photo;
-            const currentQueued = photoList.reduce(
-              (sum, item) => sum + item.selections.filter((selection) => selection.status !== 'done').length,
-              0
-            );
-            if (layers.length + currentQueued >= MAX_TOTAL_PEOPLE) return photo;
-            appended = true;
-            return {
-              ...photo,
-              selections: [
-                ...photo.selections,
-                {
-                  ...next,
-                  status: 'pending',
-                  error: undefined,
-                  processedLayerId: undefined
-                }
-              ]
-            };
-          })
-        );
-        if (appended) setActiveSelectionId(next.id);
-        return null;
-      });
+      const currentDraft = draftRef.current;
+      draftRef.current = null;
+      setDraft(null);
+      if (!currentDraft || currentDraft.pointerId !== e.pointerId) return;
+      const next = rectFromDraft(currentDraft);
+      if (next.w < MIN_SELECTION_SIZE || next.h < MIN_SELECTION_SIZE) {
+        return;
+      }
+      let appended = false;
+      setPhotos((photoList) =>
+        photoList.map((photo) => {
+          if (photo.id !== activePhotoId) return photo;
+          const currentQueued = photoList.reduce(
+            (sum, item) => sum + item.selections.filter((selection) => selection.status !== 'done').length,
+            0
+          );
+          if (layers.length + currentQueued >= MAX_TOTAL_PEOPLE) return photo;
+          appended = true;
+          return {
+            ...photo,
+            selections: [
+              ...photo.selections,
+              {
+                ...next,
+                status: 'pending',
+                error: undefined,
+                processedLayerId: undefined
+              }
+            ]
+          };
+        })
+      );
+      if (appended) setActiveSelectionId(next.id);
     },
     [activePhotoId, layers.length]
   );
@@ -864,6 +926,7 @@ export default function ImageDesignPage() {
     processingRef.current = true;
     lastBatchKeyRef.current = batchKey;
     lastBatchAtRef.current = now;
+    setProcessingLabel(`Preparing ${targets.length} image${targets.length === 1 ? '' : 's'}...`);
     setProcessing(true);
     setPhotos((prev) =>
       prev.map((photo) => ({
@@ -883,6 +946,7 @@ export default function ImageDesignPage() {
       const failures: string[] = [];
       for (let i = 0; i < targets.length; i += 1) {
         const target = targets[i];
+        setProcessingLabel(`Processing Image ${i + 1}/${targets.length}: ${target.photoName}`);
         try {
           const cropped = await cropSelectionToDataUrl({
             src: target.objectUrl,
@@ -917,7 +981,10 @@ export default function ImageDesignPage() {
             width: baseWidth,
             height: baseHeight,
             scale: 1,
-            rotationDeg: 0
+            rotationDeg: 0,
+            cropTopPct: 0,
+            cropLeftPct: 0,
+            cropRightPct: 0
           });
 
           setPhotos((prev) =>
@@ -972,6 +1039,7 @@ export default function ImageDesignPage() {
       }
     } finally {
       setProcessing(false);
+      setProcessingLabel('');
       processingRef.current = false;
     }
   }, [layers.length, photos]);
@@ -1182,7 +1250,14 @@ export default function ImageDesignPage() {
                   onPointerUp={(e) => handleLayerPointerUp(e, layer.id)}
                   onPointerCancel={(e) => handleLayerPointerUp(e, layer.id)}
                 >
-                  <img src={layer.src} alt={layer.name} draggable={false} />
+                  <img
+                    src={layer.src}
+                    alt={layer.name}
+                    draggable={false}
+                    style={{
+                      clipPath: `inset(${layer.cropTopPct}% ${layer.cropRightPct}% 0% ${layer.cropLeftPct}%)`
+                    }}
+                  />
                 </div>
               ))}
               {textLayers.map((layer, index) => {
@@ -1436,9 +1511,10 @@ export default function ImageDesignPage() {
                   disabled={processing || processableSelections === 0}
                   onClick={() => void processSelections()}
                 >
-                  {processing ? 'Processing...' : 'Extract Selected People'}
+                  {processing ? processingLabel || 'Processing...' : 'Extract Selected People'}
                 </button>
               </div>
+              {processing ? <p className="hint">{processingLabel}</p> : null}
               {processError ? <p className="error">{processError}</p> : null}
               <p className="hint">Extract only pending selections. Done selections are not processed again.</p>
             </section>
@@ -1557,6 +1633,47 @@ export default function ImageDesignPage() {
                       step={1}
                       value={activeLayer.rotationDeg}
                       onChange={(e) => updateActiveLayer({ rotationDeg: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Crop Top ({Math.round(activeLayer.cropTopPct)}%)</label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={80}
+                      step={1}
+                      value={activeLayer.cropTopPct}
+                      onChange={(e) => updateActiveLayer({ cropTopPct: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Crop Left ({Math.round(activeLayer.cropLeftPct)}%)</label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={70}
+                      step={1}
+                      value={activeLayer.cropLeftPct}
+                      onChange={(e) => {
+                        const nextLeft = Number(e.target.value);
+                        const safeLeft = Math.min(nextLeft, 92 - activeLayer.cropRightPct);
+                        updateActiveLayer({ cropLeftPct: safeLeft });
+                      }}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Crop Right ({Math.round(activeLayer.cropRightPct)}%)</label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={70}
+                      step={1}
+                      value={activeLayer.cropRightPct}
+                      onChange={(e) => {
+                        const nextRight = Number(e.target.value);
+                        const safeRight = Math.min(nextRight, 92 - activeLayer.cropLeftPct);
+                        updateActiveLayer({ cropRightPct: safeRight });
+                      }}
                     />
                   </div>
                 </>
@@ -1679,12 +1796,60 @@ export default function ImageDesignPage() {
                   </div>
 
                   <div className="field">
-                    <label>Text Color</label>
-                    <input
-                      type="color"
-                      value={activeTextLayer.color}
-                      onChange={(e) => updateActiveTextLayer({ color: e.target.value })}
-                    />
+                    <div className="fieldLabelRow">
+                      <label>Text Color</label>
+                      <button
+                        type="button"
+                        className="exploreBtn"
+                        onClick={() => setTextColorExplore((prev) => !prev)}
+                      >
+                        <span className={`expandGlyph ${textColorExplore ? 'open' : ''}`} aria-hidden="true">
+                          <span />
+                          <span />
+                          <span />
+                          <span />
+                        </span>
+                        <span>{textColorExplore ? 'Compact' : 'Explore'}</span>
+                      </button>
+                    </div>
+                    <div className={`swatchGrid ${textColorExplore ? 'expanded' : 'compact'}`}>
+                      {visibleTextColors.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className={`colorSwatchBtn ${activeTextLayer.color.toLowerCase() === color.toLowerCase() ? 'active' : ''}`}
+                          onClick={() => {
+                            updateActiveTextLayer({ color });
+                            setTextColorError('');
+                          }}
+                          title={color}
+                        >
+                          <span className="colorSwatchDot" style={{ background: color }} />
+                        </button>
+                      ))}
+                    </div>
+                    <div className="hexRow">
+                      <input
+                        type="color"
+                        value={activeTextLayer.color}
+                        onChange={(e) => {
+                          updateActiveTextLayer({ color: e.target.value });
+                          setTextColorError('');
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={textColorHexInput}
+                        onChange={(e) => setTextColorHexInput(e.target.value)}
+                        onBlur={() => applyTextHex(textColorHexInput)}
+                        className="hexInput"
+                        placeholder="#f8fafc"
+                      />
+                      <button type="button" className="ghostBtn" onClick={() => applyTextHex(textColorHexInput)}>
+                        Apply
+                      </button>
+                    </div>
+                    {textColorError ? <p className="error">{textColorError}</p> : null}
                   </div>
 
                   <div className="field">
