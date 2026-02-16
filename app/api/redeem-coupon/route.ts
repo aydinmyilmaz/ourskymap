@@ -20,6 +20,10 @@ type OrderRow = {
   pdf_url: string | null;
 };
 
+const TARGET_EXPORT_DPI = 300;
+const BASE_SVG_DPI = 72;
+const MAX_EXPORT_PIXELS = 40_000_000;
+
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -98,6 +102,7 @@ function getPosterFontFilePaths(): string[] {
 type ResvgCtor = new (
   svg: string,
   options?: {
+    fitTo?: { mode: 'zoom'; value: number };
     font?: {
       fontFiles?: string[];
       loadSystemFonts?: boolean;
@@ -120,12 +125,27 @@ async function getResvgCtor(): Promise<ResvgCtor | null> {
   return cachedResvgCtor;
 }
 
-async function renderSvgToPng(svg: string, opts?: { allowSharpFallback?: boolean }): Promise<Buffer> {
+function getRasterScale(svgWidth: number, svgHeight: number): number {
+  const targetScale = TARGET_EXPORT_DPI / BASE_SVG_DPI;
+  const basePixels = Math.max(1, svgWidth * svgHeight);
+  const capByPixels = Math.sqrt(MAX_EXPORT_PIXELS / basePixels);
+  const scale = Math.max(1, Math.min(targetScale, capByPixels));
+  return Number(scale.toFixed(3));
+}
+
+async function renderSvgToPng(
+  svg: string,
+  opts: { svgWidth: number; svgHeight: number; allowSharpFallback?: boolean }
+): Promise<Buffer> {
   const svgBuffer = Buffer.from(svg, 'utf-8');
+  const scale = getRasterScale(opts.svgWidth, opts.svgHeight);
+  const targetWidth = Math.max(1, Math.round(opts.svgWidth * scale));
+  const targetHeight = Math.max(1, Math.round(opts.svgHeight * scale));
   const Resvg = await getResvgCtor();
   if (Resvg) {
     try {
       const resvg = new Resvg(svg, {
+        fitTo: { mode: 'zoom', value: scale },
         font: {
           fontFiles: getPosterFontFilePaths(),
           loadSystemFonts: true
@@ -141,7 +161,10 @@ async function renderSvgToPng(svg: string, opts?: { allowSharpFallback?: boolean
       'High-fidelity SVG renderer is unavailable. Install the matching @resvg binary package for this server and restart.'
     );
   }
-  return sharp(svgBuffer).png({ compressionLevel: 9 }).toBuffer();
+  return sharp(svgBuffer, { density: Math.max(BASE_SVG_DPI, Math.round(BASE_SVG_DPI * scale)) })
+    .resize(targetWidth, targetHeight, { fit: 'fill' })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 }
 
 let embeddedPosterFontsCssCache: string | null | undefined;
@@ -191,11 +214,10 @@ function getSvgSize(svg: string): { width: number; height: number } {
   };
 }
 
-async function makePdfFromPng(pngBuffer: Buffer, widthPx: number, heightPx: number): Promise<Buffer> {
+async function makePdfFromPng(pngBuffer: Buffer, pageWidthPt: number, pageHeightPt: number): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
-  const ptPerPx = 72 / 300; // treat raster as 300 DPI for print-friendly scale
-  const pageWidth = Math.max(72, widthPx * ptPerPx);
-  const pageHeight = Math.max(72, heightPx * ptPerPx);
+  const pageWidth = Math.max(72, pageWidthPt);
+  const pageHeight = Math.max(72, pageHeightPt);
   const pngImage = await pdfDoc.embedPng(pngBuffer);
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
   page.drawImage(pngImage, {
@@ -315,7 +337,7 @@ export async function POST(req: Request) {
     const safeCode = couponCode.replace(/[^a-zA-Z0-9_-]/g, '_');
     const ts = Date.now();
     const { width: svgW, height: svgH } = getSvgSize(svg);
-    const png = await renderSvgToPng(svg, { allowSharpFallback: isCityDraft });
+    const png = await renderSvgToPng(svg, { svgWidth: svgW, svgHeight: svgH, allowSharpFallback: isCityDraft });
     const pdf = await makePdfFromPng(png, svgW, svgH);
 
     const zip = new JSZip();
