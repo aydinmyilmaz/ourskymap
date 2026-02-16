@@ -129,9 +129,92 @@ function getPalette(name: PosterRequest['poster']['palette']): Palette {
       return { bg: '#f7f3e8', ink: '#1b1b1b', mutedInk: 'rgba(27,27,27,0.35)', accent: '#1b1b1b' };
     case 'pearl':
       return { bg: '#f2f0ea', ink: '#202020', mutedInk: 'rgba(32,32,32,0.35)', accent: '#202020' };
+    case 'navy-blue':
+      return { bg: '#232733', ink: '#ffbe4c', mutedInk: 'rgba(255,190,76,0.35)', accent: '#ffbe4c' };
+    case 'gold-black':
+      return { bg: '#121212', ink: '#ffbe4c', mutedInk: 'rgba(255,190,76,0.35)', accent: '#ffbe4c' };
+    case 'dark-green':
+      return { bg: '#1f392c', ink: '#ffbe4c', mutedInk: 'rgba(255,190,76,0.35)', accent: '#ffbe4c' };
+    case 'classic-burgundy':
+      return { bg: '#4e1d1c', ink: '#ffbe4c', mutedInk: 'rgba(255,190,76,0.35)', accent: '#ffbe4c' };
+    case 'deep-teal':
+      return { bg: '#2c4d42', ink: '#ffbe4c', mutedInk: 'rgba(255,190,76,0.35)', accent: '#ffbe4c' };
     case 'midnight':
     default:
       return { bg: '#0b1020', ink: '#ffffff', mutedInk: 'rgba(255,255,255,0.40)', accent: '#ffffff' };
+  }
+}
+
+function getPosterLayout(size: PosterRequest['poster']['size']): {
+  width: number;
+  height: number;
+  layout: 'a4' | 'square';
+  defaultChartDiameter: number;
+} {
+  switch (size) {
+    case 'us-letter':
+      return { width: 612, height: 792, layout: 'a4', defaultChartDiameter: 408.5 };
+    case 'a2':
+      return { width: 1191, height: 1684, layout: 'a4', defaultChartDiameter: 11.97 * 72 };
+    case '18x24':
+      return { width: 18 * 72, height: 24 * 72, layout: 'a4', defaultChartDiameter: 12.92 * 72 };
+    case '11x14':
+      return { width: 11 * 72, height: 14 * 72, layout: 'a4', defaultChartDiameter: 8.8 * 72 };
+    case 'a3':
+      return { width: 842, height: 1191, layout: 'a4', defaultChartDiameter: (23.7 / 2.54) * 72 };
+    case '12x12':
+      return { width: 12 * 72, height: 12 * 72, layout: 'square', defaultChartDiameter: 8.5 * 72 };
+    case '12x16':
+      return { width: 12 * 72, height: 16 * 72, layout: 'a4', defaultChartDiameter: 9.6 * 72 };
+    case '16x20':
+      return { width: 16 * 72, height: 20 * 72, layout: 'square', defaultChartDiameter: 12.16 * 72 };
+    case '20x20':
+      return { width: 20 * 72, height: 20 * 72, layout: 'square', defaultChartDiameter: 13.585 * 72 };
+    case 'a1':
+      return {
+        width: Math.round((59.4 / 2.54) * 72),
+        height: Math.round((84.1 / 2.54) * 72),
+        layout: 'a4',
+        defaultChartDiameter: (47.5 / 2.54) * 72
+      };
+    case '24x32':
+      return { width: 24 * 72, height: 32 * 72, layout: 'a4', defaultChartDiameter: 19.2 * 72 };
+    case 'square':
+      return { width: 1024, height: 1024, layout: 'square', defaultChartDiameter: 722 };
+    case 'a4':
+    default:
+      return { width: 595, height: 842, layout: 'a4', defaultChartDiameter: 494 };
+  }
+}
+
+function getDefaultMargin(size: PosterRequest['poster']['size']): number {
+  switch (size) {
+    case '16x20':
+    case '20x20':
+      return 72;
+    case 'square':
+      return 70;
+    case 'a2':
+      return 96;
+    case '18x24':
+      return 80;
+    case 'us-letter':
+      return 46;
+    case '11x14':
+      return 79.2;
+    case 'a3':
+      return (4.6 / 2.54) * 72;
+    case '12x12':
+      return 0.9 * 72;
+    case '12x16':
+      return 1.2 * 72;
+    case 'a1':
+      return (10 / 2.54) * 72;
+    case '24x32':
+      return 2.4 * 72;
+    case 'a4':
+    default:
+      return 48;
   }
 }
 
@@ -154,6 +237,61 @@ function formatDate(dateUtc: Date, showTime: boolean, timeZone?: string): string
   return `${m} ${d}, ${y}  ${hh}:${mm} (UTC ${off})`;
 }
 
+function estimateTextWidth(text: string, fontSize: number, letterSpacing = 0): number {
+  let units = 0;
+  for (const ch of text) {
+    if (ch === ' ') units += 0.32;
+    else if ('ilI1|!.,:;'.includes(ch)) units += 0.34;
+    else if ('MW@#%&'.includes(ch)) units += 0.95;
+    else units += 0.62;
+  }
+  return units * fontSize + Math.max(0, text.length - 1) * letterSpacing;
+}
+
+function wrapTextToWidth(text: string, maxWidth: number, fontSize: number, letterSpacing = 0): string[] {
+  const source = text.trim();
+  if (!source) return [];
+  const words = source.split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+
+  const lines: string[] = [];
+  let current = '';
+
+  const pushCurrent = () => {
+    if (current.trim()) lines.push(current.trim());
+    current = '';
+  };
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (!current || estimateTextWidth(candidate, fontSize, letterSpacing) <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+    pushCurrent();
+
+    if (estimateTextWidth(word, fontSize, letterSpacing) <= maxWidth) {
+      current = word;
+      continue;
+    }
+
+    let chunk = '';
+    for (const ch of word) {
+      const next = chunk + ch;
+      if (!chunk || estimateTextWidth(next, fontSize, letterSpacing) <= maxWidth) {
+        chunk = next;
+      } else {
+        lines.push(chunk);
+        chunk = ch;
+      }
+    }
+    current = chunk;
+  }
+
+  pushCurrent();
+  return lines;
+}
+
 export function renderPosterSvg(req: PosterRequest): string {
   const { latitude, longitude, timeUtcIso, locationLabel, params, poster } = req;
   const date = new Date(timeUtcIso);
@@ -161,9 +299,12 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   const size = poster.size;
   const showMoonPhase = !!poster.showMoonPhase;
+  const showCompanionPhoto = !!poster.showCompanionPhoto && !!(poster.companionPhotoImageUrl || '').trim();
+  const showCompanionCircle = showMoonPhase || showCompanionPhoto;
   const moonImageUrl = (poster.moonPhaseImageUrl || '/moon.png').trim() || '/moon.png';
-  const geomLayout = size === 'a4' || size === 'a2' || size === 'us-letter' || size === '18x24' ? 'a4' : 'square';
-  const geom = buildChartGeometry({ latitude, longitude, date, params, layout: geomLayout });
+  const companionPhotoUrl = (poster.companionPhotoImageUrl || '').trim();
+  const layout = getPosterLayout(size);
+  const geom = buildChartGeometry({ latitude, longitude, date, params, layout: layout.layout });
 
   const palette = getPalette(poster.palette);
   const inkRgb = hexToRgb(poster.inkColor || '');
@@ -188,76 +329,33 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   // Poster layout regions
   const margin =
-    showMoonPhase
+    showCompanionCircle
       ? 72
-      : size === '16x20' || size === '20x20'
-      ? 72
-      : size === 'square'
-        ? 70
-        : size === 'a2'
-          ? 96
-        : size === '18x24'
-            ? 80
-            : size === 'us-letter'
-              ? 46
-              : 48;
+      : typeof poster.pageMargin === 'number' && poster.pageMargin > 0
+        ? poster.pageMargin
+        : getDefaultMargin(size);
   const frameInset = poster.borderInset;
   const borderW = poster.borderWidth;
 
   const W =
-    showMoonPhase
+    showCompanionCircle
       ? 24 * 72
-      : size === 'a2'
-      ? 1191
-      : size === 'us-letter'
-        ? 612
-        : size === '16x20'
-          ? 16 * 72
-          : size === '18x24'
-            ? 18 * 72
-            : size === '20x20'
-              ? 20 * 72
-              : size === 'square'
-                ? 1024
-                : 595;
+      : layout.width;
   const H =
-    showMoonPhase
+    showCompanionCircle
       ? 18 * 72
-      : size === 'a2'
-      ? 1684
-      : size === 'us-letter'
-        ? 792
-        : size === '16x20'
-          ? 20 * 72
-          : size === '18x24'
-            ? 24 * 72
-            : size === '20x20'
-              ? 20 * 72
-              : size === 'square'
-                ? 1024
-                : 842;
+      : layout.height;
   const defaultChartDiameter =
-    showMoonPhase
+    showCompanionCircle
       ? 10 * 72
-      : size === 'a2'
-      ? 11.97 * 72
-      : size === 'us-letter'
-        ? 408.5
-        : size === '18x24'
-          ? 12.92 * 72
-          : size === '16x20'
-            ? 12.16 * 72
-            : size === '20x20'
-              ? 13.585 * 72
-              : size === 'square'
-                ? 722
-                : 494;
+      : layout.defaultChartDiameter;
   const chartDiameter = poster.chartDiameter > 0 ? poster.chartDiameter : defaultChartDiameter;
   let chartR = chartDiameter / 2;
 
+  const isSquareTextLayout = size === 'square' || size === '20x20' || size === '12x12';
   let chartCx = W / 2;
   let chartCy =
-    size === 'square' || size === '20x20'
+    isSquareTextLayout
       ? H * 0.44
       : size === 'a4'
         ? 320
@@ -269,18 +367,17 @@ export function renderPosterSvg(req: PosterRequest): string {
   let moonPhaseReduced = 0;
   let moonWaxing = true;
 
-  if (showMoonPhase) {
+  if (showCompanionCircle) {
     const frameLeft = margin + frameInset;
     const frameRight = W - margin - frameInset;
     const frameTop = margin + frameInset;
     const frameBottom = H - margin - frameInset;
     const gap = 54;
-    const moonPhaseScale = 1.25;
     const maxRByWidth = Math.max(80, (frameRight - frameLeft - gap) / 4);
     const topBandHeight = (frameBottom - frameTop) * 0.72;
     const maxRByHeight = Math.max(80, (topBandHeight - 18) / 2);
     const baseR = Math.max(120, Math.min(chartR, maxRByWidth, maxRByHeight));
-    chartR = Math.min(baseR * moonPhaseScale, maxRByWidth, maxRByHeight);
+    chartR = baseR;
     moonR = chartR;
     const pairCenterX = (frameLeft + frameRight) / 2;
     const centerDistance = chartR * 2 + gap;
@@ -288,9 +385,11 @@ export function renderPosterSvg(req: PosterRequest): string {
     chartCx = pairCenterX + centerDistance / 2;
     chartCy = frameTop + chartR + 10;
     moonCy = chartCy;
-    const moonPhaseDeg = MoonPhase(new AstroTime(date));
-    moonPhaseReduced = moonPhaseDeg <= 180 ? moonPhaseDeg : 360 - moonPhaseDeg;
-    moonWaxing = moonPhaseDeg <= 180;
+    if (showMoonPhase) {
+      const moonPhaseDeg = MoonPhase(new AstroTime(date));
+      moonPhaseReduced = moonPhaseDeg <= 180 ? moonPhaseDeg : 360 - moonPhaseDeg;
+      moonWaxing = moonPhaseDeg <= 180;
+    }
   }
 
   const title = (poster.title || '').trim();
@@ -347,8 +446,8 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   const labelFill = palette.mutedInk;
 
-  // Keep poster content margins stable, but let optional frame sit closer to page corners.
-  const frameEdgeInset = Math.max(16, margin * 0.26) + frameInset;
+  // Optional frame sits 0.4in from page edge (+custom inset).
+  const frameEdgeInset = 0.4 * 72 + frameInset;
   const frame = poster.border
     ? `<rect x="${frameEdgeInset}" y="${frameEdgeInset}" width="${W - 2 * frameEdgeInset}" height="${H - 2 * frameEdgeInset}" fill="none" stroke="${palette.ink}" stroke-width="${borderW}" opacity="0.9"/>`
     : '';
@@ -366,7 +465,7 @@ export function renderPosterSvg(req: PosterRequest): string {
       case 'sans':
         return 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
       case 'cursive':
-        return "'Great Vibes', 'Allura', 'Alex Brush', 'Jimmy Script', cursive, ui-serif, Georgia, Times New Roman, serif";
+        return "'Alex Brush', 'Great Vibes', 'Allura', 'Jimmy Script', cursive, ui-serif, Georgia, Times New Roman, serif";
       case 'serif':
       default:
         return 'ui-serif, Georgia, Times New Roman, serif';
@@ -411,10 +510,14 @@ export function renderPosterSvg(req: PosterRequest): string {
   const minTitleFont = 18;
   const minNamesFont = 12;
   const minMetaFont = 10;
+  const titleLetterSpacing = 2;
+  const titleMaxWidth = Math.max(40, chartDiameter * 0.96);
+  const makeTitleLines = () => wrapTextToWidth(title.toUpperCase(), titleMaxWidth, titleFont, titleLetterSpacing);
+  let titleLines = title ? makeTitleLines() : [];
 
-  const topVisualBottom = showMoonPhase ? Math.max(chartCy + chartR, moonCy + moonR) : chartCy + chartR;
-  const regionTop = topVisualBottom + (showMoonPhase ? 64 : size === 'square' ? 52 : 46);
-  const regionBottom = H - margin - (size === 'square' ? 52 : 54);
+  const topVisualBottom = showCompanionCircle ? Math.max(chartCy + chartR, moonCy + moonR) : chartCy + chartR;
+  const regionTop = topVisualBottom + (showCompanionCircle ? 64 : isSquareTextLayout ? 52 : 46);
+  const regionBottom = H - margin - (isSquareTextLayout ? 52 : 54);
   const regionH = Math.max(0, regionBottom - regionTop);
 
   const titleLineHeight = () => titleFont * 1.12;
@@ -426,9 +529,9 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   const calcNeeded = () => {
     let h = 0;
-    if (title) h += titleLineHeight();
-    if (namesLines.length) h += (title ? gap1 : 0) + namesLines.length * namesLineHeight();
-    if (metaTextLines.length) h += ((title || namesLines.length) ? gap2 : 0) + metaTextLines.length * metaLineHeight();
+    if (titleLines.length) h += titleLines.length * titleLineHeight();
+    if (namesLines.length) h += (titleLines.length ? gap1 : 0) + namesLines.length * namesLineHeight();
+    if (metaTextLines.length) h += ((titleLines.length || namesLines.length) ? gap2 : 0) + metaTextLines.length * metaLineHeight();
     return h;
   };
 
@@ -436,21 +539,24 @@ export function renderPosterSvg(req: PosterRequest): string {
     if (titleFont > minTitleFont) titleFont -= 1.5;
     if (namesFont > minNamesFont) namesFont -= 1.0;
     if (metaFont > minMetaFont) metaFont -= 0.8;
+    titleLines = title ? makeTitleLines() : [];
     if (titleFont <= minTitleFont && namesFont <= minNamesFont && metaFont <= minMetaFont) break;
   }
 
   const textBlock: string[] = [];
   let y = regionTop + Math.max(0, (regionH - calcNeeded()) / 2);
 
-  if (title) {
-    y += titleLineHeight();
-    textBlock.push(
-      `<text x="${W / 2}" y="${y.toFixed(2)}" font-size="${titleFont.toFixed(2)}" fill="${palette.accent}" text-anchor="middle" letter-spacing="2" font-family="${fontFamily(titleFontKey)}">${svgEscape(title.toUpperCase())}</text>`
-    );
+  if (titleLines.length) {
+    for (const line of titleLines) {
+      y += titleLineHeight();
+      textBlock.push(
+        `<text x="${W / 2}" y="${y.toFixed(2)}" font-size="${titleFont.toFixed(2)}" fill="${palette.accent}" text-anchor="middle" letter-spacing="${titleLetterSpacing}" font-family="${fontFamily(titleFontKey)}">${svgEscape(line)}</text>`
+      );
+    }
   }
 
   if (namesLines.length) {
-    y += title ? gap1 : 0;
+    y += titleLines.length ? gap1 : 0;
     for (const line of namesLines) {
       y += namesLineHeight();
       textBlock.push(
@@ -461,7 +567,7 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   const metaLines: string[] = [];
   if (metaTextLines.length) {
-    y += (title || namesLines.length) ? gap2 : 0;
+    y += (titleLines.length || namesLines.length) ? gap2 : 0;
     for (const line of metaTextLines) {
       y += metaLineHeight();
       const txt = metaUppercase ? line.toUpperCase() : line;
@@ -480,8 +586,14 @@ export function renderPosterSvg(req: PosterRequest): string {
       <circle cx="${chartCx}" cy="${chartCy}" r="${chartR}"/>
     </clipPath>
     ${
-      showMoonPhase
+      showCompanionCircle
         ? `<clipPath id="moonClip"><circle cx="${moonCx}" cy="${moonCy}" r="${moonR}"/></clipPath>
+    <filter id="moonDropShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="${Math.max(2, moonR * 0.02).toFixed(2)}" stdDeviation="${Math.max(2.5, moonR * 0.02).toFixed(2)}" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+    ${
+      showMoonPhase
+        ? `
     <radialGradient id="moonShadeRadial" cx="${moonWaxing ? '34%' : '66%'}" cy="46%" r="78%">
       <stop offset="0%" stop-color="rgba(0,0,0,0.00)"/>
       <stop offset="58%" stop-color="rgba(0,0,0,0.16)"/>
@@ -495,9 +607,6 @@ export function renderPosterSvg(req: PosterRequest): string {
     <filter id="moonSoftBlur" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="${Math.max(1.6, moonR * 0.012).toFixed(2)}"/>
     </filter>
-    <filter id="moonDropShadow" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="${Math.max(2, moonR * 0.02).toFixed(2)}" stdDeviation="${Math.max(2.5, moonR * 0.02).toFixed(2)}" flood-color="#000000" flood-opacity="0.32"/>
-    </filter>
     <mask id="moonLitMask">
       <rect x="0" y="0" width="${W}" height="${H}" fill="black"/>
       ${
@@ -508,6 +617,8 @@ export function renderPosterSvg(req: PosterRequest): string {
             : `<path d="${moonIlluminatedPath(moonCx, moonCy, moonR, moonPhaseReduced, !moonWaxing)}" fill="white"/>`
       }
     </mask>`
+        : ''
+    }`
         : ''
     }
   </defs>
@@ -598,6 +709,11 @@ export function renderPosterSvg(req: PosterRequest): string {
         }
       </g>
       <g>
+        ${geom.starLabels
+          .map((l) => `<text x="${(l.x + 5).toFixed(2)}" y="${(l.y + 2).toFixed(2)}" font-size="8" fill="${labelFill}" opacity="0.78" text-anchor="start" dominant-baseline="middle" font-family="ui-sans-serif, system-ui">${svgEscape(l.text)}</text>`)
+          .join('')}
+      </g>
+      <g>
         ${geom.constellationLabels
           .map((l) => `<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="10" fill="${labelFill}" opacity="0.75" text-anchor="middle" dominant-baseline="middle">${svgEscape(l.text)}</text>`)
           .join('')}
@@ -605,8 +721,17 @@ export function renderPosterSvg(req: PosterRequest): string {
     </g>
   </g>
   ${
-    showMoonPhase
-      ? `<g>
+    showCompanionCircle
+      ? showCompanionPhoto
+        ? `<g>
+    <g filter="url(#moonDropShadow)">
+      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="rgba(0,0,0,0.48)"/>
+      <image href="${svgAttrEscape(companionPhotoUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" opacity="1"/>
+      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="none" stroke="${palette.ink}" stroke-width="${Math.max(0, Math.min(20, poster.ringInnerWidth)).toFixed(2)}" opacity="0.9"/>
+      <circle cx="${moonCx}" cy="${moonCy}" r="${(moonR + Math.max(0, poster.ringGap ?? 18)).toFixed(2)}" fill="none" stroke="${palette.ink}" stroke-width="${Math.max(0, Math.min(20, poster.ringOuterWidth)).toFixed(2)}" opacity="0.9"/>
+    </g>
+  </g>`
+        : `<g>
     <g filter="url(#moonDropShadow)">
       <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="rgba(0,0,0,0.50)"/>
       <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" opacity="0.36"/>

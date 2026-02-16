@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PosterParams, RenderParams } from '../../lib/types';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
@@ -12,7 +13,8 @@ type SizePreset = {
   compact?: boolean;
 };
 
-type DesignSize = 'a2' | 'us-letter' | '16x20' | '18x24' | 'moon-phase';
+type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x20' | 'a2' | '18x24' | '20x20' | 'a1' | '24x32' | 'moon-phase' | 'sky-photo';
+type InkPresetKey = 'gold' | 'silver';
 
 type FontPresetKey = 'calligraphy' | 'signature' | 'serif' | 'gothic' | 'times';
 
@@ -23,11 +25,20 @@ type GeocodeResult = {
 };
 
 const SIZE_PRESETS: SizePreset[] = [
-  { key: 'a2', title: 'A2', sub: '420 x 594 mm' },
-  { key: 'us-letter', title: 'US Letter', sub: '8.5 x 11 in', compact: true },
-  { key: '16x20', title: '16 x 20', sub: '16 x 20 in', compact: true },
-  { key: '18x24', title: '18 x 24', sub: '18 x 24 in', compact: true },
-  { key: 'moon-phase', title: 'Moon Phase', sub: '24 x 18 in', compact: true }
+  { key: 'us-letter', title: 'US Letter', sub: '8.5 x 11 in' },
+  { key: 'a4', title: '8 x 12 / A4', sub: '21 x 29.7 cm', compact: true },
+  { key: '11x14', title: '11 x 14', sub: '27 x 35 cm', compact: true },
+  { key: 'a3', title: 'A3', sub: '29.7 x 42 cm', compact: true },
+  { key: '12x12', title: '12 x 12', sub: '30 x 30 cm', compact: true },
+  { key: '12x16', title: '12 x 16', sub: '30 x 40 cm', compact: true },
+  { key: '16x20', title: '16 x 20', sub: '40 x 50 cm', compact: true },
+  { key: 'a2', title: 'A2', sub: '42 x 59.4 cm', compact: true },
+  { key: '18x24', title: '18 x 24', sub: '45 x 60 cm', compact: true },
+  { key: '20x20', title: '20 x 20', sub: '50 x 50 cm', compact: true },
+  { key: 'a1', title: 'A1', sub: '59.4 x 84.1 cm', compact: true },
+  { key: '24x32', title: '24 x 32', sub: '60 x 80 cm', compact: true },
+  { key: 'moon-phase', title: 'Moon Companion', sub: '24 x 18 in', compact: true },
+  { key: 'sky-photo', title: 'Photo Companion', sub: '24 x 18 in', compact: true }
 ];
 
 const FONT_PRESETS: { key: FontPresetKey; label: string }[] = [
@@ -38,42 +49,29 @@ const FONT_PRESETS: { key: FontPresetKey; label: string }[] = [
   { key: 'times', label: 'Times New Roman' }
 ];
 
-const POSTER_PALETTES: { key: PosterParams['palette']; label: string; bg: string; ink: string; tone: 'dark' | 'light' }[] = [
-  { key: 'classic-black', label: 'Classic', bg: '#0b0b0d', ink: '#f6f6f7', tone: 'dark' },
-  { key: 'graphite', label: 'Graphite', bg: '#4a5368', ink: '#f2f4f8', tone: 'dark' },
-  { key: 'deep-navy', label: 'Deep Navy', bg: '#09105f', ink: '#f1f4ff', tone: 'dark' },
-  { key: 'royal-blue', label: 'Royal Blue', bg: '#365b8e', ink: '#eef4ff', tone: 'dark' },
-  { key: 'ocean-teal', label: 'Ocean Teal', bg: '#2c8d84', ink: '#eefcf9', tone: 'dark' },
-  { key: 'mustard-gold', label: 'Mustard', bg: '#deae00', ink: '#1d1a14', tone: 'light' },
-  { key: 'burnt-orange', label: 'Burnt Orange', bg: '#d3854f', ink: '#1f1510', tone: 'light' },
-  { key: 'terracotta-red', label: 'Terracotta', bg: '#d45745', ink: '#fff4f0', tone: 'dark' },
-  { key: 'midnight', label: 'Midnight', bg: '#0b1020', ink: '#ffffff', tone: 'dark' },
-  { key: 'navy-gold', label: 'Navy/Gold', bg: '#151c2d', ink: '#f4c25b', tone: 'dark' },
-  { key: 'night-gold', label: 'Night/Gold', bg: '#24283a', ink: '#fbab29', tone: 'dark' },
-  { key: 'twilight-blue', label: 'Twilight', bg: '#1f2a44', ink: '#d7e3ff', tone: 'dark' },
-  { key: 'storm-gray', label: 'Storm Gray', bg: '#2a2f39', ink: '#e8e9ee', tone: 'dark' },
-  { key: 'mocha', label: 'Mocha', bg: '#3b2d2a', ink: '#f2d8c8', tone: 'dark' },
-  { key: 'soft-sage', label: 'Soft Sage', bg: '#25352f', ink: '#d8e7de', tone: 'dark' },
-  { key: 'blush-night', label: 'Blush Night', bg: '#3a2733', ink: '#f5d7e2', tone: 'dark' },
-  { key: 'slate', label: 'Slate', bg: '#111827', ink: '#d9d9d9', tone: 'dark' },
-  { key: 'forest', label: 'Forest', bg: '#0e1f16', ink: '#d9d9d9', tone: 'dark' },
-  { key: 'emerald', label: 'Emerald', bg: '#0b3d2e', ink: '#d9d9d9', tone: 'dark' },
-  { key: 'plum', label: 'Plum', bg: '#1c1230', ink: '#d9d9d9', tone: 'dark' },
-  { key: 'burgundy', label: 'Burgundy', bg: '#2a0f1a', ink: '#d9d9d9', tone: 'dark' },
-  { key: 'cream-ink', label: 'Cream', bg: '#fbf5ea', ink: '#1b1b1b', tone: 'light' },
-  { key: 'sand', label: 'Sand', bg: '#f7f3e8', ink: '#1b1b1b', tone: 'light' },
-  { key: 'pearl', label: 'Pearl', bg: '#f2f0ea', ink: '#202020', tone: 'light' }
+const POSTER_PALETTES: { key: PosterParams['palette']; label: string; bg: string; tone: 'dark' | 'light' }[] = [
+  { key: 'navy-blue', label: 'Navy Blue', bg: '#232733', tone: 'dark' },
+  { key: 'gold-black', label: 'Gold Black', bg: '#121212', tone: 'dark' },
+  { key: 'dark-green', label: 'Dark Green', bg: '#1f392c', tone: 'dark' },
+  { key: 'classic-burgundy', label: 'Burgundy', bg: '#4e1d1c', tone: 'dark' },
+  { key: 'deep-teal', label: 'Teal', bg: '#2c4d42', tone: 'dark' }
 ];
 
 function findPalette(paletteKey: PosterParams['palette']) {
-  return POSTER_PALETTES.find((p) => p.key === paletteKey) ?? POSTER_PALETTES[1];
+  return POSTER_PALETTES.find((p) => p.key === paletteKey) ?? POSTER_PALETTES[0];
 }
+
+const INK_PRESETS: { key: InkPresetKey; label: string; hex: string }[] = [
+  { key: 'gold', label: 'Gold', hex: '#ffbe4c' },
+  { key: 'silver', label: 'Silver', hex: '#e2e6e9' }
+];
 
 const defaultParams: RenderParams = {
   theme: 'dark',
   showAzimuthScale: true,
   showCoordinateGrid: false,
-  coordinateGridStepDeg: 30,
+  coordinateGridStepDeg: 20,
+  labelStarNames: true,
   labelConstellations: true,
   labelSolarSystem: true,
   mirrorHorizontal: true,
@@ -81,7 +79,7 @@ const defaultParams: RenderParams = {
   showDeepSky: false,
   labelDeepSky: false,
   starMode: 'all',
-  magnitudeLimit: 7,
+  magnitudeLimit: 8,
   minStarSize: 1,
   starSizeMin: 0.75,
   starSizeMax: 5.0,
@@ -93,79 +91,299 @@ const defaultParams: RenderParams = {
   vertexSizeGamma: 1.2,
   vertexAlpha: 0.95,
   constellationLineWidth: 0.6,
-  constellationLineAlpha: 0.7,
+  constellationLineAlpha: 0.8,
   eclipticAlpha: 0.35,
   azimuthRingInnerWidth: 1.2,
   azimuthRingOuterWidth: 0.8
 };
 
+const INCH = 72;
+const CM = INCH / 2.54;
+const PHOTO_MIN_DIM = 1200;
+const PHOTO_TARGET_DIM = 1400;
+const PHOTO_MAX_MB = 20;
+const PHOTO_PREVIEW_SIZE = 220;
+const PHOTO_ZOOM_MIN = 1;
+const PHOTO_ZOOM_MAX = 4;
+const PHOTO_ZOOM_STEP = 0.2;
+
+type CompanionPhotoMeta = {
+  sourceDataUrl: string;
+  inputWidth: number;
+  inputHeight: number;
+};
+
+function loadImageElement(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not read this image. Please try another file.'));
+    img.src = src;
+  });
+}
+
+function clampCompanionPhotoOffset(
+  offsetX: number,
+  offsetY: number,
+  inputWidth: number,
+  inputHeight: number,
+  zoom: number
+): { x: number; y: number } {
+  const safeZoom = Math.max(PHOTO_ZOOM_MIN, Math.min(PHOTO_ZOOM_MAX, zoom));
+  const baseScale = Math.max(PHOTO_PREVIEW_SIZE / inputWidth, PHOTO_PREVIEW_SIZE / inputHeight);
+  const drawW = inputWidth * baseScale * safeZoom;
+  const drawH = inputHeight * baseScale * safeZoom;
+  const maxX = Math.max(0, (drawW - PHOTO_PREVIEW_SIZE) / 2);
+  const maxY = Math.max(0, (drawH - PHOTO_PREVIEW_SIZE) / 2);
+  return {
+    x: Math.max(-maxX, Math.min(maxX, offsetX)),
+    y: Math.max(-maxY, Math.min(maxY, offsetY))
+  };
+}
+
+async function normalizeCompanionPhotoFile(file: File): Promise<CompanionPhotoMeta> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please upload an image file (JPG, PNG, or WEBP).');
+  }
+  if (file.size > PHOTO_MAX_MB * 1024 * 1024) {
+    throw new Error(`Photo file is too large. Please keep it under ${PHOTO_MAX_MB} MB.`);
+  }
+
+  const sourceDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read this image. Please try another file.'));
+    reader.readAsDataURL(file);
+  });
+  const img = await loadImageElement(sourceDataUrl);
+  const inputWidth = img.naturalWidth || img.width;
+  const inputHeight = img.naturalHeight || img.height;
+  if (Math.min(inputWidth, inputHeight) < PHOTO_MIN_DIM) {
+    throw new Error(`Image resolution is too low. Use at least ${PHOTO_MIN_DIM} x ${PHOTO_MIN_DIM}px.`);
+  }
+  return { sourceDataUrl, inputWidth, inputHeight };
+}
+
+async function buildCompanionPhotoOutput(args: {
+  sourceDataUrl: string;
+  inputWidth: number;
+  inputHeight: number;
+  zoom: number;
+  offsetX: number;
+  offsetY: number;
+}): Promise<string> {
+  const { sourceDataUrl, inputWidth, inputHeight, zoom, offsetX, offsetY } = args;
+  const img = await loadImageElement(sourceDataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = PHOTO_TARGET_DIM;
+  canvas.height = PHOTO_TARGET_DIM;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Image processing is not available in this browser.');
+
+  const clamped = clampCompanionPhotoOffset(offsetX, offsetY, inputWidth, inputHeight, zoom);
+  const safeZoom = Math.max(PHOTO_ZOOM_MIN, Math.min(PHOTO_ZOOM_MAX, zoom));
+  const baseScale = Math.max(PHOTO_TARGET_DIM / inputWidth, PHOTO_TARGET_DIM / inputHeight);
+  const drawW = inputWidth * baseScale * safeZoom;
+  const drawH = inputHeight * baseScale * safeZoom;
+  const offsetScale = PHOTO_TARGET_DIM / PHOTO_PREVIEW_SIZE;
+  const dx = (PHOTO_TARGET_DIM - drawW) / 2 + clamped.x * offsetScale;
+  const dy = (PHOTO_TARGET_DIM - drawH) / 2 + clamped.y * offsetScale;
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, dx, dy, drawW, drawH);
+  return canvas.toDataURL('image/jpeg', 0.92);
+}
+
 const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
-  a2: {
-    chartDiameter: 11.97 * 85,
-    ringInnerWidth: 10,
-    ringGap: 15,
-    ringOuterWidth: 7,
-    titleFontSize: 52,
-    namesFontSize: 72,
-    metaFontSize: 26,
-    metaLetterSpacing: 6.6,
-    metaLineSpacing: 2,
-    metaUppercase: false
-  },
   'us-letter': {
-    chartDiameter: 450,
+    chartDiameter: 6.8 * INCH,
+    titleFontSize: 18.1,
+    namesFontSize: 23,
+    metaFontSize: 9.2,
+    pageMargin: 0.8 * INCH,
     ringInnerWidth: 4,
-    ringGap: 6,
-    ringOuterWidth: 3,
-    titleFontSize: 30,
-    namesFontSize: 38,
-    metaFontSize: 14,
-    metaLetterSpacing: 2.3,
-    metaLineSpacing: 2,
-    metaUppercase: false
+    ringGap: 8,
+    ringOuterWidth: 5,
+    metaLetterSpacing: 1.8,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  a4: {
+    chartDiameter: 6.4 * INCH,
+    titleFontSize: 18.1,
+    namesFontSize: 23,
+    metaFontSize: 9.2,
+    pageMargin: 1.4 * INCH,
+    ringInnerWidth: 4,
+    ringGap: 8,
+    ringOuterWidth: 5,
+    metaLetterSpacing: 1.8,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  '11x14': {
+    chartDiameter: 8.8 * INCH,
+    titleFontSize: 23,
+    namesFontSize: 29,
+    metaFontSize: 12,
+    pageMargin: 1.1 * INCH,
+    ringInnerWidth: 5,
+    ringGap: 9,
+    ringOuterWidth: 5,
+    metaLetterSpacing: 2.2,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  a3: {
+    chartDiameter: 23.7 * CM,
+    titleFontSize: 27,
+    namesFontSize: 32,
+    metaFontSize: 13.5,
+    pageMargin: 4.6 * CM,
+    ringInnerWidth: 6,
+    ringGap: 10,
+    ringOuterWidth: 6,
+    metaLetterSpacing: 2.8,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  '12x12': {
+    chartDiameter: 8.5 * INCH,
+    titleFontSize: 19,
+    namesFontSize: 24,
+    metaFontSize: 10,
+    pageMargin: 0.9 * INCH,
+    ringInnerWidth: 4,
+    ringGap: 8,
+    ringOuterWidth: 5,
+    metaLetterSpacing: 2,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  '12x16': {
+    chartDiameter: 9.6 * INCH,
+    titleFontSize: 28,
+    namesFontSize: 35.5,
+    metaFontSize: 14.3,
+    pageMargin: 1.2 * INCH,
+    ringInnerWidth: 6,
+    ringGap: 10,
+    ringOuterWidth: 6,
+    metaLetterSpacing: 3,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
   },
   '16x20': {
-    chartDiameter: 12.16 * 80,
-    ringInnerWidth: 10,
-    ringGap: 15,
+    chartDiameter: 12.8 * INCH,
+    titleFontSize: 36,
+    namesFontSize: 44,
+    metaFontSize: 18,
+    pageMargin: 1.6 * INCH,
+    ringInnerWidth: 8,
+    ringGap: 12,
     ringOuterWidth: 7,
-    titleFontSize: 45,
-    namesFontSize: 64,
-    metaFontSize: 23,
-    metaLetterSpacing: 5.8,
-    metaLineSpacing: 2,
-    metaUppercase: false
+    metaLetterSpacing: 3.8,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  a2: {
+    chartDiameter: 33.6 * CM,
+    titleFontSize: 37,
+    namesFontSize: 45,
+    metaFontSize: 18.6,
+    pageMargin: 6.6 * CM,
+    ringInnerWidth: 8,
+    ringGap: 12,
+    ringOuterWidth: 7,
+    metaLetterSpacing: 4.2,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
   },
   '18x24': {
-    chartDiameter: 12.54 * 85,
-    ringInnerWidth: 2,
-    ringGap: 8,
-    ringOuterWidth: 4,
-    titleFontSize: 46,
-    namesFontSize: 68,
-    metaFontSize: 24,
+    chartDiameter: 14.5 * INCH,
+    titleFontSize: 42,
+    namesFontSize: 51,
+    metaFontSize: 21,
+    pageMargin: 1.7 * INCH,
+    ringInnerWidth: 9,
+    ringGap: 13,
+    ringOuterWidth: 8,
+    metaLetterSpacing: 4.8,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  '20x20': {
+    chartDiameter: 14.3 * INCH,
+    titleFontSize: 31.2,
+    namesFontSize: 39.6,
+    metaFontSize: 16,
+    pageMargin: 1.4 * INCH,
+    ringInnerWidth: 8,
+    ringGap: 12,
+    ringOuterWidth: 7,
+    metaLetterSpacing: 3.6,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  a1: {
+    chartDiameter: 47.5 * CM,
+    titleFontSize: 52,
+    namesFontSize: 64,
+    metaFontSize: 26,
+    pageMargin: 10 * CM,
+    ringInnerWidth: 12,
+    ringGap: 15,
+    ringOuterWidth: 9,
+    metaLetterSpacing: 5.8,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  '24x32': {
+    chartDiameter: 19.2 * INCH,
+    titleFontSize: 53,
+    namesFontSize: 65,
+    metaFontSize: 27,
+    pageMargin: 2.4 * INCH,
+    ringInnerWidth: 12,
+    ringGap: 15,
+    ringOuterWidth: 9,
     metaLetterSpacing: 6,
-    metaLineSpacing: 2,
-    metaUppercase: false
+    metaLineSpacing: 1.5,
+    metaUppercase: true
   },
   'moon-phase': {
-    chartDiameter: 10 * 72,
-    ringInnerWidth: 5,
-    ringGap: 8,
-    ringOuterWidth: 3,
+    chartDiameter: 10 * INCH,
     titleFontSize: 46,
     namesFontSize: 62,
     metaFontSize: 21,
+    pageMargin: 1.4 * INCH,
+    ringInnerWidth: 5,
+    ringGap: 8,
+    ringOuterWidth: 3,
     metaLetterSpacing: 5.3,
-    metaLineSpacing: 2,
-    metaUppercase: false
+    metaLineSpacing: 1.5,
+    metaUppercase: true
+  },
+  'sky-photo': {
+    chartDiameter: 10 * INCH,
+    titleFontSize: 46,
+    namesFontSize: 62,
+    metaFontSize: 21,
+    pageMargin: 1.4 * INCH,
+    ringInnerWidth: 5,
+    ringGap: 8,
+    ringOuterWidth: 3,
+    metaLetterSpacing: 5.3,
+    metaLineSpacing: 1.5,
+    metaUppercase: true
   }
 };
 
 const defaultPoster: PosterParams = {
   size: '16x20',
-  palette: 'midnight',
-  inkColor: '#ffffff',
+  palette: 'navy-blue',
+  inkColor: '#ffbe4c',
   border: true,
   borderWidth: 2,
   borderInset: 2,
@@ -183,7 +401,7 @@ const defaultPoster: PosterParams = {
   ringOuterWidth: 5,
   titleFont: 'prata',
   titleFontSize: 45,
-  namesFont: 'jimmy-script',
+  namesFont: 'cursive',
   namesFontSize: 64,
   metaFont: 'signika',
   metaFontSize: 23,
@@ -191,12 +409,12 @@ const defaultPoster: PosterParams = {
   metaFontWeight: 500,
   metaLetterSpacing: 5.8,
   metaLineSpacing: 2,
-  metaUppercase: false
+  metaUppercase: true
 };
 
 function mapFontPresetToPoster(fontPreset: FontPresetKey): Pick<PosterParams, 'titleFont' | 'namesFont' | 'metaFont'> {
   if (fontPreset === 'calligraphy') {
-    return { titleFont: 'prata', namesFont: 'jimmy-script', metaFont: 'signika' };
+    return { titleFont: 'prata', namesFont: 'cursive', metaFont: 'signika' };
   }
   if (fontPreset === 'signature') {
     return { titleFont: 'prata', namesFont: 'cursive', metaFont: 'signika' };
@@ -211,10 +429,23 @@ function mapFontPresetToPoster(fontPreset: FontPresetKey): Pick<PosterParams, 't
 }
 
 function mapDesignSizeToPosterSize(size: DesignSize): PosterParams['size'] {
-  return size === 'moon-phase' ? '18x24' : size;
+  return size === 'moon-phase' || size === 'sky-photo' ? '18x24' : size;
 }
 
-function formatDateLine(dateIso: string, place: string): string {
+function formatMetaLine(dateIso: string, timeValue: string, showTime: boolean, label: string): string {
+  const parts = label
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const city = parts[0] || label.trim() || 'Custom location';
+  const country = parts[parts.length - 1] || '';
+  const isUsOrCanada = /^(usa|us|u\.s\.a\.?|united states|canada)$/i.test(country);
+  let regionOrCountry = isUsOrCanada && parts.length >= 3 ? parts[parts.length - 2] : country;
+  if (regionOrCountry.toLowerCase() === city.toLowerCase()) {
+    regionOrCountry = country;
+  }
+
+  const topLine = regionOrCountry ? `${city}, ${regionOrCountry}` : city;
   const d = new Date(`${dateIso}T00:00:00`);
   const datePart = Number.isNaN(d.getTime())
     ? dateIso
@@ -223,8 +454,18 @@ function formatDateLine(dateIso: string, place: string): string {
         day: 'numeric',
         year: 'numeric'
       }).format(d);
-  const cleanPlace = place.trim();
-  return cleanPlace ? `${datePart}, ${cleanPlace}` : datePart;
+
+  if (!showTime) return `${topLine}\n${datePart}`;
+  const t = /^\d{2}:\d{2}$/.test(timeValue) ? timeValue : '00:00';
+  const local = new Date(`${dateIso}T${t}:00`);
+  const timePart = Number.isNaN(local.getTime())
+    ? t
+    : new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }).format(local);
+  return `${topLine}\n${datePart} | ${timePart}`;
 }
 
 function normalizePlaceLabel(label: string): string {
@@ -264,44 +505,79 @@ function Toggle({
 export default function DesignPage() {
   const router = useRouter();
   const [size, setSize] = useState<DesignSize>('16x20');
-  const [frameOn, setFrameOn] = useState(true);
-  const [palette, setPalette] = useState<PosterParams['palette']>('midnight');
+  const [frameOn, setFrameOn] = useState(false);
+  const [palette, setPalette] = useState<PosterParams['palette']>('navy-blue');
+  const [inkPreset, setInkPreset] = useState<InkPresetKey>('gold');
   const [cityQuery, setCityQuery] = useState('Florida, USA');
   const [locationLabel, setLocationLabel] = useState('Florida, USA');
   const [lat, setLat] = useState(27.6648);
   const [lon, setLon] = useState(-81.5158);
   const [date, setDate] = useState('2026-02-13');
-  const [time, setTime] = useState('00:00');
-  const [showConstellations, setShowConstellations] = useState(true);
+  const [time, setTime] = useState('21:00');
+  const [showTimeLine, setShowTimeLine] = useState(false);
+  const showConstellations = true;
+  const [showStarNames, setShowStarNames] = useState(true);
+  const [showConstellationNames, setShowConstellationNames] = useState(true);
+  const [showPlanetNames, setShowPlanetNames] = useState(true);
   const [showGraticule, setShowGraticule] = useState(false);
   const [title, setTitle] = useState('We met under this sky');
   const [fontPreset, setFontPreset] = useState<FontPresetKey>('calligraphy');
   const [names, setNames] = useState('Sarah & John');
-  const [locationLine, setLocationLine] = useState('February 13, 2026, Florida, USA');
+  const [locationLine, setLocationLine] = useState(formatMetaLine('2026-02-13', '21:00', false, 'Florida, USA'));
   const [locationLineDirty, setLocationLineDirty] = useState(false);
   const [geoExpanded, setGeoExpanded] = useState(false);
   const [suggestions, setSuggestions] = useState<GeocodeResult[]>([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const [paletteExpanded, setPaletteExpanded] = useState(false);
+  const [companionPhotoMeta, setCompanionPhotoMeta] = useState<CompanionPhotoMeta | null>(null);
+  const [companionPhotoDataUrl, setCompanionPhotoDataUrl] = useState('');
+  const [companionPhotoInfo, setCompanionPhotoInfo] = useState('');
+  const [companionPhotoBusy, setCompanionPhotoBusy] = useState(false);
+  const [companionPhotoError, setCompanionPhotoError] = useState('');
+  const [companionPhotoZoom, setCompanionPhotoZoom] = useState(1);
+  const [companionPhotoOffsetX, setCompanionPhotoOffsetX] = useState(0);
+  const [companionPhotoOffsetY, setCompanionPhotoOffsetY] = useState(0);
+  const [companionPhotoDragging, setCompanionPhotoDragging] = useState(false);
+  const [companionPhotoDragStartX, setCompanionPhotoDragStartX] = useState(0);
+  const [companionPhotoDragStartY, setCompanionPhotoDragStartY] = useState(0);
+  const [companionPhotoDragOriginX, setCompanionPhotoDragOriginX] = useState(0);
+  const [companionPhotoDragOriginY, setCompanionPhotoDragOriginY] = useState(0);
   const [posterSvg, setPosterSvg] = useState('');
   const [busy, setBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [error, setError] = useState('');
   const latestRequestRef = useRef(0);
+  const companionPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const selectedPalette = useMemo(() => findPalette(palette), [palette]);
+  const selectedInk = useMemo(() => INK_PRESETS.find((item) => item.key === inkPreset) ?? INK_PRESETS[0], [inkPreset]);
   const effectiveTheme = selectedPalette.tone;
-  const collapsedPaletteCount = 10;
-  const visiblePalettes = useMemo(
-    () => (paletteExpanded ? POSTER_PALETTES : POSTER_PALETTES.slice(0, collapsedPaletteCount)),
-    [paletteExpanded]
-  );
+  const companionPreviewTransform = useMemo(() => {
+    if (!companionPhotoMeta) return { width: PHOTO_PREVIEW_SIZE, height: PHOTO_PREVIEW_SIZE, x: 0, y: 0 };
+    const baseScale = Math.max(
+      PHOTO_PREVIEW_SIZE / companionPhotoMeta.inputWidth,
+      PHOTO_PREVIEW_SIZE / companionPhotoMeta.inputHeight
+    );
+    const drawW = companionPhotoMeta.inputWidth * baseScale * companionPhotoZoom;
+    const drawH = companionPhotoMeta.inputHeight * baseScale * companionPhotoZoom;
+    const clamped = clampCompanionPhotoOffset(
+      companionPhotoOffsetX,
+      companionPhotoOffsetY,
+      companionPhotoMeta.inputWidth,
+      companionPhotoMeta.inputHeight,
+      companionPhotoZoom
+    );
+    return {
+      width: drawW,
+      height: drawH,
+      x: (PHOTO_PREVIEW_SIZE - drawW) / 2 + clamped.x,
+      y: (PHOTO_PREVIEW_SIZE - drawH) / 2 + clamped.y
+    };
+  }, [companionPhotoMeta, companionPhotoOffsetX, companionPhotoOffsetY, companionPhotoZoom]);
 
   useEffect(() => {
     if (locationLineDirty) return;
-    const pretty = normalizePlaceLabel(locationLabel || cityQuery);
-    setLocationLine(formatDateLine(date, pretty));
-  }, [cityQuery, date, locationLabel, locationLineDirty]);
+    setLocationLine(formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery));
+  }, [cityQuery, date, locationLabel, locationLineDirty, showTimeLine, time]);
 
   useEffect(() => {
     const q = cityQuery.trim();
@@ -325,6 +601,40 @@ export default function DesignPage() {
     return () => window.clearTimeout(timeout);
   }, [cityQuery]);
 
+  useEffect(() => {
+    if (size !== 'sky-photo') {
+      setCompanionPhotoError('');
+    }
+  }, [size]);
+
+  useEffect(() => {
+    if (!companionPhotoMeta) {
+      setCompanionPhotoDataUrl('');
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        const next = await buildCompanionPhotoOutput({
+          sourceDataUrl: companionPhotoMeta.sourceDataUrl,
+          inputWidth: companionPhotoMeta.inputWidth,
+          inputHeight: companionPhotoMeta.inputHeight,
+          zoom: companionPhotoZoom,
+          offsetX: companionPhotoOffsetX,
+          offsetY: companionPhotoOffsetY
+        });
+        if (!cancelled) setCompanionPhotoDataUrl(next);
+      } catch (e: any) {
+        if (!cancelled) setCompanionPhotoError(e?.message ?? 'Photo processing failed.');
+      }
+    }, 120);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [companionPhotoMeta, companionPhotoOffsetX, companionPhotoOffsetY, companionPhotoZoom]);
+
   const previewBg = useMemo(() => {
     return effectiveTheme === 'dark'
       ? 'radial-gradient(1200px 700px at 50% 30%, #eceff3 0%, #d8dde5 55%, #ced4de 100%)'
@@ -339,11 +649,95 @@ export default function DesignPage() {
     setSuggestionsOpen(false);
   }, []);
 
+  const handleCompanionPhotoFile = useCallback(async (file: File | null | undefined) => {
+    if (!file) return;
+    setCompanionPhotoBusy(true);
+    setCompanionPhotoError('');
+    try {
+      const normalized = await normalizeCompanionPhotoFile(file);
+      setCompanionPhotoMeta(normalized);
+      setCompanionPhotoZoom(1);
+      setCompanionPhotoOffsetX(0);
+      setCompanionPhotoOffsetY(0);
+      setCompanionPhotoInfo(
+        `Uploaded: ${normalized.inputWidth}x${normalized.inputHeight}px. Final export is optimized to ${PHOTO_TARGET_DIM}x${PHOTO_TARGET_DIM}px.`
+      );
+    } catch (e: any) {
+      setCompanionPhotoError(e?.message ?? 'Photo upload failed.');
+    } finally {
+      setCompanionPhotoBusy(false);
+    }
+  }, []);
+
+  const applyCompanionZoom = useCallback((nextZoom: number) => {
+    if (!companionPhotoMeta) return;
+    const clampedZoom = Math.max(PHOTO_ZOOM_MIN, Math.min(PHOTO_ZOOM_MAX, nextZoom));
+    const clampedOffset = clampCompanionPhotoOffset(
+      companionPhotoOffsetX,
+      companionPhotoOffsetY,
+      companionPhotoMeta.inputWidth,
+      companionPhotoMeta.inputHeight,
+      clampedZoom
+    );
+    setCompanionPhotoZoom(clampedZoom);
+    setCompanionPhotoOffsetX(clampedOffset.x);
+    setCompanionPhotoOffsetY(clampedOffset.y);
+  }, [companionPhotoMeta, companionPhotoOffsetX, companionPhotoOffsetY]);
+
+  const handleCompanionPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!companionPhotoMeta) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setCompanionPhotoDragging(true);
+    setCompanionPhotoDragStartX(e.clientX);
+    setCompanionPhotoDragStartY(e.clientY);
+    setCompanionPhotoDragOriginX(companionPhotoOffsetX);
+    setCompanionPhotoDragOriginY(companionPhotoOffsetY);
+  }, [companionPhotoMeta, companionPhotoOffsetX, companionPhotoOffsetY]);
+
+  const handleCompanionPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!companionPhotoDragging || !companionPhotoMeta) return;
+    const dx = e.clientX - companionPhotoDragStartX;
+    const dy = e.clientY - companionPhotoDragStartY;
+    const clamped = clampCompanionPhotoOffset(
+      companionPhotoDragOriginX + dx,
+      companionPhotoDragOriginY + dy,
+      companionPhotoMeta.inputWidth,
+      companionPhotoMeta.inputHeight,
+      companionPhotoZoom
+    );
+    setCompanionPhotoOffsetX(clamped.x);
+    setCompanionPhotoOffsetY(clamped.y);
+  }, [
+    companionPhotoDragOriginX,
+    companionPhotoDragOriginY,
+    companionPhotoDragStartX,
+    companionPhotoDragStartY,
+    companionPhotoDragging,
+    companionPhotoMeta,
+    companionPhotoZoom
+  ]);
+
+  const handleCompanionPointerUp = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!companionPhotoDragging) return;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    setCompanionPhotoDragging(false);
+  }, [companionPhotoDragging]);
+
   const generate = useCallback(async () => {
     setBusy(true);
     setError('');
     const reqId = ++latestRequestRef.current;
     try {
+      const cleanPlaceRaw = normalizePlaceLabel(locationLabel || cityQuery);
+      if (!cleanPlaceRaw) {
+        throw new Error('Location is required.');
+      }
+      if (!date.trim()) {
+        throw new Error('Date is required.');
+      }
+
       const localDateTime = `${date}T${time}`;
       const normalizeRes = await fetch('/api/normalize-time', {
         method: 'POST',
@@ -366,16 +760,32 @@ export default function DesignPage() {
         ...defaultParams,
         theme: effectiveTheme,
         showCoordinateGrid: showGraticule,
-        labelConstellations: showConstellations,
-        constellationLineAlpha: showConstellations ? 0.7 : 0,
+        labelStarNames: showStarNames,
+        labelConstellations: showConstellationNames,
+        labelSolarSystem: showPlanetNames,
+        constellationLineAlpha: 0.7,
         mirrorHorizontal: true
       };
 
-      const mappedFont = mapFontPresetToPoster(fontPreset);
+      const isMoonPhase = size === 'moon-phase';
+      const isSkyPhoto = size === 'sky-photo';
+      const usesCompanionCircle = isMoonPhase || isSkyPhoto;
+      if (isSkyPhoto && !companionPhotoDataUrl) {
+        if (companionPhotoMeta) return;
+        if (reqId === latestRequestRef.current) setPosterSvg('');
+        throw new Error('Please upload a photo for the Photo Companion layout.');
+      }
+
+      const mappedFont = usesCompanionCircle
+        ? ({ titleFont: 'prata', namesFont: 'cursive', metaFont: 'signika' } as const)
+        : mapFontPresetToPoster(fontPreset);
       const bySize = defaultPosterBySize[size];
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
-      const fallbackLocationLine = formatDateLine(date, cleanPlace);
+      const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
+      const moonPhaseInnerStroke = 8;
+      const moonPhaseOuterStroke = 4;
+      const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
 
       const poster: PosterParams = {
         ...defaultPoster,
@@ -387,14 +797,25 @@ export default function DesignPage() {
         subtitle: names,
         metaText: nextMetaLine,
         palette,
-        inkColor: selectedPalette.ink,
+        inkColor: selectedInk.hex,
         includeAzimuthScale: true,
         showCardinals: false,
         showCoordinates: false,
         showTime: false,
         dedication: '',
-        showMoonPhase: size === 'moon-phase',
-        moonPhaseImageUrl: '/moon.png'
+        ...(usesCompanionCircle
+          ? {
+              borderWidth: moonPhaseOuterStroke,
+              ringOuterWidth: moonPhaseOuterStroke,
+              ringInnerWidth: moonPhaseInnerStroke,
+              ringGap: moonPhaseGap,
+              metaUppercase: true
+            }
+          : {}),
+        showMoonPhase: isMoonPhase,
+        moonPhaseImageUrl: '/moon.png',
+        showCompanionPhoto: isSkyPhoto,
+        companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined
       };
 
       const posterRes = await fetch('/api/skymap', {
@@ -425,6 +846,8 @@ export default function DesignPage() {
     }
   }, [
     cityQuery,
+    companionPhotoMeta,
+    companionPhotoDataUrl,
     date,
     fontPreset,
     frameOn,
@@ -433,8 +856,12 @@ export default function DesignPage() {
     locationLine,
     lon,
     names,
+    inkPreset,
     palette,
-    showConstellations,
+    showTimeLine,
+    showStarNames,
+    showConstellationNames,
+    showPlanetNames,
     showGraticule,
     size,
     effectiveTheme,
@@ -450,6 +877,14 @@ export default function DesignPage() {
     setCheckoutBusy(true);
     setError('');
     try {
+      const cleanPlaceRaw = normalizePlaceLabel(locationLabel || cityQuery);
+      if (!cleanPlaceRaw) {
+        throw new Error('Location is required.');
+      }
+      if (!date.trim()) {
+        throw new Error('Date is required.');
+      }
+
       const localDateTime = `${date}T${time}`;
       const normalizeRes = await fetch('/api/normalize-time', {
         method: 'POST',
@@ -472,15 +907,32 @@ export default function DesignPage() {
         ...defaultParams,
         theme: effectiveTheme,
         showCoordinateGrid: showGraticule,
-        labelConstellations: showConstellations,
-        constellationLineAlpha: showConstellations ? 0.7 : 0,
+        labelStarNames: showStarNames,
+        labelConstellations: showConstellationNames,
+        labelSolarSystem: showPlanetNames,
+        constellationLineAlpha: 0.7,
         mirrorHorizontal: true
       };
-      const mappedFont = mapFontPresetToPoster(fontPreset);
+      const isMoonPhase = size === 'moon-phase';
+      const isSkyPhoto = size === 'sky-photo';
+      const usesCompanionCircle = isMoonPhase || isSkyPhoto;
+      if (isSkyPhoto && !companionPhotoDataUrl) {
+        if (companionPhotoMeta) {
+          throw new Error('Photo is still processing. Please wait a moment and try again.');
+        }
+        throw new Error('Please upload a photo for the Photo Companion layout.');
+      }
+
+      const mappedFont = usesCompanionCircle
+        ? ({ titleFont: 'prata', namesFont: 'cursive', metaFont: 'signika' } as const)
+        : mapFontPresetToPoster(fontPreset);
       const bySize = defaultPosterBySize[size];
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
-      const fallbackLocationLine = formatDateLine(date, cleanPlace);
+      const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
+      const moonPhaseInnerStroke = 8;
+      const moonPhaseOuterStroke = 4;
+      const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
 
       const poster: PosterParams = {
         ...defaultPoster,
@@ -492,14 +944,25 @@ export default function DesignPage() {
         subtitle: names,
         metaText: nextMetaLine,
         palette,
-        inkColor: selectedPalette.ink,
+        inkColor: selectedInk.hex,
         includeAzimuthScale: true,
         showCardinals: false,
         showCoordinates: false,
         showTime: false,
         dedication: '',
-        showMoonPhase: size === 'moon-phase',
-        moonPhaseImageUrl: '/moon.png'
+        ...(usesCompanionCircle
+          ? {
+              borderWidth: moonPhaseOuterStroke,
+              ringOuterWidth: moonPhaseOuterStroke,
+              ringInnerWidth: moonPhaseInnerStroke,
+              ringGap: moonPhaseGap,
+              metaUppercase: true
+            }
+          : {}),
+        showMoonPhase: isMoonPhase,
+        moonPhaseImageUrl: '/moon.png',
+        showCompanionPhoto: isSkyPhoto,
+        companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined
       };
 
       const renderRequest = {
@@ -537,9 +1000,16 @@ export default function DesignPage() {
           names,
           font: FONT_PRESETS.find((x) => x.key === fontPreset)?.label || 'Calligraphy',
           showConstellations,
+          showStarNames,
+          showConstellationNames,
+          showPlanetNames,
           showGraticule,
           palette,
+          inkColor: selectedInk.hex,
+          lineColor: selectedInk.label,
+          showTime: showTimeLine,
           size,
+          companionPhoto: isSkyPhoto,
           frameOn,
           lat,
           lon,
@@ -561,6 +1031,8 @@ export default function DesignPage() {
     }
   }, [
     cityQuery,
+    companionPhotoMeta,
+    companionPhotoDataUrl,
     date,
     effectiveTheme,
     fontPreset,
@@ -570,10 +1042,13 @@ export default function DesignPage() {
     locationLine,
     lon,
     names,
+    inkPreset,
     palette,
     router,
-    selectedPalette.ink,
-    showConstellations,
+    showTimeLine,
+    showStarNames,
+    showConstellationNames,
+    showPlanetNames,
     showGraticule,
     size,
     time,
@@ -593,57 +1068,15 @@ export default function DesignPage() {
           </div>
         </div>
         <nav className="menu">
-          <a href="/citymap">City Map</a>
           <a href="/what-is-star-map">What is Sky Map?</a>
           <a href="/faq">FAQ</a>
           <a href="#">Contact</a>
           <a href="/blog">Blog</a>
         </nav>
+        <a className="cityMapCta" href="/citymap">Try City Map</a>
       </header>
 
       <main className="layout">
-        <aside className="leftPanel">
-          <section className="panelCard">
-            <h3>Select size</h3>
-            <div className="sizeGrid">
-              {SIZE_PRESETS.map((item) => (
-                <div key={item.key} className={`sizeOption ${item.key === 'moon-phase' ? 'wide' : ''}`}>
-                  <button
-                    type="button"
-                    className={`sizeBtn ${size === item.key ? 'active' : ''} ${item.compact ? 'compact' : ''}`}
-                    onClick={() => setSize(item.key)}
-                  >
-                    <span>{item.title}</span>
-                  </button>
-                  <small className="sizeMeta">{item.sub}</small>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="panelCard">
-            <h3>Frame Options</h3>
-            <div className="frameGrid">
-              <button
-                type="button"
-                className={`frameBtn ${frameOn ? 'active' : ''}`}
-                onClick={() => setFrameOn(true)}
-              >
-                <span className="frameIcon">[]</span>
-                <small>Default Frame</small>
-              </button>
-              <button
-                type="button"
-                className={`frameBtn ${!frameOn ? 'active' : ''}`}
-                onClick={() => setFrameOn(false)}
-              >
-                <span className="frameIcon">X</span>
-                <small>No Frame</small>
-              </button>
-            </div>
-          </section>
-        </aside>
-
         <section className="previewPanel" style={{ background: previewBg }}>
           <div className="paper">
             {posterSvg ? <div className="svgMount" dangerouslySetInnerHTML={{ __html: posterSvg }} /> : null}
@@ -651,12 +1084,141 @@ export default function DesignPage() {
         </section>
 
         <aside className="rightPanel">
-          <div className="panelBlock softA">
+          <div className="panelBlock sizeFrameBlock">
+            <div className="stackField">
+              <label>Select Poster Size</label>
+              <select className="dashedInput" value={size} onChange={(e) => setSize(e.target.value as DesignSize)}>
+                {SIZE_PRESETS.map((item) => (
+                  <option key={item.key} value={item.key}>
+                    {item.title} - {item.sub}
+                  </option>
+                ))}
+              </select>
+              <p className="microHint">Selected size is used for downloadable file output only.</p>
+            </div>
+
+            <div className="stackField">
+              <label>Add Border/Outline?</label>
+              <select className="dashedInput" value={frameOn ? 'yes' : 'no'} onChange={(e) => setFrameOn(e.target.value === 'yes')}>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            {size === 'sky-photo' ? (
+              <div className="stackField">
+                <label>Companion Photo (Left Circle)</label>
+                <input
+                  ref={companionPhotoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="uploadInputHidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    void handleCompanionPhotoFile(file);
+                    e.currentTarget.value = '';
+                  }}
+                />
+                <div className="uploadActions">
+                  <button
+                    type="button"
+                    className="uploadBtn"
+                    onClick={() => companionPhotoInputRef.current?.click()}
+                    disabled={companionPhotoBusy}
+                  >
+                    {companionPhotoBusy
+                      ? 'Processing...'
+                      : companionPhotoMeta
+                        ? 'Replace Photo'
+                        : 'Upload Photo'}
+                  </button>
+                  {companionPhotoMeta ? (
+                    <button
+                      type="button"
+                      className="uploadGhostBtn"
+                      onClick={() => {
+                        setCompanionPhotoMeta(null);
+                        setCompanionPhotoDataUrl('');
+                        setCompanionPhotoZoom(1);
+                        setCompanionPhotoOffsetX(0);
+                        setCompanionPhotoOffsetY(0);
+                        setCompanionPhotoDragging(false);
+                        setCompanionPhotoInfo('');
+                        setCompanionPhotoError('');
+                      }}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="companionPreviewWrap">
+                  <div
+                    className={`companionPreview ${companionPhotoDragging ? 'dragging' : ''}`}
+                    onPointerDown={handleCompanionPointerDown}
+                    onPointerMove={handleCompanionPointerMove}
+                    onPointerUp={handleCompanionPointerUp}
+                    onPointerCancel={handleCompanionPointerUp}
+                  >
+                    <div className="companionCircle">
+                      {companionPhotoMeta ? (
+                        <img
+                          src={companionPhotoMeta.sourceDataUrl}
+                          alt=""
+                          draggable={false}
+                          className="companionImage"
+                          style={{
+                            width: `${companionPreviewTransform.width}px`,
+                            height: `${companionPreviewTransform.height}px`,
+                            left: `${companionPreviewTransform.x}px`,
+                            top: `${companionPreviewTransform.y}px`
+                          }}
+                        />
+                      ) : (
+                        <div className="companionPlaceholder">Upload</div>
+                      )}
+                    </div>
+                    <span className="companionRing companionRingInner" />
+                    <span className="companionRing companionRingOuter" />
+                    {companionPhotoMeta ? (
+                      <div className="companionZoomControls">
+                        <button
+                          type="button"
+                          className="companionZoomBtn"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => applyCompanionZoom(companionPhotoZoom + PHOTO_ZOOM_STEP)}
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          className="companionZoomBtn"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => applyCompanionZoom(companionPhotoZoom - PHOTO_ZOOM_STEP)}
+                        >
+                          -
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                {companionPhotoInfo ? (
+                  <p className="microHint">{companionPhotoInfo}</p>
+                ) : (
+                  <p className="microHint">
+                    Best results: high-quality image, minimum 1200x1200px. Use + / - and drag to frame your photo.
+                  </p>
+                )}
+                {companionPhotoError ? <p className="inlineError">{companionPhotoError}</p> : null}
+              </div>
+            ) : null}
+
             <div className="fieldGroup">
-              <label>Palette:</label>
+              <label>Background:</label>
               <div className="palettePickerWrap">
                 <div className="palettePicker">
-                  {visiblePalettes.map((p) => (
+                  {POSTER_PALETTES.map((p) => (
                     <button
                       key={p.key}
                       type="button"
@@ -667,22 +1229,31 @@ export default function DesignPage() {
                       }}
                     >
                       <span className="swatch" style={{ background: p.bg }} />
-                      <span className="swatchInk" style={{ background: p.ink }} />
                     </button>
                   ))}
                 </div>
-                {POSTER_PALETTES.length > collapsedPaletteCount ? (
-                  <button
-                    type="button"
-                    className="paletteExpandBtn"
-                    onClick={() => setPaletteExpanded((v) => !v)}
-                  >
-                    {paletteExpanded ? 'Show fewer colors' : `Show all colors (${POSTER_PALETTES.length})`}
-                  </button>
-                ) : null}
               </div>
             </div>
 
+            <div className="fieldGroup">
+              <label>Line/Text:</label>
+              <div className="inkPicker">
+                {INK_PRESETS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`inkBtn ${inkPreset === item.key ? 'active' : ''}`}
+                    onClick={() => setInkPreset(item.key)}
+                  >
+                    <span className="inkSwatch" style={{ background: item.hex }} />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="panelBlock softB">
             <div className="fieldGroup">
               <label>City:</label>
               <div className="cityWrap">
@@ -690,21 +1261,26 @@ export default function DesignPage() {
                   value={cityQuery}
                   onChange={(e) => {
                     setCityQuery(e.target.value);
+                    setLocationLabel(e.target.value);
                     setSuggestionsOpen(true);
                   }}
                   onFocus={() => setSuggestionsOpen(true)}
                   placeholder="Search location..."
+                  required
                 />
                 <button
                   type="button"
-                  className="arrowBtn"
+                  className={`arrowBtn ${geoExpanded ? 'open' : ''}`}
                   onClick={() => {
                     setGeoExpanded((v) => !v);
                     setSuggestionsOpen(false);
                   }}
                   aria-label={geoExpanded ? 'Latitude/Longitude alanını gizle' : 'Latitude/Longitude alanını göster'}
+                  aria-expanded={geoExpanded}
                 >
-                  {geoExpanded ? '^' : 'v'}
+                  <svg className="arrowIcon" viewBox="0 0 20 20" aria-hidden="true">
+                    <path d="M5.2 7.4a1 1 0 0 1 1.4 0L10 10.8l3.4-3.4a1 1 0 1 1 1.4 1.4l-4.1 4.1a1 1 0 0 1-1.4 0L5.2 8.8a1 1 0 0 1 0-1.4Z" />
+                  </svg>
                 </button>
                 {suggestionsOpen && suggestions.length > 0 ? (
                   <div className="suggestions">
@@ -740,20 +1316,25 @@ export default function DesignPage() {
                 </div>
               </>
             ) : null}
-          </div>
-
-          <div className="panelBlock softB">
             <div className="fieldGroup">
               <label>Date:</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
             <div className="fieldGroup">
               <label>Time:</label>
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
-            <p className="hint">Default time is midnight (00:00). You can specify your preferred time.</p>
+            <Toggle checked={showTimeLine} onChange={setShowTimeLine} label="Show Time in Location/Date" />
+            <p className="hint">
+              Default time is 21:00. Turn on time if it should appear in the poster text.
+            </p>
+          </div>
 
-            <Toggle checked={showConstellations} onChange={setShowConstellations} label="Show Constellations" />
+          <div className="panelBlock softD">
+            <div className="toggleLocked">Constellation lines are always ON (required).</div>
+            <Toggle checked={showStarNames} onChange={setShowStarNames} label="Show Star Names" />
+            <Toggle checked={showConstellationNames} onChange={setShowConstellationNames} label="Show Constellation Names" />
+            <Toggle checked={showPlanetNames} onChange={setShowPlanetNames} label="Show Planet Names" />
             <Toggle checked={showGraticule} onChange={setShowGraticule} label="Show Graticule" />
           </div>
 
@@ -780,9 +1361,10 @@ export default function DesignPage() {
             </div>
 
             <div className="fieldGroup">
-              <label>Location:</label>
-              <input
+              <label>Location/Date:</label>
+              <textarea
                 value={locationLine}
+                rows={3}
                 onChange={(e) => {
                   setLocationLine(e.target.value);
                   setLocationLineDirty(true);
@@ -827,9 +1409,9 @@ export default function DesignPage() {
           background: linear-gradient(90deg, #0f172a 0%, #13203f 52%, #1b2a4d 100%);
           color: #fff;
           display: grid;
-          grid-template-columns: 1fr auto;
+          grid-template-columns: auto 1fr auto;
           align-items: center;
-          gap: 20px;
+          justify-content: normal;
           padding: 0 24px;
           overflow: hidden;
         }
@@ -884,6 +1466,7 @@ export default function DesignPage() {
           display: flex;
           align-items: center;
           gap: 12px;
+          justify-self: start;
         }
 
         .brandMark {
@@ -922,6 +1505,7 @@ export default function DesignPage() {
         .menu {
           display: flex;
           align-items: center;
+          justify-self: center;
           gap: 22px;
         }
 
@@ -932,148 +1516,24 @@ export default function DesignPage() {
           letter-spacing: 0.01em;
         }
 
+        .cityMapCta {
+          display: inline-flex;
+          align-items: center;
+          justify-self: end;
+          text-align: left;
+          color: rgba(255, 255, 255, 0.92);
+          text-decoration: none;
+          font-size: 15px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+        }
+
         .layout {
           height: calc(100vh - 84px);
           margin-top: 84px;
           display: grid;
-          grid-template-columns: 260px minmax(560px, 1fr) 410px;
+          grid-template-columns: minmax(560px, 1fr) 410px;
           overflow: hidden;
-        }
-
-        .leftPanel {
-          padding: 28px 20px;
-          background: linear-gradient(180deg, #e7ebf1 0%, #dee3ea 100%);
-          border-right: 1px solid #cfd6e2;
-          display: grid;
-          align-content: start;
-          gap: 20px;
-          overflow-y: auto;
-          overflow-x: hidden;
-        }
-
-        .panelCard {
-          background: #f8fafd;
-          border: 1px solid #d4dbe6;
-          border-radius: 18px;
-          padding: 16px;
-          box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
-        }
-
-        .panelCard h3 {
-          margin: 0 0 14px;
-          font-size: 24px;
-          font-weight: 600;
-        }
-
-        .sizeGrid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-
-        .sizeOption {
-          display: grid;
-          gap: 6px;
-          align-items: start;
-        }
-
-        .sizeOption.wide {
-          grid-column: 1 / -1;
-        }
-
-        .sizeOption.wide .sizeBtn {
-          min-height: 68px;
-        }
-
-        .sizeOption.wide .sizeBtn span {
-          font-size: 22px;
-          letter-spacing: 0.01em;
-        }
-
-        .sizeBtn {
-          border-radius: 16px;
-          border: 1px solid #d4dae4;
-          background: #ffffff;
-          min-height: 78px;
-          cursor: pointer;
-          display: grid;
-          align-content: center;
-          justify-items: center;
-          padding: 0 8px;
-          transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
-        }
-
-        .sizeBtn span {
-          font-size: 22px;
-          font-weight: 700;
-          white-space: nowrap;
-        }
-
-        .sizeBtn.compact span {
-          font-size: 17px;
-          font-weight: 700;
-          letter-spacing: 0.01em;
-        }
-
-        .sizeMeta {
-          color: #6e7481;
-          font-size: 12px;
-          line-height: 1.2;
-          text-align: center;
-        }
-
-        .sizeBtn.active {
-          border-color: #2f74ff;
-          box-shadow: inset 0 0 0 1px #2f74ff, 0 6px 14px rgba(47, 116, 255, 0.16);
-          background: #edf3ff;
-        }
-
-        .sizeBtn:hover {
-          border-color: #b9c7dd;
-          box-shadow: 0 4px 12px rgba(17, 24, 39, 0.08);
-        }
-
-        .frameGrid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-
-        .frameBtn {
-          border: 1px solid #d4dae4;
-          border-radius: 14px;
-          background: #ffffff;
-          min-height: 88px;
-          cursor: pointer;
-          display: grid;
-          justify-items: center;
-          align-content: center;
-          gap: 10px;
-          transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
-        }
-
-        .frameBtn.active {
-          border-color: #2f74ff;
-          box-shadow: inset 0 0 0 1px #2f74ff, 0 6px 14px rgba(47, 116, 255, 0.16);
-          background: #edf3ff;
-        }
-
-        .frameBtn:hover {
-          border-color: #b9c7dd;
-          box-shadow: 0 4px 12px rgba(17, 24, 39, 0.08);
-        }
-
-        .frameIcon {
-          width: 40px;
-          height: 40px;
-          font-size: 28px;
-          display: grid;
-          place-items: center;
-        }
-
-        .frameBtn small {
-          font-size: 13px;
-          color: #5f6470;
         }
 
         .previewPanel {
@@ -1144,6 +1604,11 @@ export default function DesignPage() {
           border-color: #d0d8e6;
         }
 
+        .panelBlock.sizeFrameBlock {
+          background: #f2f4f7;
+          border-color: #d4dae4;
+        }
+
         .panelBlock.softB {
           background: #f8f6fb;
           border-color: #d9d2e8;
@@ -1152,6 +1617,11 @@ export default function DesignPage() {
         .panelBlock.softC {
           background: #f6faf7;
           border-color: #d2e1d7;
+        }
+
+        .panelBlock.softD {
+          background: #f4f0f8;
+          border-color: #d6cce8;
         }
 
         .row {
@@ -1180,6 +1650,12 @@ export default function DesignPage() {
           min-width: 0;
         }
 
+        .stackField {
+          display: grid;
+          gap: 8px;
+          min-width: 0;
+        }
+
         .palettePicker {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
@@ -1188,20 +1664,6 @@ export default function DesignPage() {
         .palettePickerWrap {
           display: grid;
           gap: 8px;
-        }
-        .paletteExpandBtn {
-          height: 32px;
-          border-radius: 8px;
-          border: 1px solid #cbd3df;
-          background: #ffffff;
-          color: #334155;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .paletteExpandBtn:hover {
-          border-color: #b6c3d8;
-          background: #f8fafc;
         }
 
         .paletteBtn {
@@ -1227,15 +1689,39 @@ export default function DesignPage() {
           border-radius: 5px;
         }
 
-        .paletteBtn .swatchInk {
-          position: absolute;
-          width: 35%;
-          height: 30%;
-          right: 6px;
-          bottom: 6px;
-          border-radius: 4px;
-          border: 1px solid rgba(255, 255, 255, 0.4);
-          box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+        .inkPicker {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .inkBtn {
+          min-height: 42px;
+          border-radius: 10px;
+          border: 1px solid #cbd3df;
+          background: #fff;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 0 10px;
+          cursor: pointer;
+          color: #1f2937;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .inkBtn.active {
+          border-color: #2f74ff;
+          box-shadow: inset 0 0 0 1px #2f74ff;
+          background: #edf3ff;
+        }
+
+        .inkSwatch {
+          width: 16px;
+          height: 16px;
+          border-radius: 999px;
+          border: 1px solid rgba(15, 23, 42, 0.25);
+          flex: 0 0 auto;
         }
 
         input,
@@ -1259,6 +1745,160 @@ export default function DesignPage() {
           resize: vertical;
         }
 
+        .dashedInput {
+          width: 100%;
+          min-height: 46px;
+          border-radius: 14px;
+          border: 1.5px dashed #747982;
+          background: transparent;
+          padding: 0 14px;
+          font-size: 13px;
+          line-height: 1.2;
+          color: #4a4f56;
+          outline: none;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+
+        .microHint {
+          margin: 0;
+          font-size: 12px;
+          color: #6d7076;
+        }
+
+        .uploadInputHidden {
+          display: none;
+        }
+
+        .uploadActions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .companionPreviewWrap {
+          display: grid;
+          justify-content: center;
+          margin-top: 2px;
+        }
+
+        .companionPreview {
+          position: relative;
+          width: ${PHOTO_PREVIEW_SIZE + 28}px;
+          height: ${PHOTO_PREVIEW_SIZE + 28}px;
+          touch-action: none;
+          user-select: none;
+        }
+
+        .companionCircle {
+          position: absolute;
+          left: 14px;
+          top: 14px;
+          width: ${PHOTO_PREVIEW_SIZE}px;
+          height: ${PHOTO_PREVIEW_SIZE}px;
+          border-radius: 50%;
+          overflow: hidden;
+          background: #0f1220;
+          cursor: grab;
+        }
+
+        .companionPreview.dragging .companionCircle {
+          cursor: grabbing;
+        }
+
+        .companionImage {
+          position: absolute;
+          max-width: none;
+          max-height: none;
+          pointer-events: none;
+        }
+
+        .companionPlaceholder {
+          width: 100%;
+          height: 100%;
+          display: grid;
+          place-items: center;
+          color: #9aa3b2;
+          font-size: 13px;
+          font-weight: 600;
+          letter-spacing: 0.03em;
+          background: radial-gradient(circle at 30% 20%, #232939 0%, #161c2b 100%);
+        }
+
+        .companionRing {
+          position: absolute;
+          border-radius: 50%;
+          pointer-events: none;
+        }
+
+        .companionRingInner {
+          left: 14px;
+          top: 14px;
+          width: ${PHOTO_PREVIEW_SIZE}px;
+          height: ${PHOTO_PREVIEW_SIZE}px;
+          border: 3px solid rgba(255, 255, 255, 0.7);
+        }
+
+        .companionRingOuter {
+          left: 8px;
+          top: 8px;
+          width: ${PHOTO_PREVIEW_SIZE + 12}px;
+          height: ${PHOTO_PREVIEW_SIZE + 12}px;
+          border: 2px solid rgba(255, 255, 255, 0.62);
+        }
+
+        .companionZoomControls {
+          position: absolute;
+          right: -8px;
+          top: 50%;
+          transform: translateY(-50%);
+          display: grid;
+          gap: 8px;
+        }
+
+        .companionZoomBtn {
+          width: 44px;
+          height: 44px;
+          border: 1px solid #bfc9d7;
+          border-radius: 12px;
+          background: #fff;
+          color: #111827;
+          font-size: 26px;
+          line-height: 1;
+          font-weight: 700;
+          cursor: pointer;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+        }
+
+        .uploadBtn,
+        .uploadGhostBtn {
+          min-height: 40px;
+          border-radius: 10px;
+          border: 1px solid #bfc9d7;
+          background: #fff;
+          color: #1f2937;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 0 12px;
+          cursor: pointer;
+        }
+
+        .uploadBtn {
+          border-color: #2f74ff;
+          color: #1844a6;
+          background: #eef4ff;
+        }
+
+        .uploadBtn:disabled {
+          opacity: 0.7;
+          cursor: wait;
+        }
+
+        .inlineError {
+          margin: 0;
+          color: #b91c1c;
+          font-size: 12px;
+        }
+
         .cityWrap {
           position: relative;
           display: grid;
@@ -1271,9 +1911,28 @@ export default function DesignPage() {
           border: 1px solid #cdd2da;
           border-radius: 12px;
           background: #fff;
-          font-size: 18px;
-          line-height: 1;
+          display: grid;
+          place-items: center;
           cursor: pointer;
+          color: #4b5563;
+          transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+        }
+
+        .arrowBtn:hover {
+          border-color: #b6bfcc;
+          background: #f8fafc;
+          color: #1f2937;
+        }
+
+        .arrowBtn .arrowIcon {
+          width: 20px;
+          height: 20px;
+          fill: currentColor;
+          transition: transform 0.18s ease;
+        }
+
+        .arrowBtn.open .arrowIcon {
+          transform: rotate(180deg);
         }
 
         .suggestions {
@@ -1314,6 +1973,17 @@ export default function DesignPage() {
           color: #6f7481;
           padding-left: 96px;
           line-height: 1.35;
+        }
+
+        .toggleLocked {
+          border: 1px dashed #b8c3d6;
+          border-radius: 12px;
+          background: #eef2f9;
+          color: #3b4150;
+          font-size: 13px;
+          font-weight: 600;
+          line-height: 1.35;
+          padding: 10px 12px;
         }
 
         .designRoot :global(.toggleRow) {
@@ -1396,11 +2066,6 @@ export default function DesignPage() {
             grid-template-columns: 1fr;
           }
 
-          .leftPanel {
-            border-right: 0;
-            border-bottom: 1px solid #d2d5dc;
-          }
-
           .rightPanel {
             border-left: 0;
             border-top: 1px solid #d2d5dc;
@@ -1417,16 +2082,31 @@ export default function DesignPage() {
             padding: 18px;
           }
 
+          .menu {
+            gap: 18px;
+          }
+        }
+
+        @media (max-width: 900px) {
           .topbar {
             height: auto;
+            display: grid;
             grid-template-columns: 1fr;
             gap: 14px;
             padding: 12px 14px;
           }
 
           .menu {
+            position: static;
+            justify-content: flex-start;
             flex-wrap: wrap;
             gap: 10px 16px;
+          }
+
+          .cityMapCta {
+            position: static;
+            transform: none;
+            justify-self: start;
           }
         }
       `}</style>

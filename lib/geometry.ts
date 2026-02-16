@@ -18,6 +18,7 @@ export type ChartGeometry = {
   vertexPoints: { x: number; y: number; size: number }[];
   linePaths: string[];
   eclipticPoints: string[];
+  starLabels: { x: number; y: number; text: string }[];
   constellationLabels: { x: number; y: number; text: string }[];
   solarSystem: {
     x: number;
@@ -29,6 +30,31 @@ export type ChartGeometry = {
     limbAngleDeg?: number;
   }[];
   deepSky: { x: number; y: number; label: string; kind: 'galaxy' | 'nebula' | 'cluster' | 'globular' }[];
+};
+
+const BRIGHT_STAR_LABELS: Record<number, string> = {
+  32349: 'Sirius',
+  30438: 'Canopus',
+  69673: 'Arcturus',
+  91262: 'Vega',
+  24608: 'Capella',
+  24436: 'Rigel',
+  37279: 'Procyon',
+  27989: 'Betelgeuse',
+  7588: 'Achernar',
+  68702: 'Hadar',
+  97649: 'Altair',
+  60718: 'Acrux',
+  21421: 'Aldebaran',
+  80763: 'Antares',
+  65474: 'Spica',
+  37826: 'Pollux',
+  113368: 'Fomalhaut',
+  102098: 'Deneb',
+  49669: 'Regulus',
+  54061: 'Dubhe',
+  25336: 'Bellatrix',
+  62956: 'Alioth'
 };
 
 function starSizeFromMag(mag: number, magLimit: number, sMin: number, sMax: number, gamma: number): number {
@@ -64,6 +90,13 @@ function buildCoordinateGridPaths(opts: {
   const decMax = 80;
   const raSample = 3; // degrees
   const decSample = 2; // degrees
+  const poleAltDeg = Math.abs(latitude);
+  const poleAzDeg = latitude >= 0 ? 0 : 180;
+  const poleXY = altAzToXY(poleAltDeg, poleAzDeg);
+  const poleAnchor = {
+    x: chartCx + poleXY.x * mirrorX * chartR,
+    y: chartCy - poleXY.y * chartR
+  };
 
   // "Latitude" lines on the sky: declination circles.
   for (let dec = -90 + stepDeg; dec <= 90 - stepDeg; dec += stepDeg) {
@@ -85,11 +118,12 @@ function buildCoordinateGridPaths(opts: {
 
   // "Longitude" lines on the sky: right-ascension meridians.
   for (let ra = 0; ra < 360; ra += stepDeg) {
+    const meridianSegments: { x: number; y: number }[][] = [];
     let seg: { x: number; y: number }[] = [];
     for (let dec = decMin; dec <= decMax; dec += decSample) {
       const { altDeg, azDeg } = raDecToAltAz(ra, dec, latitude, longitude, date);
       if (altDeg <= 0) {
-        pushSegment(seg);
+        if (seg.length >= 2) meridianSegments.push(seg);
         seg = [];
         continue;
       }
@@ -97,7 +131,29 @@ function buildCoordinateGridPaths(opts: {
       const x = x0 * mirrorX;
       seg.push({ x: chartCx + x * chartR, y: chartCy - y * chartR });
     }
-    pushSegment(seg);
+    if (seg.length >= 2) meridianSegments.push(seg);
+
+    // Cosmetic convergence: make RA meridians visually meet at the celestial pole anchor.
+    let closestToPole: { x: number; y: number } | null = null;
+    let minDist2 = Number.POSITIVE_INFINITY;
+    for (const s of meridianSegments) {
+      for (const p of s) {
+        const dx = p.x - poleAnchor.x;
+        const dy = p.y - poleAnchor.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < minDist2) {
+          minDist2 = d2;
+          closestToPole = p;
+        }
+      }
+    }
+    if (closestToPole && minDist2 > 0.25) {
+      paths.push(
+        `M ${poleAnchor.x.toFixed(2)} ${poleAnchor.y.toFixed(2)} L ${closestToPole.x.toFixed(2)} ${closestToPole.y.toFixed(2)}`
+      );
+    }
+
+    for (const s of meridianSegments) pushSegment(s);
   }
 
   return paths;
@@ -244,6 +300,26 @@ export function buildChartGeometry(args: {
     }
   }
 
+  const starLabels: { x: number; y: number; text: string }[] = [];
+  if (params.labelStarNames) {
+    for (const [hipRaw, label] of Object.entries(BRIGHT_STAR_LABELS)) {
+      const hip = Number(hipRaw);
+      const s = starByHip.get(hip);
+      if (!s) continue;
+      if (s.mag > Math.max(1.8, Math.min(3.0, params.magnitudeLimit))) continue;
+      const { altDeg, azDeg } = raDecToAltAz(s.ra_deg, s.dec_deg, latitude, longitude, date);
+      if (altDeg <= 0) continue;
+      const { x: x0, y } = altAzToXY(altDeg, azDeg);
+      const x = x0 * mirrorX;
+      const sx = chartCx + x * chartR;
+      const sy = chartCy - y * chartR;
+      const dx = sx - chartCx;
+      const dy = sy - chartCy;
+      if (dx * dx + dy * dy > (chartR * 0.93) * (chartR * 0.93)) continue;
+      starLabels.push({ x: sx, y: sy, text: label });
+    }
+  }
+
   const solarSystem: {
     x: number;
     y: number;
@@ -340,6 +416,7 @@ export function buildChartGeometry(args: {
     vertexPoints,
     linePaths,
     eclipticPoints,
+    starLabels,
     constellationLabels,
     solarSystem,
     deepSky: deepSkyPoints

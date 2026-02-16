@@ -6,6 +6,7 @@ export type RenderParams = {
   showAzimuthScale: boolean;
   showCoordinateGrid: boolean;
   coordinateGridStepDeg: number;
+  labelStarNames: boolean;
   labelConstellations: boolean;
   labelSolarSystem: boolean;
   mirrorHorizontal: boolean;
@@ -42,7 +43,20 @@ export type ChartRequest = {
 };
 
 export type PosterParams = {
-  size: 'a4' | 'square' | '16x20' | '20x20' | 'a2' | 'us-letter' | '18x24';
+  size:
+    | 'a4'
+    | 'square'
+    | '16x20'
+    | '20x20'
+    | 'a2'
+    | 'us-letter'
+    | '18x24'
+    | '11x14'
+    | 'a3'
+    | '12x12'
+    | '12x16'
+    | 'a1'
+    | '24x32';
   palette:
     | 'classic-black'
     | 'graphite'
@@ -67,11 +81,17 @@ export type PosterParams = {
     | 'burgundy'
     | 'slate'
     | 'sand'
-    | 'pearl';
+    | 'pearl'
+    | 'navy-blue'
+    | 'gold-black'
+    | 'dark-green'
+    | 'classic-burgundy'
+    | 'deep-teal';
   inkColor: string;
   border: boolean;
   borderWidth: number;
   borderInset: number;
+  pageMargin?: number;
   chartDiameter: number;
   title: string;
   subtitle: string;
@@ -97,6 +117,8 @@ export type PosterParams = {
   metaUppercase: boolean;
   showMoonPhase?: boolean;
   moonPhaseImageUrl?: string;
+  showCompanionPhoto?: boolean;
+  companionPhotoImageUrl?: string;
 };
 
 export type PosterRequest = {

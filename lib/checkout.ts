@@ -11,8 +11,15 @@ export type CheckoutMapData = {
   names: string;
   font: string;
   showConstellations?: boolean;
+  showStarNames?: boolean;
+  showConstellationNames?: boolean;
+  showPlanetNames?: boolean;
   showGraticule?: boolean;
+  showTime?: boolean;
+  companionPhoto?: boolean;
   palette: string;
+  inkColor?: string;
+  lineColor?: string;
   size: string;
   frameOn: boolean;
   lat: number;
