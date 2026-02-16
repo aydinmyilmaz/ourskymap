@@ -6,6 +6,11 @@ export type RenderParams = {
   showAzimuthScale: boolean;
   showCoordinateGrid: boolean;
   coordinateGridStepDeg: number;
+  labelPlacementStrategy: 'none' | 'smart';
+  labelCollisionPadding: number;
+  labelMaxShift: number;
+  maxConstellationLabels: number;
+  maxStarLabels: number;
   labelStarNames: boolean;
   labelConstellations: boolean;
   labelSolarSystem: boolean;

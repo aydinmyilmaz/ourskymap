@@ -91,6 +91,21 @@ const defaultParams: RenderParams = {
   // TR: Grid adimi (derece). Artarsa cizgi sayisi azalir, azalirsa grid siklasir.
   // EN: Grid step in degrees. Higher = fewer lines, lower = denser grid.
   coordinateGridStepDeg: 20,
+  // TR: Etiket yerlestirme stratejisi. smart = cakismayi azaltmak icin saga/sola kaydir ve gerekirse gizle.
+  // EN: Label placement strategy. smart = shift labels to reduce overlap and hide if needed.
+  labelPlacementStrategy: 'smart',
+  // TR: Etiket kutulari etrafinda cakisma boslugu (px). Artarsa label'lar arasinda daha fazla bosluk kalir.
+  // EN: Extra collision padding around label boxes (px). Higher adds more spacing between labels.
+  labelCollisionPadding: 2.2,
+  // TR: Etiketin baz konumdan maksimum kaydirma mesafesi (px). Artarsa daha fazla deneme yapilir.
+  // EN: Maximum shift distance from base label anchor (px). Higher tries farther alternate positions.
+  labelMaxShift: 16,
+  // TR: Takimyildizi isim ust limiti. 0 ise limitsiz.
+  // EN: Constellation label cap. 0 means unlimited.
+  maxConstellationLabels: 42,
+  // TR: Yildiz isim ust limiti. 0 ise limitsiz.
+  // EN: Star label cap. 0 means unlimited.
+  maxStarLabels: 18,
   // TR: Yildiz isim etiketleri. true acik, false kapali.
   // EN: Star name labels. true = on, false = off.
   labelStarNames: true,

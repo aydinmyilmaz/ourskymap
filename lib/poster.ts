@@ -346,6 +346,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   // Dense star clouds are intentionally kept flat for renderer stability.
   const layerDenseInk = isInkMaskVariant ? '#ffffff' : palette.ink;
   const layerSolarStroke = isInkMaskVariant ? 'none' : palette.bg;
+  const mapLabelHalo = layerSolarStroke;
 
   // Poster layout regions
   const margin =
@@ -605,6 +606,28 @@ export function renderPosterSvg(req: PosterRequest): string {
     }
   }
 
+  const innerRingStroke = includeAzScale ? Math.max(0, poster.ringInnerWidth ?? 0) : 0;
+  const starSafeInset = innerRingStroke > 0 ? innerRingStroke / 2 + 1.25 : 0;
+  const starSafeRadius = Math.max(0, chartR - starSafeInset);
+
+  const isPointInsideStarSafeRadius = (x: number, y: number, pointRadius: number): boolean => {
+    const px = x * sx + tx;
+    const py = y * sy + ty;
+    const dx = px - chartCx;
+    const dy = py - chartCy;
+    const safeR = Math.max(0, starSafeRadius - pointRadius);
+    return dx * dx + dy * dy <= safeR * safeR;
+  };
+
+  const visibleStarPoints = geom.starPoints.filter((p) => {
+    const pointRadius = Math.sqrt(p.size) * 0.55 * sx + 0.35;
+    return isPointInsideStarSafeRadius(p.x, p.y, pointRadius);
+  });
+  const visibleVertexPoints = geom.vertexPoints.filter((p) => {
+    const pointRadius = Math.sqrt(p.size) * 0.6 * sx + 0.35;
+    return isPointInsideStarSafeRadius(p.x, p.y, pointRadius);
+  });
+
   const chartLayer = `<g clip-path="url(#clipCircle)">
     <g transform="${transform}">
       ${
@@ -615,10 +638,10 @@ export function renderPosterSvg(req: PosterRequest): string {
       ${geom.eclipticPoints.length > 2 ? `<polyline points="${geom.eclipticPoints.join(' ')}" fill="none" stroke="${layerInk}" stroke-width="1" stroke-dasharray="7 7" opacity="${params.eclipticAlpha}"/>` : ''}
       ${geom.linePaths.length ? `<path d="${geom.linePaths.join(' ')}" fill="none" stroke="${layerInk}" stroke-width="${params.constellationLineWidth}" opacity="${params.constellationLineAlpha}" stroke-linecap="round"/>` : ''}
       <g opacity="${clamp01(params.starAlpha)}">
-        ${geom.starPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.55).toFixed(2)}" fill="${layerDenseInk}"/>`).join('')}
+        ${visibleStarPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.55).toFixed(2)}" fill="${layerDenseInk}"/>`).join('')}
       </g>
       <g opacity="${clamp01(params.vertexAlpha)}">
-        ${geom.vertexPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.6).toFixed(2)}" fill="${layerDenseInk}"/>`).join('')}
+        ${visibleVertexPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.6).toFixed(2)}" fill="${layerDenseInk}"/>`).join('')}
       </g>
       <g>
         ${
@@ -633,7 +656,7 @@ export function renderPosterSvg(req: PosterRequest): string {
                       `<path d="${p}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" opacity="0.95"/>`,
                       `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${(o.r * 0.45).toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
                       params.labelSolarSystem
-                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
+                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.4" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
                         : ''
                     ].join('');
                   }
@@ -652,7 +675,7 @@ export function renderPosterSvg(req: PosterRequest): string {
                           : `<path d="${path}" fill="${fill}" opacity="0.95"/>`,
                       `</g>`,
                       params.labelSolarSystem
-                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
+                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.4" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
                         : ''
                     ].join('');
                   }
@@ -660,7 +683,7 @@ export function renderPosterSvg(req: PosterRequest): string {
                   return [
                     `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
                     params.labelSolarSystem
-                      ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
+                      ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.4" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
                       : ''
                   ].join('');
                 })
@@ -683,7 +706,7 @@ export function renderPosterSvg(req: PosterRequest): string {
                         : `<path d="M ${(d.x).toFixed(2)} ${(d.y - s / 2).toFixed(2)} L ${(d.x + s / 2).toFixed(2)} ${(d.y).toFixed(2)} L ${(d.x).toFixed(2)} ${(d.y + s / 2).toFixed(2)} L ${(d.x - s / 2).toFixed(2)} ${(d.y).toFixed(2)} Z" fill="none" stroke="${fill}" stroke-width="1.1" opacity="0.8"/>`;
 
                   const label = params.labelDeepSky
-                    ? `<text x="${(d.x + 6).toFixed(2)}" y="${(d.y + 2).toFixed(2)}" font-size="9" fill="${layerMutedInk}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(d.label)}</text>`
+                    ? `<text x="${(d.x + 6).toFixed(2)}" y="${(d.y + 2).toFixed(2)}" font-size="9" fill="${layerMutedInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.1" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(d.label)}</text>`
                     : '';
                   return `${marker}${label}`;
                 })
@@ -693,12 +716,12 @@ export function renderPosterSvg(req: PosterRequest): string {
       </g>
       <g>
         ${geom.starLabels
-          .map((l) => `<text x="${(l.x + 5).toFixed(2)}" y="${(l.y + 2).toFixed(2)}" font-size="8" fill="${labelFill}" opacity="0.78" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
+          .map((l) => `<text x="${(l.x + 5).toFixed(2)}" y="${(l.y + 2).toFixed(2)}" font-size="8" fill="${labelFill}" opacity="0.78" stroke="${mapLabelHalo}" stroke-width="2.2" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
           .join('')}
       </g>
       <g>
         ${geom.constellationLabels
-          .map((l) => `<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="10" fill="${labelFill}" opacity="0.85" text-anchor="middle" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
+          .map((l) => `<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="10" fill="${labelFill}" opacity="0.85" stroke="${mapLabelHalo}" stroke-width="2.8" paint-order="stroke" text-anchor="middle" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
           .join('')}
       </g>
     </g>
