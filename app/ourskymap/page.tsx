@@ -907,6 +907,7 @@ export default function DesignPage() {
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
+      const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon.png';
       const moonPhaseInnerStroke = 8;
       const moonPhaseOuterStroke = 4;
       const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
@@ -940,7 +941,7 @@ export default function DesignPage() {
             }
           : {}),
         showMoonPhase: isMoonPhase,
-        moonPhaseImageUrl: '/moon.png',
+        moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined
       };
@@ -1076,6 +1077,7 @@ export default function DesignPage() {
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
+      const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon.png';
       const moonPhaseInnerStroke = 8;
       const moonPhaseOuterStroke = 4;
       const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
@@ -1107,7 +1109,7 @@ export default function DesignPage() {
             }
           : {}),
         showMoonPhase: isMoonPhase,
-        moonPhaseImageUrl: '/moon.png',
+        moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined
       };

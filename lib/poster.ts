@@ -3,6 +3,8 @@ import { buildChartGeometry } from './geometry';
 import type { PosterRequest } from './types';
 import { DateTime } from 'luxon';
 import { AstroTime, MoonPhase } from 'astronomy-engine';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 function svgEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -10,6 +12,22 @@ function svgEscape(s: string): string {
 
 function svgAttrEscape(s: string): string {
   return svgEscape(s).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+function resolvePosterPublicAssetUrl(preferredUrl: string, fallbackUrl: string): string {
+  const preferred = preferredUrl.trim();
+  const fallback = fallbackUrl.trim() || '/moon.png';
+
+  const assetExists = (url: string): boolean => {
+    if (!url.startsWith('/')) return true;
+    const rel = url.replace(/^\/+/, '');
+    const abs = path.join(process.cwd(), 'public', rel);
+    return existsSync(abs);
+  };
+
+  if (preferred && assetExists(preferred)) return preferred;
+  if (assetExists(fallback)) return fallback;
+  return '/moon.png';
 }
 
 function moonIlluminatedPath(cx: number, cy: number, r: number, phaseDeg: number, mirrorHorizontal: boolean): string {
@@ -297,6 +315,56 @@ function wrapTextToWidth(text: string, maxWidth: number, fontSize: number, lette
   return lines;
 }
 
+const MOON_PHASE_BUCKET_COUNT = 30;
+const MOON_PHASE_STEP_DEG = 360 / MOON_PHASE_BUCKET_COUNT;
+
+function clampNum(v: number, min: number, max: number): number {
+  if (!Number.isFinite(v)) return min;
+  return Math.max(min, Math.min(max, v));
+}
+
+function normalizeDeg360(v: number): number {
+  const n = v % 360;
+  return n < 0 ? n + 360 : n;
+}
+
+function quantizeMoonPhaseDeg(phaseDegRaw: number): { phaseIndex: number; phaseDeg: number; reducedDeg: number; isWaxing: boolean } {
+  const raw = normalizeDeg360(phaseDegRaw);
+  const phaseIndex = Math.floor((raw + MOON_PHASE_STEP_DEG / 2) / MOON_PHASE_STEP_DEG) % MOON_PHASE_BUCKET_COUNT;
+  const phaseDeg = phaseIndex * MOON_PHASE_STEP_DEG;
+  const reducedDeg = phaseDeg <= 180 ? phaseDeg : 360 - phaseDeg;
+  return {
+    phaseIndex,
+    phaseDeg,
+    reducedDeg,
+    isWaxing: phaseDeg <= 180
+  };
+}
+
+function buildMoonVisualProfile(phaseDeg: number): {
+  illumination: number;
+  backdropOpacity: number;
+  baseTextureOpacity: number;
+  shadowLinearOpacity: number;
+  shadeRadialOpacity: number;
+  blurScale: number;
+} {
+  // Illumination fraction derived from phase angle:
+  // 0deg(new)=0.0, 180deg(full)=1.0
+  const illumination = 0.5 * (1 - Math.cos((phaseDeg * Math.PI) / 180));
+  const darkness = 1 - illumination;
+  return {
+    illumination,
+    // Dark hemisphere should get stronger as illumination drops.
+    backdropOpacity: clampNum(0.20 + darkness * 0.30, 0.18, 0.52),
+    // Important: keep base texture dimmer on darker phases (opposite slope).
+    baseTextureOpacity: clampNum(0.64 - darkness * 0.34, 0.28, 0.68),
+    shadowLinearOpacity: clampNum(0.14 + darkness * 0.36, 0.14, 0.58),
+    shadeRadialOpacity: clampNum(0.12 + darkness * 0.30, 0.12, 0.44),
+    blurScale: clampNum(0.84 + darkness * 0.62, 0.75, 1.48)
+  };
+}
+
 export function renderPosterSvg(req: PosterRequest): string {
   const { latitude, longitude, timeUtcIso, locationLabel, params, poster } = req;
   const date = new Date(timeUtcIso);
@@ -307,7 +375,9 @@ export function renderPosterSvg(req: PosterRequest): string {
   const showMoonPhase = !!poster.showMoonPhase;
   const showCompanionPhoto = !!poster.showCompanionPhoto && !!(poster.companionPhotoImageUrl || '').trim();
   const showCompanionCircle = showMoonPhase || showCompanionPhoto;
-  const moonImageUrl = (poster.moonPhaseImageUrl || '/moon.png').trim() || '/moon.png';
+  const defaultMoonImageUrl = poster.inkTexture === 'silver' ? '/moon_silver.png' : '/moon.png';
+  const requestedMoonImageUrl = (poster.moonPhaseImageUrl || defaultMoonImageUrl).trim() || defaultMoonImageUrl;
+  const moonImageUrl = resolvePosterPublicAssetUrl(requestedMoonImageUrl, '/moon.png');
   const companionPhotoUrl = (poster.companionPhotoImageUrl || '').trim();
   const layout = getPosterLayout(size);
   const geom = buildChartGeometry({ latitude, longitude, date, params, layout: layout.layout });
@@ -387,6 +457,15 @@ export function renderPosterSvg(req: PosterRequest): string {
   let moonR = 0;
   let moonPhaseReduced = 0;
   let moonWaxing = true;
+  let moonVisual = {
+    illumination: 0.5,
+    backdropOpacity: 0.32,
+    baseTextureOpacity: 0.52,
+    shadowLinearOpacity: 0.28,
+    shadeRadialOpacity: 0.24,
+    blurScale: 1
+  };
+  let moonPhaseBucketIndex = 0;
 
   if (showCompanionCircle) {
     const frameLeft = margin + frameInset;
@@ -407,16 +486,19 @@ export function renderPosterSvg(req: PosterRequest): string {
     chartCy = frameTop + chartR + 10;
     moonCy = chartCy;
     if (showMoonPhase) {
-      const moonPhaseDeg = MoonPhase(new AstroTime(date));
-      moonPhaseReduced = moonPhaseDeg <= 180 ? moonPhaseDeg : 360 - moonPhaseDeg;
-      moonWaxing = moonPhaseDeg <= 180;
+      const moonPhaseDegRaw = MoonPhase(new AstroTime(date));
+      const q = quantizeMoonPhaseDeg(moonPhaseDegRaw);
+      moonPhaseBucketIndex = q.phaseIndex;
+      moonPhaseReduced = q.reducedDeg;
+      moonWaxing = q.isWaxing;
+      moonVisual = buildMoonVisualProfile(q.phaseDeg);
     }
   }
-  const lowIllumMoon = showMoonPhase && moonPhaseReduced < 32;
-  const moonBackdropOpacity = lowIllumMoon ? 0.14 : 0.32;
-  const moonBaseTextureOpacity = lowIllumMoon ? 0.92 : 0.52;
-  const moonShadowLinearOpacity = lowIllumMoon ? 0.06 : 0.28;
-  const moonShadeRadialOpacity = lowIllumMoon ? 0.08 : 0.24;
+  const moonBackdropOpacity = showMoonPhase ? moonVisual.backdropOpacity : 0.32;
+  const moonBaseTextureOpacity = showMoonPhase ? moonVisual.baseTextureOpacity : 0.52;
+  const moonShadowLinearOpacity = showMoonPhase ? moonVisual.shadowLinearOpacity : 0.28;
+  const moonShadeRadialOpacity = showMoonPhase ? moonVisual.shadeRadialOpacity : 0.24;
+  const moonSoftBlurSigma = Math.max(1.2, moonR * 0.012 * (showMoonPhase ? moonVisual.blurScale : 1));
 
   const title = (poster.title || '').trim();
   const subtitle = (poster.subtitle || '').trim();
@@ -753,16 +835,16 @@ export function renderPosterSvg(req: PosterRequest): string {
         ? `
     <radialGradient id="moonShadeRadial" cx="${moonWaxing ? '34%' : '66%'}" cy="46%" r="78%">
       <stop offset="0%" stop-color="rgba(0,0,0,0.00)"/>
-      <stop offset="58%" stop-color="rgba(0,0,0,0.16)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.44)"/>
+      <stop offset="58%" stop-color="rgba(0,0,0,0.28)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.70)"/>
     </radialGradient>
     <linearGradient id="moonShadowLinear" x1="${moonWaxing ? '0%' : '100%'}" y1="0%" x2="${moonWaxing ? '100%' : '0%'}" y2="0%">
-      <stop offset="0%" stop-color="rgba(0,0,0,0.72)"/>
-      <stop offset="60%" stop-color="rgba(0,0,0,0.15)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0.02)"/>
+      <stop offset="0%" stop-color="rgba(0,0,0,0.90)"/>
+      <stop offset="62%" stop-color="rgba(0,0,0,0.24)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.04)"/>
     </linearGradient>
     <filter id="moonSoftBlur" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="${Math.max(1.6, moonR * 0.012).toFixed(2)}"/>
+      <feGaussianBlur stdDeviation="${moonSoftBlurSigma.toFixed(2)}"/>
     </filter>
     <mask id="moonLitMask">
       <rect x="0" y="0" width="${W}" height="${H}" fill="black"/>
@@ -793,7 +875,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   </g>`
         : `<g>
     <g filter="url(#moonDropShadow)">
-      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="rgba(0,0,0,${moonBackdropOpacity.toFixed(2)})"/>
+      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="rgba(0,0,0,${moonBackdropOpacity.toFixed(2)})" data-moon-phase-index="${moonPhaseBucketIndex}"/>
       <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" opacity="${moonBaseTextureOpacity.toFixed(2)}"/>
       <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" mask="url(#moonLitMask)" opacity="1"/>
       <rect x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" fill="url(#moonShadowLinear)" clip-path="url(#moonClip)" opacity="${moonShadowLinearOpacity.toFixed(2)}" filter="url(#moonSoftBlur)"/>
