@@ -455,20 +455,20 @@ export function renderPosterSvg(req: PosterRequest): string {
   const fontFamily = (k: PosterRequest['poster']['titleFont'] | PosterRequest['poster']['namesFont'] | PosterRequest['poster']['metaFont']) => {
     switch (k) {
       case 'prata':
-        return "Prata, ui-serif, Georgia, Times New Roman, serif";
+        return "'Prata', ui-serif, Georgia, 'Times New Roman', serif";
       case 'jimmy-script':
-        return "Jimmy Script, cursive, ui-serif, Georgia, Times New Roman, serif";
+        return "'Allura', 'Great Vibes', cursive, ui-serif, Georgia, 'Times New Roman', serif";
       case 'signika':
-        return "Signika, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+        return "'Signika', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
       case 'mono':
         return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
       case 'sans':
-        return 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
+        return "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
       case 'cursive':
-        return "'Alex Brush', 'Great Vibes', 'Allura', 'Jimmy Script', cursive, ui-serif, Georgia, Times New Roman, serif";
+        return "'Great Vibes', 'Allura', cursive, ui-serif, Georgia, 'Times New Roman', serif";
       case 'serif':
       default:
-        return 'ui-serif, Georgia, Times New Roman, serif';
+        return "ui-serif, Georgia, 'Times New Roman', serif";
     }
   };
 

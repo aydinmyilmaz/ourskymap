@@ -7,6 +7,8 @@ import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 import JSZip from 'jszip';
 import sharp from 'sharp';
 import { PDFDocument } from 'pdf-lib';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 
 export const runtime = 'nodejs';
 
@@ -41,6 +43,139 @@ function withAbsoluteMoonUrl(svg: string, req: Request): string {
     .replaceAll("href='/moon.png'", `href='${absoluteMoon}'`)
     .replaceAll('xlink:href="/moon.png"', `xlink:href="${absoluteMoon}"`)
     .replaceAll("xlink:href='/moon.png'", `xlink:href='${absoluteMoon}'`);
+}
+
+let moonImageDataUriCache: string | null | undefined;
+
+function getMoonImageDataUri(): string | null {
+  if (moonImageDataUriCache !== undefined) return moonImageDataUriCache;
+  try {
+    const moonPath = path.join(process.cwd(), 'public', 'moon.png');
+    const raw = readFileSync(moonPath);
+    moonImageDataUriCache = `data:image/png;base64,${raw.toString('base64')}`;
+  } catch {
+    moonImageDataUriCache = null;
+  }
+  return moonImageDataUriCache;
+}
+
+function withEmbeddedMoonUrl(svg: string): string {
+  const moonDataUri = getMoonImageDataUri();
+  if (!moonDataUri) return svg;
+  return svg
+    .replaceAll('href="/moon.png"', `href="${moonDataUri}"`)
+    .replaceAll("href='/moon.png'", `href='${moonDataUri}'`)
+    .replaceAll('xlink:href="/moon.png"', `xlink:href="${moonDataUri}"`)
+    .replaceAll("xlink:href='/moon.png'", `xlink:href='${moonDataUri}'`);
+}
+
+type LocalFontAsset = {
+  family: string;
+  weight: number;
+  style: 'normal' | 'italic';
+  fileName: string;
+};
+
+const POSTER_FONT_ASSETS: LocalFontAsset[] = [
+  { family: 'Allura', weight: 400, style: 'normal', fileName: 'Allura-Regular.ttf' },
+  { family: 'Great Vibes', weight: 400, style: 'normal', fileName: 'GreatVibes-Regular.ttf' },
+  { family: 'Prata', weight: 400, style: 'normal', fileName: 'Prata-Regular.ttf' },
+  { family: 'Signika', weight: 400, style: 'normal', fileName: 'Signika-Regular.ttf' },
+  { family: 'Signika', weight: 500, style: 'normal', fileName: 'Signika-Medium.ttf' },
+  { family: 'Signika', weight: 700, style: 'normal', fileName: 'Signika-Bold.ttf' }
+];
+
+function getPosterFontAbsolutePath(fileName: string): string {
+  return path.join(process.cwd(), 'public', 'fonts', fileName);
+}
+
+function getPosterFontFilePaths(): string[] {
+  return POSTER_FONT_ASSETS
+    .map((asset) => getPosterFontAbsolutePath(asset.fileName))
+    .filter((absPath) => existsSync(absPath));
+}
+
+type ResvgCtor = new (
+  svg: string,
+  options?: {
+    font?: {
+      fontFiles?: string[];
+      loadSystemFonts?: boolean;
+    };
+  }
+) => {
+  render(): { asPng(): Uint8Array };
+};
+
+let cachedResvgCtor: ResvgCtor | null | undefined;
+
+async function getResvgCtor(): Promise<ResvgCtor | null> {
+  if (cachedResvgCtor !== undefined) return cachedResvgCtor;
+  try {
+    const mod = (await import('@resvg/resvg-js')) as { Resvg?: ResvgCtor };
+    cachedResvgCtor = typeof mod.Resvg === 'function' ? mod.Resvg : null;
+  } catch {
+    cachedResvgCtor = null;
+  }
+  return cachedResvgCtor;
+}
+
+async function renderSvgToPng(svg: string, opts?: { allowSharpFallback?: boolean }): Promise<Buffer> {
+  const svgBuffer = Buffer.from(svg, 'utf-8');
+  const Resvg = await getResvgCtor();
+  if (Resvg) {
+    try {
+      const resvg = new Resvg(svg, {
+        font: {
+          fontFiles: getPosterFontFilePaths(),
+          loadSystemFonts: true
+        }
+      });
+      return Buffer.from(resvg.render().asPng());
+    } catch {
+      // Fallback to sharp if resvg fails at runtime.
+    }
+  }
+  if (!opts?.allowSharpFallback) {
+    throw new Error(
+      'High-fidelity SVG renderer is unavailable. Install the matching @resvg binary package for this server and restart.'
+    );
+  }
+  return sharp(svgBuffer).png({ compressionLevel: 9 }).toBuffer();
+}
+
+let embeddedPosterFontsCssCache: string | null | undefined;
+
+function getEmbeddedPosterFontsCss(): string {
+  if (embeddedPosterFontsCssCache !== undefined) return embeddedPosterFontsCssCache || '';
+  try {
+    const blocks: string[] = [];
+    for (const asset of POSTER_FONT_ASSETS) {
+      const absPath = getPosterFontAbsolutePath(asset.fileName);
+      if (!existsSync(absPath)) continue;
+      const raw = readFileSync(absPath);
+      const dataUri = `data:font/ttf;base64,${raw.toString('base64')}`;
+      blocks.push(
+        `@font-face{font-family:'${asset.family}';font-style:${asset.style};font-weight:${asset.weight};font-display:swap;src:url(${dataUri}) format('truetype');}`
+      );
+    }
+    embeddedPosterFontsCssCache = blocks.join('\n');
+  } catch {
+    embeddedPosterFontsCssCache = '';
+  }
+  return embeddedPosterFontsCssCache || '';
+}
+
+function injectFontCssIntoSvg(svg: string, css: string): string {
+  const trimmed = css.trim();
+  if (!trimmed) return svg;
+  const styleNode = `<style><![CDATA[\n${trimmed}\n]]></style>`;
+  if (svg.includes('<defs>')) {
+    return svg.replace('<defs>', `<defs>\n${styleNode}`);
+  }
+  const svgOpenTag = svg.match(/<svg[^>]*>/i)?.[0];
+  if (!svgOpenTag) return svg;
+  return svg.replace(svgOpenTag, `${svgOpenTag}\n<defs>\n${styleNode}\n</defs>`);
 }
 
 function getSvgSize(svg: string): { width: number; height: number } {
@@ -167,13 +302,20 @@ export async function POST(req: Request) {
       );
     }
     if (!isCityDraft) {
-      svg = withAbsoluteMoonUrl(svg, req);
+      const embeddedMoonSvg = withEmbeddedMoonUrl(svg);
+      svg = embeddedMoonSvg !== svg ? embeddedMoonSvg : withAbsoluteMoonUrl(svg, req);
+    }
+    {
+      const embeddedFontsCss = getEmbeddedPosterFontsCss();
+      if (embeddedFontsCss) {
+        svg = injectFontCssIntoSvg(svg, embeddedFontsCss);
+      }
     }
 
     const safeCode = couponCode.replace(/[^a-zA-Z0-9_-]/g, '_');
     const ts = Date.now();
     const { width: svgW, height: svgH } = getSvgSize(svg);
-    const png = await sharp(Buffer.from(svg, 'utf-8')).png({ compressionLevel: 9 }).toBuffer();
+    const png = await renderSvgToPng(svg, { allowSharpFallback: isCityDraft });
     const pdf = await makePdfFromPng(png, svgW, svgH);
 
     const zip = new JSZip();
