@@ -55,3 +55,6 @@ public/logo_favicon.jpeg
 
 # Local archives (do not commit)
 archive/
+
+# Temporary local test scripts
+tmp/
