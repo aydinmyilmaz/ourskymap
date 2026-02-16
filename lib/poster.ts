@@ -298,6 +298,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   if (Number.isNaN(date.getTime())) throw new Error('Invalid timeUtcIso');
 
   const size = poster.size;
+  const is12x12Layout = size === '12x12';
   const showMoonPhase = !!poster.showMoonPhase;
   const showCompanionPhoto = !!poster.showCompanionPhoto && !!(poster.companionPhotoImageUrl || '').trim();
   const showCompanionCircle = showMoonPhase || showCompanionPhoto;
@@ -391,6 +392,11 @@ export function renderPosterSvg(req: PosterRequest): string {
       moonWaxing = moonPhaseDeg <= 180;
     }
   }
+  const lowIllumMoon = showMoonPhase && moonPhaseReduced < 32;
+  const moonBackdropOpacity = lowIllumMoon ? 0.14 : 0.32;
+  const moonBaseTextureOpacity = lowIllumMoon ? 0.92 : 0.52;
+  const moonShadowLinearOpacity = lowIllumMoon ? 0.06 : 0.28;
+  const moonShadeRadialOpacity = lowIllumMoon ? 0.08 : 0.24;
 
   const title = (poster.title || '').trim();
   const subtitle = (poster.subtitle || '').trim();
@@ -404,6 +410,7 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   const includeAzScale = !!poster.includeAzimuthScale;
   const showCardinals = poster.showCardinals !== false;
+  const mapLabelFont = "'Signika', 'Helvetica Neue', Arial, sans-serif";
 
   // Build azimuth scale for poster (simpler: just outer ring + cardinals)
   const azScale: string[] = [];
@@ -430,7 +437,7 @@ export function renderPosterSvg(req: PosterRequest): string {
         const tx = chartCx + (outerR + 16) * Math.sin(ang) * sinScale;
         const ty = chartCy - (outerR + 16) * Math.cos(ang);
         azScale.push(
-          `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" font-size="18" font-weight="700" fill="${palette.ink}" text-anchor="middle" dominant-baseline="middle">${lab}</text>`
+          `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" font-size="18" font-weight="700" fill="${palette.ink}" text-anchor="middle" dominant-baseline="middle" font-family="${mapLabelFont}">${lab}</text>`
         );
       }
     }
@@ -455,20 +462,20 @@ export function renderPosterSvg(req: PosterRequest): string {
   const fontFamily = (k: PosterRequest['poster']['titleFont'] | PosterRequest['poster']['namesFont'] | PosterRequest['poster']['metaFont']) => {
     switch (k) {
       case 'prata':
-        return "Prata, ui-serif, Georgia, Times New Roman, serif";
+        return "'Prata', ui-serif, Georgia, 'Times New Roman', serif";
       case 'jimmy-script':
-        return "Jimmy Script, cursive, ui-serif, Georgia, Times New Roman, serif";
+        return "'Allura', 'Great Vibes', cursive, ui-serif, Georgia, 'Times New Roman', serif";
       case 'signika':
-        return "Signika, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+        return "'Signika', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
       case 'mono':
         return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
       case 'sans':
-        return 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
+        return "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
       case 'cursive':
-        return "'Alex Brush', 'Great Vibes', 'Allura', 'Jimmy Script', cursive, ui-serif, Georgia, Times New Roman, serif";
+        return "'Great Vibes', 'Allura', cursive, ui-serif, Georgia, 'Times New Roman', serif";
       case 'serif':
       default:
-        return 'ui-serif, Georgia, Times New Roman, serif';
+        return "ui-serif, Georgia, 'Times New Roman', serif";
     }
   };
 
@@ -520,12 +527,14 @@ export function renderPosterSvg(req: PosterRequest): string {
   const regionBottom = H - margin - (isSquareTextLayout ? 52 : 54);
   const regionH = Math.max(0, regionBottom - regionTop);
 
-  const titleLineHeight = () => titleFont * 1.12;
-  const namesLineHeight = () => namesFont * 1.18;
-  const metaLineHeight = () => metaFont * metaLineSpacing;
+  const titleLineHeight = () => titleFont * (is12x12Layout ? 1.06 : 1.12);
+  const namesLineHeight = () => namesFont * (is12x12Layout ? 1.11 : 1.18);
+  const effectiveMetaLineSpacing = is12x12Layout ? Math.max(1.15, metaLineSpacing - 0.12) : metaLineSpacing;
+  const metaLineHeight = () => metaFont * effectiveMetaLineSpacing;
 
-  const gap1 = 14;
-  const gap2 = 16;
+  const gap1 = is12x12Layout ? 10 : 14;
+  const gap2 = is12x12Layout ? 10 : 16;
+  const textBlockYOffset = is12x12Layout ? -20 : 0;
 
   const calcNeeded = () => {
     let h = 0;
@@ -544,7 +553,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   }
 
   const textBlock: string[] = [];
-  let y = regionTop + Math.max(0, (regionH - calcNeeded()) / 2);
+  let y = regionTop + Math.max(0, (regionH - calcNeeded()) / 2) + textBlockYOffset;
 
   if (titleLines.length) {
     for (const line of titleLines) {
@@ -650,7 +659,7 @@ export function renderPosterSvg(req: PosterRequest): string {
                       `<path d="${p}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" opacity="0.95"/>`,
                       `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${(o.r * 0.45).toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
                       params.labelSolarSystem
-                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${palette.ink}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="ui-sans-serif, system-ui">${svgEscape(o.label)}</text>`
+                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${palette.ink}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
                         : ''
                     ].join('');
                   }
@@ -669,7 +678,7 @@ export function renderPosterSvg(req: PosterRequest): string {
                           : `<path d="${path}" fill="${fill}" opacity="0.95"/>`,
                       `</g>`,
                       params.labelSolarSystem
-                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${palette.ink}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="ui-sans-serif, system-ui">${svgEscape(o.label)}</text>`
+                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${palette.ink}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
                         : ''
                     ].join('');
                   }
@@ -677,7 +686,7 @@ export function renderPosterSvg(req: PosterRequest): string {
                   return [
                     `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
                     params.labelSolarSystem
-                      ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${palette.ink}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="ui-sans-serif, system-ui">${svgEscape(o.label)}</text>`
+                      ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${palette.ink}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
                       : ''
                   ].join('');
                 })
@@ -700,7 +709,7 @@ export function renderPosterSvg(req: PosterRequest): string {
                         : `<path d="M ${(d.x).toFixed(2)} ${(d.y - s / 2).toFixed(2)} L ${(d.x + s / 2).toFixed(2)} ${(d.y).toFixed(2)} L ${(d.x).toFixed(2)} ${(d.y + s / 2).toFixed(2)} L ${(d.x - s / 2).toFixed(2)} ${(d.y).toFixed(2)} Z" fill="none" stroke="${fill}" stroke-width="1.1" opacity="0.8"/>`;
 
                   const label = params.labelDeepSky
-                    ? `<text x="${(d.x + 6).toFixed(2)}" y="${(d.y + 2).toFixed(2)}" font-size="9" fill="${palette.mutedInk}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="ui-sans-serif, system-ui">${svgEscape(d.label)}</text>`
+                    ? `<text x="${(d.x + 6).toFixed(2)}" y="${(d.y + 2).toFixed(2)}" font-size="9" fill="${palette.mutedInk}" opacity="0.75" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(d.label)}</text>`
                     : '';
                   return `${marker}${label}`;
                 })
@@ -710,12 +719,12 @@ export function renderPosterSvg(req: PosterRequest): string {
       </g>
       <g>
         ${geom.starLabels
-          .map((l) => `<text x="${(l.x + 5).toFixed(2)}" y="${(l.y + 2).toFixed(2)}" font-size="8" fill="${labelFill}" opacity="0.78" text-anchor="start" dominant-baseline="middle" font-family="ui-sans-serif, system-ui">${svgEscape(l.text)}</text>`)
+          .map((l) => `<text x="${(l.x + 5).toFixed(2)}" y="${(l.y + 2).toFixed(2)}" font-size="8" fill="${labelFill}" opacity="0.78" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
           .join('')}
       </g>
       <g>
         ${geom.constellationLabels
-          .map((l) => `<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="10" fill="${labelFill}" opacity="0.75" text-anchor="middle" dominant-baseline="middle">${svgEscape(l.text)}</text>`)
+          .map((l) => `<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="10" fill="${labelFill}" opacity="0.85" text-anchor="middle" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
           .join('')}
       </g>
     </g>
@@ -733,11 +742,11 @@ export function renderPosterSvg(req: PosterRequest): string {
   </g>`
         : `<g>
     <g filter="url(#moonDropShadow)">
-      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="rgba(0,0,0,0.50)"/>
-      <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" opacity="0.36"/>
+      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="rgba(0,0,0,${moonBackdropOpacity.toFixed(2)})"/>
+      <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" opacity="${moonBaseTextureOpacity.toFixed(2)}"/>
       <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" mask="url(#moonLitMask)" opacity="1"/>
-      <rect x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" fill="url(#moonShadowLinear)" clip-path="url(#moonClip)" opacity="0.42" filter="url(#moonSoftBlur)"/>
-      <rect x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" fill="url(#moonShadeRadial)" clip-path="url(#moonClip)" opacity="0.36"/>
+      <rect x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" fill="url(#moonShadowLinear)" clip-path="url(#moonClip)" opacity="${moonShadowLinearOpacity.toFixed(2)}" filter="url(#moonSoftBlur)"/>
+      <rect x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" fill="url(#moonShadeRadial)" clip-path="url(#moonClip)" opacity="${moonShadeRadialOpacity.toFixed(2)}"/>
     </g>
   </g>`
       : ''

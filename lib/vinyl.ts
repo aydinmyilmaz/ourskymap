@@ -173,7 +173,7 @@ function fontFamily(k: VinylParams['titleFont'] | VinylParams['namesFont'] | Vin
     case 'prata':
       return "Prata, ui-serif, Georgia, Times New Roman, serif";
     case 'jimmy-script':
-      return "Jimmy Script, cursive, ui-serif, Georgia, Times New Roman, serif";
+      return 'Allura, Great Vibes, cursive, ui-serif, Georgia, Times New Roman, serif';
     case 'signika':
       return "Signika, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
     case 'mono':
@@ -181,7 +181,7 @@ function fontFamily(k: VinylParams['titleFont'] | VinylParams['namesFont'] | Vin
     case 'serif':
       return "ui-serif, Georgia, Times New Roman, serif";
     case 'cursive':
-      return "cursive, ui-serif, Georgia, Times New Roman, serif";
+      return 'Great Vibes, Allura, cursive, ui-serif, Georgia, Times New Roman, serif';
     case 'sans':
     default:
       return "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";

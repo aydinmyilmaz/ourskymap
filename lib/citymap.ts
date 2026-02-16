@@ -93,8 +93,8 @@ function fontFamily(
   k: CityMapRequest['titleFont'] | CityMapRequest['namesFont'] | CityMapRequest['metaFont']
 ): string {
   if (k === 'prata') return `'Prata', Georgia, 'Times New Roman', serif`;
-  if (k === 'jimmy-script') return `'Jimmy Script', 'Brush Script MT', 'Segoe Script', cursive`;
-  if (k === 'cursive') return `'Jimmy Script', 'Brush Script MT', 'Segoe Script', cursive`;
+  if (k === 'jimmy-script') return `Allura, Great Vibes, Brush Script MT, Segoe Script, cursive`;
+  if (k === 'cursive') return `Great Vibes, Allura, Brush Script MT, Segoe Script, cursive`;
   if (k === 'mono') return `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
   if (k === 'serif') return `Georgia, 'Times New Roman', serif`;
   if (k === 'signika') return `'Signika', ui-sans-serif, system-ui`;
