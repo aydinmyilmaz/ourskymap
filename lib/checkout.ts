@@ -1,7 +1,7 @@
 import type { PosterRequest } from './types';
 import type { CityMapRequest } from './citymap';
 
-export const CHECKOUT_DRAFT_KEY = 'ourskymap_checkout_draft_v1';
+export const CHECKOUT_DRAFT_KEY = 'ourskymap_checkout_draft_v2';
 
 export type CheckoutMapData = {
   city: string;

@@ -52,3 +52,6 @@ test-scripts/mapbox-minimal-tests*/
 
 # Local/unused branding temp files
 public/logo_favicon.jpeg
+
+# Local archives (do not commit)
+archive/

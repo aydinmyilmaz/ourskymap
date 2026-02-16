@@ -88,6 +88,8 @@ export type PosterParams = {
     | 'classic-burgundy'
     | 'deep-teal';
   inkColor: string;
+  inkFinish?: 'flat' | 'texture';
+  inkTexture?: 'gold' | 'silver';
   border: boolean;
   borderWidth: number;
   borderInset: number;
@@ -119,6 +121,7 @@ export type PosterParams = {
   moonPhaseImageUrl?: string;
   showCompanionPhoto?: boolean;
   companionPhotoImageUrl?: string;
+  renderVariant?: 'normal' | 'ink-mask';
 };
 
 export type PosterRequest = {
