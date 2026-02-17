@@ -26,9 +26,17 @@ const MAX_EXPORT_PIXELS = 40_000_000;
 const RENDER_WORKER_URL = (process.env.FLY_RENDER_URL ?? '').trim().replace(/\/+$/, '');
 const RENDER_WORKER_SHARED_SECRET = (process.env.RENDER_SHARED_SECRET ?? '').trim();
 const RENDER_WORKER_TIMEOUT_MS = Number.parseInt(process.env.FLY_RENDER_TIMEOUT_MS ?? '30000', 10);
+const RENDER_WORKER_TEXTURE_ATTEMPTS = Number.parseInt(process.env.FLY_RENDER_TEXTURE_ATTEMPTS ?? '2', 10);
+const RENDER_WORKER_TEXTURE_RETRY_DELAY_MS = Number.parseInt(process.env.FLY_RENDER_TEXTURE_RETRY_DELAY_MS ?? '2500', 10);
+const RENDER_WORKER_TEXTURE_ATTEMPT_TIMEOUT_MS = Number.parseInt(process.env.FLY_RENDER_TEXTURE_ATTEMPT_TIMEOUT_MS ?? '30000', 10);
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function sleep(ms: number): Promise<void> {
+  const waitMs = Number.isFinite(ms) ? Math.max(0, ms) : 0;
+  return new Promise((resolve) => setTimeout(resolve, waitMs));
 }
 
 function isSimulationCoupon(orderCode: string): boolean {
@@ -78,9 +86,9 @@ function withEmbeddedMoonUrl(svg: string): string {
 
 type InkTextureKey = 'gold' | 'silver';
 
-const INK_TEXTURE_PATHS: Record<InkTextureKey, string> = {
-  gold: '/textures/gold_texture_2500.jpg',
-  silver: '/textures/silver_texture_2500.jpg'
+const INK_TEXTURE_PATHS: Record<InkTextureKey, string[]> = {
+  gold: ['/textures/gold_texture_hd_3500.jpg', '/textures/gold_texture_2500.jpg'],
+  silver: ['/textures/silver_texture_hd_3500.jpg', '/textures/silver_texture_2500.jpg']
 };
 
 const INK_TEXTURE_REMOTE_URLS: Partial<Record<InkTextureKey, string>> = {
@@ -91,9 +99,10 @@ const INK_TEXTURE_REMOTE_URLS: Partial<Record<InkTextureKey, string>> = {
 const BUNNY_TEXTURE_BASE_URL = (process.env.BUNNY_TEXTURE_BASE_URL ?? '').trim().replace(/\/+$/, '');
 const BUNNY_TEXTURE_QUERY = (process.env.BUNNY_TEXTURE_QUERY ?? '').trim();
 const TEXTURE_FETCH_TIMEOUT_MS = Number.parseInt(process.env.EXPORT_TEXTURE_FETCH_TIMEOUT_MS ?? '6000', 10);
-const MAX_TEXTURE_BYTES = Number.parseInt(process.env.EXPORT_TEXTURE_MAX_BYTES ?? '5000000', 10);
+const MAX_TEXTURE_BYTES = Number.parseInt(process.env.EXPORT_TEXTURE_MAX_BYTES ?? '25000000', 10);
 const TEXTURE_MAX_DIM = Number.parseInt(process.env.EXPORT_TEXTURE_MAX_DIM ?? '1000', 10);
 const TEXTURE_JPEG_QUALITY = Number.parseInt(process.env.EXPORT_TEXTURE_JPEG_QUALITY ?? '76', 10);
+const EXPECTED_TEXTURE_PIPELINE_VERSION = '2';
 
 function getTextureMimeByPath(texturePathRel: string): string {
   if (texturePathRel.toLowerCase().endsWith('.jpg') || texturePathRel.toLowerCase().endsWith('.jpeg')) return 'image/jpeg';
@@ -105,7 +114,7 @@ function getBunnyTextureUrl(key: InkTextureKey): string | null {
   const explicit = INK_TEXTURE_REMOTE_URLS[key];
   if (explicit) return explicit;
   if (!BUNNY_TEXTURE_BASE_URL) return null;
-  const texturePathRel = INK_TEXTURE_PATHS[key];
+  const texturePathRel = INK_TEXTURE_PATHS[key][0];
   const baseUrl = `${BUNNY_TEXTURE_BASE_URL}${texturePathRel}`;
   if (!BUNNY_TEXTURE_QUERY) return baseUrl;
   return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${BUNNY_TEXTURE_QUERY}`;
@@ -115,11 +124,13 @@ function isInkTextureSvg(svg: string): boolean {
   return svg.includes('id="inkTexturePattern"') || svg.includes("id='inkTexturePattern'");
 }
 
-async function normalizeInkTextureRaw(raw: Buffer, fallbackMime: string): Promise<{ raw: Buffer; mime: string }> {
-  const maxDim = Number.isFinite(TEXTURE_MAX_DIM) && TEXTURE_MAX_DIM >= 512 ? Math.min(4096, TEXTURE_MAX_DIM) : 1000;
+async function normalizeInkTextureRaw(raw: Buffer, fallbackMime: string, key: InkTextureKey): Promise<{ raw: Buffer; mime: string }> {
+  const baseMaxDim = Number.isFinite(TEXTURE_MAX_DIM) && TEXTURE_MAX_DIM >= 512 ? Math.min(4096, TEXTURE_MAX_DIM) : 1000;
+  const maxDim = key === 'gold' ? Math.max(baseMaxDim, 3000) : Math.max(baseMaxDim, 1800);
   const quality = Number.isFinite(TEXTURE_JPEG_QUALITY) && TEXTURE_JPEG_QUALITY >= 50
     ? Math.min(95, TEXTURE_JPEG_QUALITY)
     : 76;
+  const targetQuality = key === 'gold' ? Math.max(quality, 93) : Math.max(quality, 88);
   try {
     const image = sharp(raw, { limitInputPixels: 100_000_000 }).rotate();
     const metadata = await image.metadata();
@@ -131,8 +142,9 @@ async function normalizeInkTextureRaw(raw: Buffer, fallbackMime: string): Promis
       : image;
     const normalized = await pipeline
       .jpeg({
-        quality,
-        mozjpeg: true
+        quality: targetQuality,
+        mozjpeg: true,
+        chromaSubsampling: '4:4:4'
       })
       .toBuffer();
     return { raw: normalized, mime: 'image/jpeg' };
@@ -170,25 +182,28 @@ async function fetchTextureFromRemote(url: string): Promise<{ raw: Buffer; mime:
 
 async function loadInkTextureRaw(key: InkTextureKey): Promise<{ raw: Buffer; mime: string } | null> {
   const remoteUrl = getBunnyTextureUrl(key);
-  const fallbackMime = getTextureMimeByPath(INK_TEXTURE_PATHS[key]);
+  const fallbackMime = getTextureMimeByPath(INK_TEXTURE_PATHS[key][0]);
+  const maxBytes = Number.isFinite(MAX_TEXTURE_BYTES) && MAX_TEXTURE_BYTES > 0 ? MAX_TEXTURE_BYTES : 15_000_000;
+  const effectiveMaxBytes = key === 'gold' ? Math.max(maxBytes, 15_000_000) : maxBytes;
   if (remoteUrl) {
     const remote = await fetchTextureFromRemote(remoteUrl);
     if (remote) {
-      const normalized = await normalizeInkTextureRaw(remote.raw, remote.mime || fallbackMime);
+      const normalized = await normalizeInkTextureRaw(remote.raw, remote.mime || fallbackMime, key);
       return normalized;
     }
   }
 
-  try {
-    const texturePathRel = INK_TEXTURE_PATHS[key];
-    const texturePath = path.join(process.cwd(), 'public', texturePathRel.replace(/^\/+/, ''));
-    const raw = readFileSync(texturePath);
-    const maxBytes = Number.isFinite(MAX_TEXTURE_BYTES) && MAX_TEXTURE_BYTES > 0 ? MAX_TEXTURE_BYTES : 5_000_000;
-    if (raw.length > maxBytes) return null;
-    return await normalizeInkTextureRaw(raw, getTextureMimeByPath(texturePathRel));
-  } catch {
-    return null;
+  for (const texturePathRel of INK_TEXTURE_PATHS[key]) {
+    try {
+      const texturePath = path.join(process.cwd(), 'public', texturePathRel.replace(/^\/+/, ''));
+      const raw = readFileSync(texturePath);
+      if (raw.length > effectiveMaxBytes) continue;
+      return await normalizeInkTextureRaw(raw, getTextureMimeByPath(texturePathRel), key);
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 const inkTextureDataUriCache: Partial<Record<InkTextureKey, string | null>> = {};
@@ -223,26 +238,29 @@ async function getInkTextureDataUri(key: InkTextureKey): Promise<string | null> 
 async function withEmbeddedInkTextureUrls(svg: string): Promise<string> {
   let out = svg;
   for (const key of Object.keys(INK_TEXTURE_PATHS) as InkTextureKey[]) {
-    const src = INK_TEXTURE_PATHS[key];
-    const needsReplace =
+    const variants = INK_TEXTURE_PATHS[key];
+    const needsReplace = variants.some((src) =>
       out.includes(`href="${src}"`) ||
       out.includes(`href='${src}'`) ||
       out.includes(`xlink:href="${src}"`) ||
-      out.includes(`xlink:href='${src}'`);
+      out.includes(`xlink:href='${src}'`)
+    );
     if (!needsReplace) continue;
     const dataUri = await getInkTextureDataUri(key);
     if (!dataUri) continue;
-    out = out
-      .replaceAll(`href="${src}"`, `href="${dataUri}"`)
-      .replaceAll(`href='${src}'`, `href='${dataUri}'`)
-      .replaceAll(`xlink:href="${src}"`, `xlink:href="${dataUri}"`)
-      .replaceAll(`xlink:href='${src}'`, `xlink:href='${dataUri}'`);
+    for (const src of variants) {
+      out = out
+        .replaceAll(`href="${src}"`, `href="${dataUri}"`)
+        .replaceAll(`href='${src}'`, `href='${dataUri}'`)
+        .replaceAll(`xlink:href="${src}"`, `xlink:href="${dataUri}"`)
+        .replaceAll(`xlink:href='${src}'`, `xlink:href='${dataUri}'`);
+    }
   }
   return out;
 }
 
 function hasUnresolvedInkTextureRefs(svg: string): boolean {
-  return (Object.values(INK_TEXTURE_PATHS) as string[]).some((src) =>
+  return Object.values(INK_TEXTURE_PATHS).flat().some((src) =>
     svg.includes(`href="${src}"`) ||
     svg.includes(`href='${src}'`) ||
     svg.includes(`xlink:href="${src}"`) ||
@@ -302,20 +320,21 @@ async function getResvgCtor(): Promise<ResvgCtor | null> {
   return cachedResvgCtor;
 }
 
-function getRasterScale(svgWidth: number, svgHeight: number): number {
+function getRasterScale(svgWidth: number, svgHeight: number, maxPixels = MAX_EXPORT_PIXELS): number {
   const targetScale = TARGET_EXPORT_DPI / BASE_SVG_DPI;
   const basePixels = Math.max(1, svgWidth * svgHeight);
-  const capByPixels = Math.sqrt(MAX_EXPORT_PIXELS / basePixels);
+  const safeMaxPixels = Number.isFinite(maxPixels) && maxPixels > 1_000_000 ? maxPixels : MAX_EXPORT_PIXELS;
+  const capByPixels = Math.sqrt(safeMaxPixels / basePixels);
   const scale = Math.max(1, Math.min(targetScale, capByPixels));
   return Number(scale.toFixed(3));
 }
 
 async function renderSvgToPng(
   svg: string,
-  opts: { svgWidth: number; svgHeight: number; allowSharpFallback?: boolean }
+  opts: { svgWidth: number; svgHeight: number; allowSharpFallback?: boolean; maxExportPixels?: number }
 ): Promise<Buffer> {
   const svgBuffer = Buffer.from(svg, 'utf-8');
-  const scale = getRasterScale(opts.svgWidth, opts.svgHeight);
+  const scale = getRasterScale(opts.svgWidth, opts.svgHeight, opts.maxExportPixels);
   const targetWidth = Math.max(1, Math.round(opts.svgWidth * scale));
   const targetHeight = Math.max(1, Math.round(opts.svgHeight * scale));
   const Resvg = await getResvgCtor();
@@ -413,23 +432,29 @@ type RemoteRenderResult = {
   peakRssMb: number | null;
   renderTimeMs: number | null;
   rssTrace: string | null;
+  texturePipelineVersion: string | null;
 };
 
 async function renderViaFlyWorker(opts: {
   svgWidth: number;
   svgHeight: number;
   allowSharpFallback: boolean;
+  timeoutMs?: number;
   svg?: string;
   baseSvg?: string;
   maskSvg?: string;
   textureBase64?: string;
+  textureKind?: InkTextureKey;
 }): Promise<RemoteRenderResult | null> {
   if (!RENDER_WORKER_URL || !RENDER_WORKER_SHARED_SECRET) return null;
-  const timeoutMs = Number.isFinite(RENDER_WORKER_TIMEOUT_MS) && RENDER_WORKER_TIMEOUT_MS > 0
-    ? RENDER_WORKER_TIMEOUT_MS
-    : 30000;
+  const timeoutMs = Number.isFinite(opts.timeoutMs) && (opts.timeoutMs as number) > 0
+    ? Math.trunc(opts.timeoutMs as number)
+    : (Number.isFinite(RENDER_WORKER_TIMEOUT_MS) && RENDER_WORKER_TIMEOUT_MS > 0
+        ? RENDER_WORKER_TIMEOUT_MS
+        : 30000);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
   try {
     const res = await fetch(`${RENDER_WORKER_URL}/api/render-export`, {
       method: 'POST',
@@ -444,12 +469,26 @@ async function renderViaFlyWorker(opts: {
         allowSharpFallback: opts.allowSharpFallback,
         baseSvg: opts.baseSvg,
         maskSvg: opts.maskSvg,
-        textureBase64: opts.textureBase64
+        textureBase64: opts.textureBase64,
+        textureKind: opts.textureKind
       }),
       signal: controller.signal,
       cache: 'no-store'
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const elapsedMs = Date.now() - startedAt;
+      let detail = '';
+      try {
+        const txt = await res.text();
+        detail = txt ? txt.slice(0, 600) : '';
+      } catch {
+        detail = '';
+      }
+      console.warn(
+        `[render-worker] non-200 status=${res.status} statusText=${res.statusText} elapsedMs=${elapsedMs} timeoutMs=${timeoutMs} detail=${detail || '<empty>'}`
+      );
+      return null;
+    }
     const zipBuffer = Buffer.from(await res.arrayBuffer());
     if (!zipBuffer.length) return null;
     const zip = await JSZip.loadAsync(zipBuffer);
@@ -464,14 +503,20 @@ async function renderViaFlyWorker(opts: {
     const peakRssHeader = Number.parseInt(res.headers.get('x-render-peak-rss-mb') || '', 10);
     const renderTimeHeader = Number.parseInt(res.headers.get('x-render-time-ms') || '', 10);
     const rssTrace = res.headers.get('x-render-rss-trace');
+    const texturePipelineVersion = (res.headers.get('x-texture-pipeline-version') || '').trim() || null;
     return {
       png,
       pdf,
       peakRssMb: Number.isFinite(peakRssHeader) ? peakRssHeader : null,
       renderTimeMs: Number.isFinite(renderTimeHeader) ? renderTimeHeader : null,
-      rssTrace: rssTrace || null
+      rssTrace: rssTrace || null,
+      texturePipelineVersion
     };
-  } catch {
+  } catch (err) {
+    const elapsedMs = Date.now() - startedAt;
+    console.warn(
+      `[render-worker] fetch failed elapsedMs=${elapsedMs} timeoutMs=${timeoutMs} error=${err instanceof Error ? err.message : String(err)}`
+    );
     return null;
   } finally {
     clearTimeout(timer);
@@ -540,7 +585,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (order.status === 'completed') {
+    const allowSimulationRerender = order.status === 'completed' && isSimulationCoupon(couponCode);
+
+    if (order.status === 'completed' && !allowSimulationRerender) {
       const usedOn = order.used_at ? new Date(order.used_at).toLocaleString('en-US') : 'a previous date';
       return NextResponse.json(
         {
@@ -553,11 +600,15 @@ export async function POST(req: Request) {
       );
     }
 
+    if (allowSimulationRerender) {
+      console.info(`[coupon] simulation rerender enabled for completed order ${couponCode}`);
+    }
+
     const isCityDraft = draft.productType === 'city';
     const skyRenderRequest = isCityDraft ? null : (draft.renderRequest as PosterRequest);
     const textureRequested = !isCityDraft && (skyRenderRequest?.poster?.inkFinish ?? 'flat') === 'texture';
     let svg = '';
-    let textureCompositePayload: { baseSvg: string; maskSvg: string; textureBase64: string } | null = null;
+    let textureCompositePayload: { baseSvg: string; maskSvg: string; textureBase64: string; textureKind: InkTextureKey } | null = null;
     try {
       if (isCityDraft) {
         svg = await renderCityMapSvg(draft.renderRequest as CityMapRequest);
@@ -603,8 +654,6 @@ export async function POST(req: Request) {
         poster: {
           ...skyRenderRequest.poster,
           inkFinish: 'flat',
-          showMoonPhase: false,
-          showCompanionPhoto: false,
           renderVariant: 'ink-mask'
         }
       };
@@ -618,7 +667,8 @@ export async function POST(req: Request) {
         textureCompositePayload = {
           baseSvg: svg,
           maskSvg,
-          textureBase64: textureRaw.raw.toString('base64')
+          textureBase64: textureRaw.raw.toString('base64'),
+          textureKind: textureKey
         };
       }
     }
@@ -629,22 +679,74 @@ export async function POST(req: Request) {
     let { width: exportSvgW, height: exportSvgH } = getSvgSize(exportSvg);
     const textureCompositeRequested = !!textureCompositePayload;
 
-    const remoteRender = await renderViaFlyWorker({
-      svgWidth: exportSvgW,
-      svgHeight: exportSvgH,
-      allowSharpFallback: isCityDraft,
-      ...(textureCompositePayload
-        ? {
-            baseSvg: textureCompositePayload.baseSvg,
-            maskSvg: textureCompositePayload.maskSvg,
-            textureBase64: textureCompositePayload.textureBase64
-          }
-        : { svg: exportSvg })
-    });
+    const textureAttemptCount = textureCompositeRequested
+      ? Math.max(1, Math.min(4, Number.isFinite(RENDER_WORKER_TEXTURE_ATTEMPTS) ? RENDER_WORKER_TEXTURE_ATTEMPTS : 3))
+      : 1;
+    const retryDelayMs = Math.max(
+      0,
+      Number.isFinite(RENDER_WORKER_TEXTURE_RETRY_DELAY_MS) ? RENDER_WORKER_TEXTURE_RETRY_DELAY_MS : 2500
+    );
+    const shortAttemptTimeoutMs = Math.max(
+      3000,
+      Number.isFinite(RENDER_WORKER_TEXTURE_ATTEMPT_TIMEOUT_MS) ? RENDER_WORKER_TEXTURE_ATTEMPT_TIMEOUT_MS : 30000
+    );
+    const fullTimeoutMs = Math.max(3000, RENDER_WORKER_TIMEOUT_MS);
+    const approxTextureBytes = textureCompositePayload ? Math.round(textureCompositePayload.textureBase64.length * 0.75) : 0;
+    // Large base64 payloads can exceed short attempt windows during upload.
+    const useShortAttempts = textureCompositeRequested && approxTextureBytes > 0 && approxTextureBytes < 6_000_000;
+
+    let remoteRender: RemoteRenderResult | null = null;
+    let staleTextureWorker = false;
+    let staleWorkerVersion: string | null = null;
+    for (let attempt = 1; attempt <= textureAttemptCount; attempt++) {
+      const isFinalAttempt = attempt === textureAttemptCount;
+      const timeoutMs = textureCompositeRequested && useShortAttempts && !isFinalAttempt
+        ? Math.min(shortAttemptTimeoutMs, fullTimeoutMs)
+        : fullTimeoutMs;
+
+      const candidate = await renderViaFlyWorker({
+        svgWidth: exportSvgW,
+        svgHeight: exportSvgH,
+        allowSharpFallback: isCityDraft,
+        timeoutMs,
+        ...(textureCompositePayload
+          ? {
+              baseSvg: textureCompositePayload.baseSvg,
+              maskSvg: textureCompositePayload.maskSvg,
+              textureBase64: textureCompositePayload.textureBase64,
+              textureKind: textureCompositePayload.textureKind
+            }
+          : { svg: exportSvg })
+      });
+
+      const candidateStale =
+        !!candidate &&
+        textureCompositeRequested &&
+        !!candidate.texturePipelineVersion &&
+        candidate.texturePipelineVersion !== EXPECTED_TEXTURE_PIPELINE_VERSION;
+      if (candidate && textureCompositeRequested && !candidate.texturePipelineVersion) {
+        console.warn(
+          `[render-worker] coupon=${couponCode} worker did not return texture pipeline version header; accepting for compatibility`
+        );
+      }
+      if (candidate && !candidateStale) {
+        remoteRender = candidate;
+        staleTextureWorker = false;
+        break;
+      }
+
+      staleTextureWorker = staleTextureWorker || candidateStale;
+      if (candidateStale) {
+        staleWorkerVersion = candidate.texturePipelineVersion;
+      }
+      if (textureCompositeRequested && !isFinalAttempt) {
+        await sleep(retryDelayMs);
+      }
+    }
 
     let png: Buffer;
     let pdf: Buffer;
-    if (remoteRender) {
+    if (remoteRender && !staleTextureWorker) {
       png = remoteRender.png;
       pdf = remoteRender.pdf;
       if (remoteRender.peakRssMb || remoteRender.renderTimeMs) {
@@ -652,44 +754,18 @@ export async function POST(req: Request) {
           `[render-worker] coupon=${couponCode} rssMb=${remoteRender.peakRssMb ?? 'n/a'} timeMs=${remoteRender.renderTimeMs ?? 'n/a'} trace=${remoteRender.rssTrace ?? 'n/a'}`
         );
       }
-    } else if (!isCityDraft && textureCompositeRequested && skyRenderRequest) {
-      // Keep exports stable if texture render worker is unavailable/OOM:
-      // retry once with flat ink instead of retrying heavy texture locally.
-      const flatRequest: PosterRequest = {
-        ...skyRenderRequest,
-        poster: {
-          ...skyRenderRequest.poster,
-          inkFinish: 'flat'
-        }
-      };
-      let flatSvg = renderPosterSvg(flatRequest);
-      const embeddedFlatMoonSvg = withEmbeddedMoonUrl(flatSvg);
-      flatSvg = embeddedFlatMoonSvg !== flatSvg ? embeddedFlatMoonSvg : withAbsoluteMoonUrl(flatSvg, req);
-      const embeddedFontsCss = getEmbeddedPosterFontsCss();
-      if (embeddedFontsCss) {
-        flatSvg = injectFontCssIntoSvg(flatSvg, embeddedFontsCss);
-      }
-      const flatSize = getSvgSize(flatSvg);
-      const remoteFlatRender = await renderViaFlyWorker({
-        svg: flatSvg,
-        svgWidth: flatSize.width,
-        svgHeight: flatSize.height,
-        allowSharpFallback: false
-      });
-      exportSvg = flatSvg;
-      exportSvgW = flatSize.width;
-      exportSvgH = flatSize.height;
-      if (remoteFlatRender) {
-        png = remoteFlatRender.png;
-        pdf = remoteFlatRender.pdf;
-      } else {
-        png = await renderSvgToPng(flatSvg, {
-          svgWidth: flatSize.width,
-          svgHeight: flatSize.height,
-          allowSharpFallback: false
-        });
-        pdf = await makePdfFromPng(png, flatSize.width, flatSize.height);
-      }
+    } else if (!isCityDraft && textureCompositeRequested) {
+      const reason = staleTextureWorker
+        ? `stale worker version ${staleWorkerVersion ?? 'unknown'} (expected ${EXPECTED_TEXTURE_PIPELINE_VERSION})`
+        : 'worker unavailable';
+      console.warn(`[render-worker] coupon=${couponCode} texture export blocked: ${reason}`);
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Texture export worker is unavailable. Please retry in a moment.'
+        },
+        { status: 503 }
+      );
     } else {
       png = await renderSvgToPng(exportSvg, {
         svgWidth: exportSvgW,

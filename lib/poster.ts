@@ -76,8 +76,8 @@ type Palette = {
 };
 
 const INK_TEXTURE_URLS: Record<'gold' | 'silver', string> = {
-  gold: '/textures/gold_texture_2500.jpg',
-  silver: '/textures/silver_texture_2500.jpg'
+  gold: '/textures/gold_texture_hd_3500.jpg',
+  silver: '/textures/silver_texture_hd_3500.jpg'
 };
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -417,6 +417,8 @@ export function renderPosterSvg(req: PosterRequest): string {
   const layerDenseInk = isInkMaskVariant ? '#ffffff' : palette.ink;
   const layerSolarStroke = isInkMaskVariant ? 'none' : palette.bg;
   const mapLabelHalo = layerSolarStroke;
+  // Ink-mask variant needs full opacity for clean texture masking.
+  const strokeOpacity = isInkMaskVariant ? '1' : '0.9';
 
   // Poster layout regions
   const margin =
@@ -522,10 +524,10 @@ export function renderPosterSvg(req: PosterRequest): string {
     const innerR = chartR;
     const outerR = chartR + Math.max(0, poster.ringGap ?? 18);
     azScale.push(
-      `<circle cx="${chartCx}" cy="${chartCy}" r="${innerR}" fill="none" stroke="${layerInk}" stroke-width="${clampWidth(poster.ringInnerWidth)}" opacity="0.9"/>`
+      `<circle cx="${chartCx}" cy="${chartCy}" r="${innerR}" fill="none" stroke="${layerInk}" stroke-width="${clampWidth(poster.ringInnerWidth)}" opacity="${strokeOpacity}"/>`
     );
     azScale.push(
-      `<circle cx="${chartCx}" cy="${chartCy}" r="${outerR}" fill="none" stroke="${layerInk}" stroke-width="${clampWidth(poster.ringOuterWidth)}" opacity="0.9"/>`
+      `<circle cx="${chartCx}" cy="${chartCy}" r="${outerR}" fill="none" stroke="${layerInk}" stroke-width="${clampWidth(poster.ringOuterWidth)}" opacity="${strokeOpacity}"/>`
     );
     if (showCardinals) {
       const cards: [string, number][] = [
@@ -558,7 +560,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   // Optional frame sits 0.4in from page edge (+custom inset).
   const frameEdgeInset = 0.4 * 72 + frameInset;
   const frame = poster.border
-    ? `<rect x="${frameEdgeInset}" y="${frameEdgeInset}" width="${W - 2 * frameEdgeInset}" height="${H - 2 * frameEdgeInset}" fill="none" stroke="${layerInk}" stroke-width="${borderW}" opacity="0.9"/>`
+    ? `<rect x="${frameEdgeInset}" y="${frameEdgeInset}" width="${W - 2 * frameEdgeInset}" height="${H - 2 * frameEdgeInset}" fill="none" stroke="${layerInk}" stroke-width="${borderW}" opacity="${strokeOpacity}"/>`
     : '';
 
   const fontFamily = (k: PosterRequest['poster']['titleFont'] | PosterRequest['poster']['namesFont'] | PosterRequest['poster']['metaFont']) => {
@@ -624,9 +626,10 @@ export function renderPosterSvg(req: PosterRequest): string {
   const makeTitleLines = () => wrapTextToWidth(title.toUpperCase(), titleMaxWidth, titleFont, titleLetterSpacing);
   let titleLines = title ? makeTitleLines() : [];
 
+  const topVisualTop = showCompanionCircle ? Math.min(chartCy - chartR, moonCy - moonR) : chartCy - chartR;
   const topVisualBottom = showCompanionCircle ? Math.max(chartCy + chartR, moonCy + moonR) : chartCy + chartR;
-  const regionTop = topVisualBottom + (showCompanionCircle ? 64 : isSquareTextLayout ? 52 : 46);
-  const regionBottom = H - margin - (isSquareTextLayout ? 52 : 54);
+  const regionTop = topVisualBottom + (showCompanionCircle ? 56 : isSquareTextLayout ? 52 : 46);
+  const regionBottom = showCompanionCircle ? H - margin - 16 : H - margin - (isSquareTextLayout ? 52 : 54);
   const regionH = Math.max(0, regionBottom - regionTop);
 
   const titleLineHeight = () => titleFont * (is12x12Layout ? 1.06 : 1.12);
@@ -655,7 +658,12 @@ export function renderPosterSvg(req: PosterRequest): string {
   }
 
   const textBlock: string[] = [];
-  let y = regionTop + Math.max(0, (regionH - calcNeeded()) / 2) + textBlockYOffset;
+  const neededH = calcNeeded();
+  const centeredStart = regionTop + Math.max(0, (regionH - neededH) / 2) + textBlockYOffset;
+  const balancedStart = H - topVisualTop - neededH;
+  const maxStart = regionBottom - neededH;
+  const companionStart = Math.max(regionTop, Math.min(maxStart, balancedStart));
+  let y = showCompanionCircle ? companionStart : centeredStart;
 
   if (titleLines.length) {
     for (const line of titleLines) {
@@ -683,7 +691,7 @@ export function renderPosterSvg(req: PosterRequest): string {
       y += metaLineHeight();
       const txt = metaUppercase ? line.toUpperCase() : line;
       metaLines.push(
-        `<text x="${W / 2}" y="${y.toFixed(2)}" font-size="${metaFont.toFixed(2)}" fill="${layerInk}" opacity="0.9" text-anchor="middle" font-family="${fontFamily(metaFontKey)}" font-weight="${metaFontWeight}" letter-spacing="${metaLetterSpacing}">${svgEscape(txt)}</text>`
+        `<text x="${W / 2}" y="${y.toFixed(2)}" font-size="${metaFont.toFixed(2)}" fill="${layerInk}" opacity="${strokeOpacity}" text-anchor="middle" font-family="${fontFamily(metaFontKey)}" font-weight="${metaFontWeight}" letter-spacing="${metaLetterSpacing}">${svgEscape(txt)}</text>`
       );
     }
   }
@@ -863,14 +871,19 @@ export function renderPosterSvg(req: PosterRequest): string {
   </defs>
   ${chartLayer}
   ${
+    isInkMaskVariant && showCompanionCircle
+      ? `<g>
+      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="#ffffff" opacity="1"/>
+    </g>`
+      : ''
+  }
+  ${
     !isInkMaskVariant && showCompanionCircle
       ? showCompanionPhoto
         ? `<g>
     <g filter="url(#moonDropShadow)">
       <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="rgba(0,0,0,0.48)"/>
       <image href="${svgAttrEscape(companionPhotoUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" opacity="1"/>
-      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="none" stroke="${companionInk}" stroke-width="${Math.max(0, Math.min(20, poster.ringInnerWidth)).toFixed(2)}" opacity="0.9"/>
-      <circle cx="${moonCx}" cy="${moonCy}" r="${(moonR + Math.max(0, poster.ringGap ?? 18)).toFixed(2)}" fill="none" stroke="${companionInk}" stroke-width="${Math.max(0, Math.min(20, poster.ringOuterWidth)).toFixed(2)}" opacity="0.9"/>
     </g>
   </g>`
         : `<g>
