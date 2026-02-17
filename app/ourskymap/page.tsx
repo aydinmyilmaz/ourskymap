@@ -334,7 +334,7 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
   '12x12': {
     chartDiameter: 8.5 * INCH,
     titleFontSize: 19,
-    namesFontSize: 30,
+    namesFontSize: 24,
     metaFontSize: 10,
     pageMargin: 0.9 * INCH,
     ringInnerWidth: 5,
@@ -535,10 +535,10 @@ function formatMetaLine(dateIso: string, timeValue: string, showTime: boolean, l
   const datePart = Number.isNaN(d.getTime())
     ? dateIso
     : new Intl.DateTimeFormat('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      }).format(d);
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(d);
 
   if (!showTime) return `${topLine}\n${datePart}`;
   const t = /^\d{2}:\d{2}$/.test(timeValue) ? timeValue : '00:00';
@@ -546,10 +546,10 @@ function formatMetaLine(dateIso: string, timeValue: string, showTime: boolean, l
   const timePart = Number.isNaN(local.getTime())
     ? t
     : new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      }).format(local);
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).format(local);
   return `${topLine}\n${datePart} | ${timePart}`;
 }
 
@@ -661,8 +661,8 @@ export default function DesignPage() {
     () =>
       /^\d{2}:\d{2}$/.test(time)
         ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(
-            new Date(`2000-01-01T${time}:00`)
-          )
+          new Date(`2000-01-01T${time}:00`)
+        )
         : time,
     [time]
   );
@@ -933,12 +933,12 @@ export default function DesignPage() {
         dedication: '',
         ...(usesCompanionCircle
           ? {
-              borderWidth: moonPhaseOuterStroke,
-              ringOuterWidth: moonPhaseOuterStroke,
-              ringInnerWidth: moonPhaseInnerStroke,
-              ringGap: moonPhaseGap,
-              metaUppercase: true
-            }
+            borderWidth: moonPhaseOuterStroke,
+            ringOuterWidth: moonPhaseOuterStroke,
+            ringInnerWidth: moonPhaseInnerStroke,
+            ringGap: moonPhaseGap,
+            metaUppercase: true
+          }
           : {}),
         showMoonPhase: isMoonPhase,
         moonPhaseImageUrl,
@@ -1101,12 +1101,12 @@ export default function DesignPage() {
         dedication: '',
         ...(usesCompanionCircle
           ? {
-              borderWidth: moonPhaseOuterStroke,
-              ringOuterWidth: moonPhaseOuterStroke,
-              ringInnerWidth: moonPhaseInnerStroke,
-              ringGap: moonPhaseGap,
-              metaUppercase: true
-            }
+            borderWidth: moonPhaseOuterStroke,
+            ringOuterWidth: moonPhaseOuterStroke,
+            ringInnerWidth: moonPhaseInnerStroke,
+            ringGap: moonPhaseGap,
+            metaUppercase: true
+          }
           : {}),
         showMoonPhase: isMoonPhase,
         moonPhaseImageUrl,

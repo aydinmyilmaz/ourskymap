@@ -601,9 +601,9 @@ export function renderPosterSvg(req: PosterRequest): string {
   // metaText is treated as literal, user-edited content.
   const metaTextLines: string[] = (poster.metaText || '').trim()
     ? poster.metaText
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0)
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
     : defaultMetaTextLines;
 
   const scale = 1.0;
@@ -621,8 +621,21 @@ export function renderPosterSvg(req: PosterRequest): string {
   const minTitleFont = 18;
   const minNamesFont = 12;
   const minMetaFont = 10;
+  // TR: Baslik genislik siniri (sayfa genisligine gore oran).
+  // EN: Title max width ratio relative to page width.
+  const TITLE_PAGE_WIDTH_RATIO = 0.80;
+
+  // TR: Baslik genislik siniri (yildiz haritasi capina gore oran).
+  // EN: Title max width ratio relative to chart diameter.
+  const TITLE_CHART_DIAMETER_RATIO = 0.96;
+
   const titleLetterSpacing = 2;
-  const titleMaxWidth = Math.max(40, chartDiameter * 0.96);
+  // TR: Baslik genisligi, sayfa genisliginin %80'i veya harita capinin %96'sindan hangisi buyukse o olacak sekilde ayarlanir.
+  // EN: Title width is set to the larger of: 80% of page width OR 96% of chart diameter.
+  const titleMaxWidth = Math.max(
+    40,
+    Math.max(W * TITLE_PAGE_WIDTH_RATIO, chartDiameter * TITLE_CHART_DIAMETER_RATIO)
+  );
   const makeTitleLines = () => wrapTextToWidth(title.toUpperCase(), titleMaxWidth, titleFont, titleLetterSpacing);
   let titleLines = title ? makeTitleLines() : [];
 
@@ -720,11 +733,10 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   const chartLayer = `<g clip-path="url(#clipCircle)">
     <g transform="${transform}">
-      ${
-        geom.coordinateGridPaths.length
-          ? `<path d="${geom.coordinateGridPaths.join(' ')}" fill="none" stroke="${layerMutedInk}" stroke-width="0.9" stroke-linecap="round" opacity="0.85"/>`
-          : ''
-      }
+      ${geom.coordinateGridPaths.length
+      ? `<path d="${geom.coordinateGridPaths.join(' ')}" fill="none" stroke="${layerMutedInk}" stroke-width="0.9" stroke-linecap="round" opacity="0.85"/>`
+      : ''
+    }
       ${geom.eclipticPoints.length > 2 ? `<polyline points="${geom.eclipticPoints.join(' ')}" fill="none" stroke="${layerInk}" stroke-width="1" stroke-dasharray="7 7" opacity="${params.eclipticAlpha}"/>` : ''}
       ${geom.linePaths.length ? `<path d="${geom.linePaths.join(' ')}" fill="none" stroke="${layerInk}" stroke-width="${params.constellationLineWidth}" opacity="${params.constellationLineAlpha}" stroke-linecap="round"/>` : ''}
       <g opacity="${clamp01(params.starAlpha)}">
@@ -734,85 +746,83 @@ export function renderPosterSvg(req: PosterRequest): string {
         ${visibleVertexPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.6).toFixed(2)}" fill="${layerDenseInk}"/>`).join('')}
       </g>
       <g>
-        ${
-          geom.solarSystem.length
-            ? geom.solarSystem
-                .map((o) => {
-                  const stroke = layerSolarStroke;
-                  if (o.kind === 'sun') {
-                    const p = sunburstPath(o.x, o.y, o.r * 1.15, 12, 0.52);
-                    const fill = layerInk;
-                    return [
-                      `<path d="${p}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" opacity="0.95"/>`,
-                      `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${(o.r * 0.45).toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
-                      params.labelSolarSystem
-                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.4" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
-                        : ''
-                    ].join('');
-                  }
-                  if (o.kind === 'moon' && typeof o.moonPhaseDeg === 'number') {
-                    const fill = layerInk;
-                    const phase = o.moonPhaseDeg <= 180 ? o.moonPhaseDeg : 360 - o.moonPhaseDeg;
-                    const rot = typeof o.limbAngleDeg === 'number' && Number.isFinite(o.limbAngleDeg) ? o.limbAngleDeg : 0;
-                    const path = phase >= 0.6 && phase <= 179.4 ? moonIlluminatedPath(o.x, o.y, o.r, phase, false) : '';
-                    return [
-                      `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="none" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
-                      `<g transform="rotate(${rot.toFixed(2)} ${o.x.toFixed(2)} ${o.y.toFixed(2)})">`,
-                      phase > 179.4
-                        ? `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="${fill}" opacity="0.95"/>`
-                        : phase < 0.6
-                          ? ''
-                          : `<path d="${path}" fill="${fill}" opacity="0.95"/>`,
-                      `</g>`,
-                      params.labelSolarSystem
-                        ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.4" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
-                        : ''
-                    ].join('');
-                  }
-                  const fill = o.kind === 'moon' ? layerMutedInk : layerInk;
-                  return [
-                    `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
-                    params.labelSolarSystem
-                      ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.4" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
-                      : ''
-                  ].join('');
-                })
-                .join('')
-            : ''
-        }
+        ${geom.solarSystem.length
+      ? geom.solarSystem
+        .map((o) => {
+          const stroke = layerSolarStroke;
+          if (o.kind === 'sun') {
+            const p = sunburstPath(o.x, o.y, o.r * 1.15, 12, 0.52);
+            const fill = layerInk;
+            return [
+              `<path d="${p}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" stroke-linejoin="round" opacity="0.95"/>`,
+              `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${(o.r * 0.45).toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
+              params.labelSolarSystem
+                ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.4" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
+                : ''
+            ].join('');
+          }
+          if (o.kind === 'moon' && typeof o.moonPhaseDeg === 'number') {
+            const fill = layerInk;
+            const phase = o.moonPhaseDeg <= 180 ? o.moonPhaseDeg : 360 - o.moonPhaseDeg;
+            const rot = typeof o.limbAngleDeg === 'number' && Number.isFinite(o.limbAngleDeg) ? o.limbAngleDeg : 0;
+            const path = phase >= 0.6 && phase <= 179.4 ? moonIlluminatedPath(o.x, o.y, o.r, phase, false) : '';
+            return [
+              `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="none" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
+              `<g transform="rotate(${rot.toFixed(2)} ${o.x.toFixed(2)} ${o.y.toFixed(2)})">`,
+              phase > 179.4
+                ? `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="${fill}" opacity="0.95"/>`
+                : phase < 0.6
+                  ? ''
+                  : `<path d="${path}" fill="${fill}" opacity="0.95"/>`,
+              `</g>`,
+              params.labelSolarSystem
+                ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.4" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
+                : ''
+            ].join('');
+          }
+          const fill = o.kind === 'moon' ? layerMutedInk : layerInk;
+          return [
+            `<circle cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="${o.r.toFixed(2)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2" opacity="0.95"/>`,
+            params.labelSolarSystem
+              ? `<text x="${(o.x + o.r + 4).toFixed(2)}" y="${(o.y + 2).toFixed(2)}" font-size="10" fill="${layerInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.4" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(o.label)}</text>`
+              : ''
+          ].join('');
+        })
+        .join('')
+      : ''
+    }
       </g>
       <g>
-        ${
-          geom.deepSky.length
-            ? geom.deepSky
-                .map((d) => {
-                  const fill = layerMutedInk;
-                  const s = 4.2;
-                  const marker =
-                    d.kind === 'cluster'
-                      ? `<rect x="${(d.x - s / 2).toFixed(2)}" y="${(d.y - s / 2).toFixed(2)}" width="${s.toFixed(2)}" height="${s.toFixed(2)}" fill="none" stroke="${fill}" stroke-width="1.1" opacity="0.8"/>`
-                      : d.kind === 'globular'
-                        ? `<circle cx="${d.x.toFixed(2)}" cy="${d.y.toFixed(2)}" r="${(s / 2).toFixed(2)}" fill="none" stroke="${fill}" stroke-width="1.1" opacity="0.8"/>`
-                        : `<path d="M ${(d.x).toFixed(2)} ${(d.y - s / 2).toFixed(2)} L ${(d.x + s / 2).toFixed(2)} ${(d.y).toFixed(2)} L ${(d.x).toFixed(2)} ${(d.y + s / 2).toFixed(2)} L ${(d.x - s / 2).toFixed(2)} ${(d.y).toFixed(2)} Z" fill="none" stroke="${fill}" stroke-width="1.1" opacity="0.8"/>`;
+        ${geom.deepSky.length
+      ? geom.deepSky
+        .map((d) => {
+          const fill = layerMutedInk;
+          const s = 4.2;
+          const marker =
+            d.kind === 'cluster'
+              ? `<rect x="${(d.x - s / 2).toFixed(2)}" y="${(d.y - s / 2).toFixed(2)}" width="${s.toFixed(2)}" height="${s.toFixed(2)}" fill="none" stroke="${fill}" stroke-width="1.1" opacity="0.8"/>`
+              : d.kind === 'globular'
+                ? `<circle cx="${d.x.toFixed(2)}" cy="${d.y.toFixed(2)}" r="${(s / 2).toFixed(2)}" fill="none" stroke="${fill}" stroke-width="1.1" opacity="0.8"/>`
+                : `<path d="M ${(d.x).toFixed(2)} ${(d.y - s / 2).toFixed(2)} L ${(d.x + s / 2).toFixed(2)} ${(d.y).toFixed(2)} L ${(d.x).toFixed(2)} ${(d.y + s / 2).toFixed(2)} L ${(d.x - s / 2).toFixed(2)} ${(d.y).toFixed(2)} Z" fill="none" stroke="${fill}" stroke-width="1.1" opacity="0.8"/>`;
 
-                  const label = params.labelDeepSky
-                    ? `<text x="${(d.x + 6).toFixed(2)}" y="${(d.y + 2).toFixed(2)}" font-size="9" fill="${layerMutedInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.1" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(d.label)}</text>`
-                    : '';
-                  return `${marker}${label}`;
-                })
-                .join('')
-            : ''
-        }
+          const label = params.labelDeepSky
+            ? `<text x="${(d.x + 6).toFixed(2)}" y="${(d.y + 2).toFixed(2)}" font-size="9" fill="${layerMutedInk}" opacity="0.75" stroke="${mapLabelHalo}" stroke-width="2.1" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(d.label)}</text>`
+            : '';
+          return `${marker}${label}`;
+        })
+        .join('')
+      : ''
+    }
       </g>
       <g>
         ${geom.starLabels
-          .map((l) => `<text x="${(l.x + 5).toFixed(2)}" y="${(l.y + 2).toFixed(2)}" font-size="8" fill="${labelFill}" opacity="0.78" stroke="${mapLabelHalo}" stroke-width="2.2" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
-          .join('')}
+      .map((l) => `<text x="${(l.x + 5).toFixed(2)}" y="${(l.y + 2).toFixed(2)}" font-size="8" fill="${labelFill}" opacity="0.78" stroke="${mapLabelHalo}" stroke-width="2.2" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
+      .join('')}
       </g>
       <g>
         ${geom.constellationLabels
-          .map((l) => `<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="10" fill="${labelFill}" opacity="0.85" stroke="${mapLabelHalo}" stroke-width="2.8" paint-order="stroke" text-anchor="middle" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
-          .join('')}
+      .map((l) => `<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="10" fill="${labelFill}" opacity="0.85" stroke="${mapLabelHalo}" stroke-width="2.8" paint-order="stroke" text-anchor="middle" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
+      .join('')}
       </g>
     </g>
   </g>`;
@@ -822,24 +832,21 @@ export function renderPosterSvg(req: PosterRequest): string {
   <rect x="0" y="0" width="${W}" height="${H}" fill="${isInkMaskVariant ? 'transparent' : palette.bg}"/>
   ${frame}
   <defs>
-    ${
-      useInkTexture
-        ? `<pattern id="inkTexturePattern" patternUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
+    ${useInkTexture
+      ? `<pattern id="inkTexturePattern" patternUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
       <image href="${svgAttrEscape(inkTextureHref)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>
     </pattern>`
-        : ''
+      : ''
     }
     <clipPath id="clipCircle">
       <circle cx="${chartCx}" cy="${chartCy}" r="${chartR}"/>
     </clipPath>
-    ${
-      showCompanionCircle
-        ? `<clipPath id="moonClip"><circle cx="${moonCx}" cy="${moonCy}" r="${moonR}"/></clipPath>
+    ${showCompanionCircle
+      ? `<clipPath id="moonClip"><circle cx="${moonCx}" cy="${moonCy}" r="${moonR}"/></clipPath>
     <filter id="moonDropShadow" x="-40%" y="-40%" width="180%" height="180%">
       <feDropShadow dx="0" dy="${Math.max(2, moonR * 0.02).toFixed(2)}" stdDeviation="${Math.max(2.5, moonR * 0.02).toFixed(2)}" flood-color="#000000" flood-opacity="0.32"/>
     </filter>
-    ${
-      showMoonPhase
+    ${showMoonPhase
         ? `
     <radialGradient id="moonShadeRadial" cx="${moonWaxing ? '34%' : '66%'}" cy="46%" r="78%">
       <stop offset="0%" stop-color="rgba(0,0,0,0.00)"/>
@@ -856,29 +863,26 @@ export function renderPosterSvg(req: PosterRequest): string {
     </filter>
     <mask id="moonLitMask">
       <rect x="0" y="0" width="${W}" height="${H}" fill="black"/>
-      ${
-        moonPhaseReduced > 179.4
+      ${moonPhaseReduced > 179.4
           ? `<circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="white"/>`
           : moonPhaseReduced < 0.6
             ? ''
             : `<path d="${moonIlluminatedPath(moonCx, moonCy, moonR, moonPhaseReduced, !moonWaxing)}" fill="white"/>`
-      }
+        }
     </mask>`
         : ''
-    }`
-        : ''
+      }`
+      : ''
     }
   </defs>
   ${chartLayer}
-  ${
-    isInkMaskVariant && showCompanionCircle
+  ${isInkMaskVariant && showCompanionCircle
       ? `<g>
       <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="#ffffff" opacity="1"/>
     </g>`
       : ''
-  }
-  ${
-    !isInkMaskVariant && showCompanionCircle
+    }
+  ${!isInkMaskVariant && showCompanionCircle
       ? showCompanionPhoto
         ? `<g>
     <g filter="url(#moonDropShadow)">
@@ -896,7 +900,7 @@ export function renderPosterSvg(req: PosterRequest): string {
     </g>
   </g>`
       : ''
-  }
+    }
   ${azScale.join('\n  ')}
   ${textBlock.join('\n  ')}
   ${metaLines.join('\n  ')}
