@@ -91,6 +91,21 @@ const defaultParams: RenderParams = {
   // TR: Grid adimi (derece). Artarsa cizgi sayisi azalir, azalirsa grid siklasir.
   // EN: Grid step in degrees. Higher = fewer lines, lower = denser grid.
   coordinateGridStepDeg: 20,
+  // TR: Etiket yerlestirme stratejisi. smart = cakismayi azaltmak icin saga/sola kaydir ve gerekirse gizle.
+  // EN: Label placement strategy. smart = shift labels to reduce overlap and hide if needed.
+  labelPlacementStrategy: 'smart',
+  // TR: Etiket kutulari etrafinda cakisma boslugu (px). Artarsa label'lar arasinda daha fazla bosluk kalir.
+  // EN: Extra collision padding around label boxes (px). Higher adds more spacing between labels.
+  labelCollisionPadding: 2.2,
+  // TR: Etiketin baz konumdan maksimum kaydirma mesafesi (px). Artarsa daha fazla deneme yapilir.
+  // EN: Maximum shift distance from base label anchor (px). Higher tries farther alternate positions.
+  labelMaxShift: 16,
+  // TR: Takimyildizi isim ust limiti. 0 ise limitsiz.
+  // EN: Constellation label cap. 0 means unlimited.
+  maxConstellationLabels: 42,
+  // TR: Yildiz isim ust limiti. 0 ise limitsiz.
+  // EN: Star label cap. 0 means unlimited.
+  maxStarLabels: 18,
   // TR: Yildiz isim etiketleri. true acik, false kapali.
   // EN: Star name labels. true = on, false = off.
   labelStarNames: true,
@@ -319,7 +334,7 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
   '12x12': {
     chartDiameter: 8.5 * INCH,
     titleFontSize: 19,
-    namesFontSize: 30,
+    namesFontSize: 24,
     metaFontSize: 10,
     pageMargin: 0.9 * INCH,
     ringInnerWidth: 5,
@@ -422,9 +437,9 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
   },
   'moon-phase': {
     chartDiameter: 10 * INCH,
-    titleFontSize: 46,
-    namesFontSize: 62,
-    metaFontSize: 21,
+    titleFontSize: 54,
+    namesFontSize: 70,
+    metaFontSize: 24,
     pageMargin: 1.4 * INCH,
     ringInnerWidth: 5,
     ringGap: 8,
@@ -435,9 +450,9 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
   },
   'sky-photo': {
     chartDiameter: 10 * INCH,
-    titleFontSize: 46,
-    namesFontSize: 62,
-    metaFontSize: 21,
+    titleFontSize: 54,
+    namesFontSize: 70,
+    metaFontSize: 24,
     pageMargin: 1.4 * INCH,
     ringInnerWidth: 5,
     ringGap: 8,
@@ -520,10 +535,10 @@ function formatMetaLine(dateIso: string, timeValue: string, showTime: boolean, l
   const datePart = Number.isNaN(d.getTime())
     ? dateIso
     : new Intl.DateTimeFormat('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      }).format(d);
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(d);
 
   if (!showTime) return `${topLine}\n${datePart}`;
   const t = /^\d{2}:\d{2}$/.test(timeValue) ? timeValue : '00:00';
@@ -531,10 +546,10 @@ function formatMetaLine(dateIso: string, timeValue: string, showTime: boolean, l
   const timePart = Number.isNaN(local.getTime())
     ? t
     : new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      }).format(local);
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).format(local);
   return `${topLine}\n${datePart} | ${timePart}`;
 }
 
@@ -646,8 +661,8 @@ export default function DesignPage() {
     () =>
       /^\d{2}:\d{2}$/.test(time)
         ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(
-            new Date(`2000-01-01T${time}:00`)
-          )
+          new Date(`2000-01-01T${time}:00`)
+        )
         : time,
     [time]
   );
@@ -892,6 +907,7 @@ export default function DesignPage() {
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
+      const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon.png';
       const moonPhaseInnerStroke = 8;
       const moonPhaseOuterStroke = 4;
       const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
@@ -917,15 +933,15 @@ export default function DesignPage() {
         dedication: '',
         ...(usesCompanionCircle
           ? {
-              borderWidth: moonPhaseOuterStroke,
-              ringOuterWidth: moonPhaseOuterStroke,
-              ringInnerWidth: moonPhaseInnerStroke,
-              ringGap: moonPhaseGap,
-              metaUppercase: true
-            }
+            borderWidth: moonPhaseOuterStroke,
+            ringOuterWidth: moonPhaseOuterStroke,
+            ringInnerWidth: moonPhaseInnerStroke,
+            ringGap: moonPhaseGap,
+            metaUppercase: true
+          }
           : {}),
         showMoonPhase: isMoonPhase,
-        moonPhaseImageUrl: '/moon.png',
+        moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined
       };
@@ -1061,6 +1077,7 @@ export default function DesignPage() {
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
+      const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon.png';
       const moonPhaseInnerStroke = 8;
       const moonPhaseOuterStroke = 4;
       const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
@@ -1084,15 +1101,15 @@ export default function DesignPage() {
         dedication: '',
         ...(usesCompanionCircle
           ? {
-              borderWidth: moonPhaseOuterStroke,
-              ringOuterWidth: moonPhaseOuterStroke,
-              ringInnerWidth: moonPhaseInnerStroke,
-              ringGap: moonPhaseGap,
-              metaUppercase: true
-            }
+            borderWidth: moonPhaseOuterStroke,
+            ringOuterWidth: moonPhaseOuterStroke,
+            ringInnerWidth: moonPhaseInnerStroke,
+            ringGap: moonPhaseGap,
+            metaUppercase: true
+          }
           : {}),
         showMoonPhase: isMoonPhase,
-        moonPhaseImageUrl: '/moon.png',
+        moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined
       };

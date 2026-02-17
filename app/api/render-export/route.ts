@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 const TARGET_EXPORT_DPI = 300;
 const BASE_SVG_DPI = 72;
 const DEFAULT_MAX_EXPORT_PIXELS = Number.parseInt(process.env.EXPORT_MAX_PIXELS ?? '40000000', 10);
-const TEXTURE_MAX_EXPORT_PIXELS = Number.parseInt(process.env.EXPORT_TEXTURE_MAX_PIXELS ?? '8000000', 10);
+const TEXTURE_MAX_EXPORT_PIXELS = Number.parseInt(process.env.EXPORT_TEXTURE_MAX_PIXELS ?? '20000000', 10);
 const MAX_SVG_CHARS = 12_000_000;
 const RENDER_SHARED_SECRET = (process.env.RENDER_SHARED_SECRET ?? '').trim();
 const TEXTURE_TILE_SCALE = Number.parseFloat(process.env.EXPORT_TEXTURE_TILE_SCALE ?? '0.55');
@@ -19,6 +19,10 @@ const TEXTURE_BRIGHTNESS = Number.parseFloat(process.env.EXPORT_TEXTURE_BRIGHTNE
 const TEXTURE_SATURATION = Number.parseFloat(process.env.EXPORT_TEXTURE_SATURATION ?? '1.12');
 const TEXTURE_SHARPEN_SIGMA = Number.parseFloat(process.env.EXPORT_TEXTURE_SHARPEN_SIGMA ?? '0.8');
 const TEXTURE_BLEND = (process.env.EXPORT_TEXTURE_BLEND ?? 'soft-light').trim().toLowerCase();
+const TEXTURE_DETAIL_ALPHA = Number.parseFloat(process.env.EXPORT_TEXTURE_DETAIL_ALPHA ?? '0.30');
+const TEXTURE_GOLD_DETAIL_ALPHA = Number.parseFloat(process.env.EXPORT_TEXTURE_GOLD_DETAIL_ALPHA ?? '0.10');
+const TEXTURE_DETAIL_BLEND = (process.env.EXPORT_TEXTURE_DETAIL_BLEND ?? 'hard-light').trim().toLowerCase();
+const TEXTURE_PIPELINE_VERSION = '2';
 
 type SharpBlendMode =
   | 'clear'
@@ -48,6 +52,8 @@ type SharpBlendMode =
   | 'soft-light'
   | 'difference'
   | 'exclusion';
+
+type TextureKind = 'gold' | 'silver' | 'unknown';
 
 type LocalFontAsset = {
   family: string;
@@ -185,6 +191,21 @@ function getTextureBlendMode(): SharpBlendMode {
   return allowed.has(TEXTURE_BLEND as SharpBlendMode) ? (TEXTURE_BLEND as SharpBlendMode) : 'soft-light';
 }
 
+function getTextureDetailBlendMode(): SharpBlendMode {
+  const allowed = new Set<SharpBlendMode>([
+    'overlay',
+    'hard-light',
+    'soft-light',
+    'multiply',
+    'screen',
+    'color-dodge',
+    'colour-dodge',
+    'darken',
+    'lighten'
+  ]);
+  return allowed.has(TEXTURE_DETAIL_BLEND as SharpBlendMode) ? (TEXTURE_DETAIL_BLEND as SharpBlendMode) : 'hard-light';
+}
+
 async function makePdfFromPng(pngBuffer: Buffer, pageWidthPt: number, pageHeightPt: number): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
   const pageWidth = Math.max(72, pageWidthPt);
@@ -205,6 +226,7 @@ async function buildTextureCompositePng(opts: {
   baseSvg: string;
   maskSvg: string;
   textureBase64: string;
+  textureKind?: TextureKind;
   svgWidth: number;
   svgHeight: number;
   onStage?: (label: string) => void;
@@ -218,7 +240,7 @@ async function buildTextureCompositePng(opts: {
     maxExportPixels
   });
   onStage('base_png');
-  const maskPng = await renderSvgToPng(opts.maskSvg, {
+  let maskPng = await renderSvgToPng(opts.maskSvg, {
     svgWidth: opts.svgWidth,
     svgHeight: opts.svgHeight,
     allowSharpFallback: true,
@@ -229,14 +251,34 @@ async function buildTextureCompositePng(opts: {
   const baseMeta = await sharp(basePng).metadata();
   const outW = Math.max(1, baseMeta.width ?? Math.round(opts.svgWidth));
   const outH = Math.max(1, baseMeta.height ?? Math.round(opts.svgHeight));
+
+  // Ensure mask exactly matches base dimensions — resvg can produce ±1px variance.
+  const maskMeta = await sharp(maskPng).metadata();
+  if (maskMeta.width !== outW || maskMeta.height !== outH) {
+    maskPng = await sharp(maskPng).resize(outW, outH, { fit: 'fill' }).png().toBuffer();
+  }
+
   const textureRaw = Buffer.from(opts.textureBase64, 'base64');
   if (!textureRaw.length) throw new Error('Texture payload is empty.');
-  const tileScale = clampNum(TEXTURE_TILE_SCALE, 0.25, 1, 0.55);
-  const contrast = clampNum(TEXTURE_CONTRAST, 0.8, 2.5, 1.3);
+  const kind: TextureKind = opts.textureKind === 'gold' || opts.textureKind === 'silver' ? opts.textureKind : 'unknown';
+  const tileScaleBase = clampNum(TEXTURE_TILE_SCALE, 0.25, 1, 0.55);
+  const contrastBase = clampNum(TEXTURE_CONTRAST, 0.8, 2.5, 1.3);
   const brightness = clampNum(TEXTURE_BRIGHTNESS, 0.7, 1.6, 1.0);
-  const saturation = clampNum(TEXTURE_SATURATION, 0.6, 2.2, 1.12);
-  const sharpenSigma = clampNum(TEXTURE_SHARPEN_SIGMA, 0, 3, 0.8);
-  const blendMode = getTextureBlendMode();
+  const saturationBase = clampNum(TEXTURE_SATURATION, 0.6, 2.2, 1.12);
+  const sharpenSigmaBase = clampNum(TEXTURE_SHARPEN_SIGMA, 0, 3, 0.8);
+  let blendMode = getTextureBlendMode();
+  const detailBlendMode = getTextureDetailBlendMode();
+  const detailAlphaBase = clampNum(TEXTURE_DETAIL_ALPHA, 0, 1, 0.30);
+  const detailAlphaGold = clampNum(TEXTURE_GOLD_DETAIL_ALPHA, 0, 1, 0.62);
+
+  // Gold: fine metallic sheen — minimal processing to preserve natural texture detail.
+  const tileScale = kind === 'gold'
+    ? clampNum(Math.max(tileScaleBase, 1.0), 0.25, 1, 1.0)
+    : clampNum(Math.max(tileScaleBase, 0.58), 0.25, 1, 0.58);
+  const contrast = kind === 'gold' ? Math.max(contrastBase, 1.15) : Math.max(contrastBase, 1.55);
+  const saturation = kind === 'gold' ? Math.max(saturationBase, 1.08) : Math.max(saturationBase, 1.18);
+  const sharpenSigma = kind === 'gold' ? Math.max(sharpenSigmaBase, 0.4) : Math.max(sharpenSigmaBase, 1.15);
+  const detailAlpha = kind === 'gold' ? detailAlphaGold : detailAlphaBase;
 
   const sampleW = Math.max(256, Math.round(outW * tileScale));
   const sampleH = Math.max(256, Math.round(outH * tileScale));
@@ -245,6 +287,7 @@ async function buildTextureCompositePng(opts: {
     .resize(sampleW, sampleH, { fit: 'cover', position: 'centre' })
     .modulate({ brightness, saturation })
     .linear(contrast, contrastOffset);
+  // normalize() omitted for gold — stretches tonal range too aggressively, creating coarse grain.
   if (sharpenSigma > 0.05) {
     tile = tile.sharpen(sharpenSigma);
   }
@@ -263,8 +306,31 @@ async function buildTextureCompositePng(opts: {
     .toBuffer();
   onStage('masked_texture');
 
+  const detailContrastMul = kind === 'gold' ? 1.3 : 2.35;
+  const detailTexture = await sharp(textureCanvas)
+    .modulate({ saturation: 0.15 })
+    .linear(detailContrastMul, -(128 * detailContrastMul) + 128)
+    .sharpen(Math.max(0.8, sharpenSigma + 0.3))
+    .png()
+    .toBuffer();
+  const maskedDetailTexture = await sharp(detailTexture)
+    .composite([{ input: maskPng, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+  onStage('masked_detail_texture');
+  const maskedDetailTextureWithOpacity = detailAlpha >= 0.999
+    ? maskedDetailTexture
+    : await sharp(maskedDetailTexture)
+        .ensureAlpha()
+        .linear([1, 1, 1, detailAlpha], [0, 0, 0, 0])
+        .png()
+        .toBuffer();
+
   return sharp(basePng)
-    .composite([{ input: maskedTexture, blend: blendMode }])
+    .composite([
+      { input: maskedTexture, blend: blendMode },
+      { input: maskedDetailTextureWithOpacity, blend: detailBlendMode }
+    ])
     .png({ compressionLevel: 9 })
     .toBuffer();
 }
@@ -295,6 +361,7 @@ export async function POST(req: Request) {
       baseSvg?: string;
       maskSvg?: string;
       textureBase64?: string;
+      textureKind?: TextureKind;
     };
     const width = Number.isFinite(body?.svgWidth) && Number(body.svgWidth) > 0 ? Number(body.svgWidth) : 1200;
     const height = Number.isFinite(body?.svgHeight) && Number(body.svgHeight) > 0 ? Number(body.svgHeight) : 1800;
@@ -302,6 +369,7 @@ export async function POST(req: Request) {
     const baseSvg = String(body?.baseSvg || '');
     const maskSvg = String(body?.maskSvg || '');
     const textureBase64 = String(body?.textureBase64 || '');
+    const textureKind: TextureKind = body?.textureKind === 'gold' || body?.textureKind === 'silver' ? body.textureKind : 'unknown';
     const hasCompositePayload = !!baseSvg && !!maskSvg && !!textureBase64;
 
     const png = hasCompositePayload
@@ -316,6 +384,7 @@ export async function POST(req: Request) {
             baseSvg,
             maskSvg,
             textureBase64,
+            textureKind,
             svgWidth: width,
             svgHeight: height,
             onStage: markRss
@@ -364,7 +433,8 @@ export async function POST(req: Request) {
         'Cache-Control': 'no-store',
         'X-Render-Peak-Rss-Mb': String(peakRssMb),
         'X-Render-Time-Ms': String(elapsedMs),
-        'X-Render-Rss-Trace': rssTrace.join(',')
+        'X-Render-Rss-Trace': rssTrace.join(','),
+        'X-Texture-Pipeline-Version': TEXTURE_PIPELINE_VERSION
       }
     });
   } catch (e: any) {
