@@ -827,8 +827,12 @@ export function renderPosterSvg(req: PosterRequest): string {
     </g>
   </g>`;
 
+  // Add DPI metadata for print-ready files (300 DPI standard)
+  const widthInches = (W / 72).toFixed(4);
+  const heightInches = (H / 72).toFixed(4);
+
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${widthInches}in" height="${heightInches}in" viewBox="0 0 ${W} ${H}" inkscape:export-xdpi="300" inkscape:export-ydpi="300">
   <rect x="0" y="0" width="${W}" height="${H}" fill="${isInkMaskVariant ? 'transparent' : palette.bg}"/>
   ${frame}
   <defs>

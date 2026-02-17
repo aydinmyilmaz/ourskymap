@@ -206,18 +206,27 @@ function getTextureDetailBlendMode(): SharpBlendMode {
   return allowed.has(TEXTURE_DETAIL_BLEND as SharpBlendMode) ? (TEXTURE_DETAIL_BLEND as SharpBlendMode) : 'hard-light';
 }
 
-async function makePdfFromPng(pngBuffer: Buffer, pageWidthPt: number, pageHeightPt: number): Promise<Buffer> {
+async function makePdfFromPng(pngBuffer: Buffer, svgWidthPx: number, svgHeightPx: number): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
-  const pageWidth = Math.max(72, pageWidthPt);
-  const pageHeight = Math.max(72, pageHeightPt);
+
+  // SVG uses 72 DPI as base (1 SVG pixel = 1 PDF point at 72 DPI)
+  // PDF also uses 72 points/inch, so SVG pixels map 1:1 to PDF points
+  // This preserves the physical dimensions: e.g., 8.5" × 11" poster stays 8.5" × 11" in PDF
+  // The embedded PNG is at 300 DPI, but we scale it to match the original physical size
+  const pageWidth = Math.max(72, svgWidthPx);
+  const pageHeight = Math.max(72, svgHeightPx);
+
   const pngImage = await pdfDoc.embedPng(pngBuffer);
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+  // Draw the high-res PNG (300 DPI) at the original physical dimensions
   page.drawImage(pngImage, {
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight
   });
+
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
 }
@@ -231,7 +240,7 @@ async function buildTextureCompositePng(opts: {
   svgHeight: number;
   onStage?: (label: string) => void;
 }): Promise<Buffer> {
-  const onStage = opts.onStage ?? (() => {});
+  const onStage = opts.onStage ?? (() => { });
   const maxExportPixels = TEXTURE_MAX_EXPORT_PIXELS;
   const basePng = await renderSvgToPng(opts.baseSvg, {
     svgWidth: opts.svgWidth,
@@ -296,9 +305,9 @@ async function buildTextureCompositePng(opts: {
   const textureCanvas = sampleW === outW && sampleH === outH
     ? sampledTexture
     : await sharp(sampledTexture)
-        .resize(outW, outH, { fit: 'fill', kernel: 'cubic' })
-        .png()
-        .toBuffer();
+      .resize(outW, outH, { fit: 'fill', kernel: 'cubic' })
+      .png()
+      .toBuffer();
   onStage('texture_canvas');
   const maskedTexture = await sharp(textureCanvas)
     .composite([{ input: maskPng, blend: 'dest-in' }])
@@ -321,10 +330,10 @@ async function buildTextureCompositePng(opts: {
   const maskedDetailTextureWithOpacity = detailAlpha >= 0.999
     ? maskedDetailTexture
     : await sharp(maskedDetailTexture)
-        .ensureAlpha()
-        .linear([1, 1, 1, detailAlpha], [0, 0, 0, 0])
-        .png()
-        .toBuffer();
+      .ensureAlpha()
+      .linear([1, 1, 1, detailAlpha], [0, 0, 0, 0])
+      .png()
+      .toBuffer();
 
   return sharp(basePng)
     .composite([
@@ -374,46 +383,56 @@ export async function POST(req: Request) {
 
     const png = hasCompositePayload
       ? await (async () => {
-          if ((!baseSvg.trim().startsWith('<svg') && !baseSvg.trim().startsWith('<?xml')) || (!maskSvg.trim().startsWith('<svg') && !maskSvg.trim().startsWith('<?xml'))) {
-            throw new Error('Invalid composite SVG payload.');
-          }
-          if (baseSvg.length > MAX_SVG_CHARS || maskSvg.length > MAX_SVG_CHARS) {
-            throw new Error('Composite SVG payload is too large.');
-          }
-          return buildTextureCompositePng({
-            baseSvg,
-            maskSvg,
-            textureBase64,
-            textureKind,
-            svgWidth: width,
-            svgHeight: height,
-            onStage: markRss
-          });
-        })()
+        if ((!baseSvg.trim().startsWith('<svg') && !baseSvg.trim().startsWith('<?xml')) || (!maskSvg.trim().startsWith('<svg') && !maskSvg.trim().startsWith('<?xml'))) {
+          throw new Error('Invalid composite SVG payload.');
+        }
+        if (baseSvg.length > MAX_SVG_CHARS || maskSvg.length > MAX_SVG_CHARS) {
+          throw new Error('Composite SVG payload is too large.');
+        }
+        return buildTextureCompositePng({
+          baseSvg,
+          maskSvg,
+          textureBase64,
+          textureKind,
+          svgWidth: width,
+          svgHeight: height,
+          onStage: markRss
+        });
+      })()
       : await (async () => {
-          const svg = String(body?.svg || '');
-          if (!svg.trim().startsWith('<svg') && !svg.trim().startsWith('<?xml')) {
-            throw new Error('Invalid SVG payload.');
-          }
-          if (svg.length > MAX_SVG_CHARS) {
-            throw new Error('SVG payload is too large.');
-          }
-          const textureSvg = hasInkTexturePattern(svg);
-          const maxExportPixels = textureSvg ? TEXTURE_MAX_EXPORT_PIXELS : DEFAULT_MAX_EXPORT_PIXELS;
-          return renderSvgToPng(svg, {
-            svgWidth: width,
-            svgHeight: height,
-            allowSharpFallback,
-            maxExportPixels,
-            forceSharpRenderer: textureSvg
-          });
-        })();
+        const svg = String(body?.svg || '');
+        if (!svg.trim().startsWith('<svg') && !svg.trim().startsWith('<?xml')) {
+          throw new Error('Invalid SVG payload.');
+        }
+        if (svg.length > MAX_SVG_CHARS) {
+          throw new Error('SVG payload is too large.');
+        }
+        const textureSvg = hasInkTexturePattern(svg);
+        const maxExportPixels = textureSvg ? TEXTURE_MAX_EXPORT_PIXELS : DEFAULT_MAX_EXPORT_PIXELS;
+        return renderSvgToPng(svg, {
+          svgWidth: width,
+          svgHeight: height,
+          allowSharpFallback,
+          maxExportPixels,
+          forceSharpRenderer: textureSvg
+        });
+      })();
     markRss('png_ready');
-    const pdf = await makePdfFromPng(png, width, height);
+
+    // Add DPI metadata to PNG (pHYs chunk for 300 DPI)
+    const pngWithDpi = await sharp(png)
+      .withMetadata({
+        density: TARGET_EXPORT_DPI
+      })
+      .png({ compressionLevel: 9 })
+      .toBuffer();
+    markRss('png_with_dpi');
+
+    const pdf = await makePdfFromPng(pngWithDpi, width, height);
     markRss('pdf_ready');
 
     const zip = new JSZip();
-    zip.file('render.png', png);
+    zip.file('render.png', pngWithDpi);
     zip.file('render.pdf', pdf);
     const zipBuffer = await zip.generateAsync({
       type: 'nodebuffer',
