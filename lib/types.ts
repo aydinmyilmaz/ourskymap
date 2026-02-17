@@ -1,5 +1,6 @@
 export type Theme = 'light' | 'dark';
 export type StarMode = 'none' | 'constellations' | 'all';
+export type ConstellationLanguage = 'latin' | 'en' | 'de' | 'es';
 
 export type RenderParams = {
   theme: Theme;
@@ -35,6 +36,7 @@ export type RenderParams = {
   eclipticAlpha: number;
   azimuthRingInnerWidth: number;
   azimuthRingOuterWidth: number;
+  constellationLanguage?: ConstellationLanguage;
 };
 
 export type ChartRequest = {
@@ -49,49 +51,49 @@ export type ChartRequest = {
 
 export type PosterParams = {
   size:
-    | 'a4'
-    | 'square'
-    | '16x20'
-    | '20x20'
-    | 'a2'
-    | 'us-letter'
-    | '18x24'
-    | '11x14'
-    | 'a3'
-    | '12x12'
-    | '12x16'
-    | 'a1'
-    | '24x32';
+  | 'a4'
+  | 'square'
+  | '16x20'
+  | '20x20'
+  | 'a2'
+  | 'us-letter'
+  | '18x24'
+  | '11x14'
+  | 'a3'
+  | '12x12'
+  | '12x16'
+  | 'a1'
+  | '24x32';
   palette:
-    | 'classic-black'
-    | 'graphite'
-    | 'deep-navy'
-    | 'royal-blue'
-    | 'ocean-teal'
-    | 'mustard-gold'
-    | 'burnt-orange'
-    | 'terracotta-red'
-    | 'midnight'
-    | 'navy-gold'
-    | 'cream-ink'
-    | 'night-gold'
-    | 'twilight-blue'
-    | 'storm-gray'
-    | 'mocha'
-    | 'soft-sage'
-    | 'blush-night'
-    | 'forest'
-    | 'emerald'
-    | 'plum'
-    | 'burgundy'
-    | 'slate'
-    | 'sand'
-    | 'pearl'
-    | 'navy-blue'
-    | 'gold-black'
-    | 'dark-green'
-    | 'classic-burgundy'
-    | 'deep-teal';
+  | 'classic-black'
+  | 'graphite'
+  | 'deep-navy'
+  | 'royal-blue'
+  | 'ocean-teal'
+  | 'mustard-gold'
+  | 'burnt-orange'
+  | 'terracotta-red'
+  | 'midnight'
+  | 'navy-gold'
+  | 'cream-ink'
+  | 'night-gold'
+  | 'twilight-blue'
+  | 'storm-gray'
+  | 'mocha'
+  | 'soft-sage'
+  | 'blush-night'
+  | 'forest'
+  | 'emerald'
+  | 'plum'
+  | 'burgundy'
+  | 'slate'
+  | 'sand'
+  | 'pearl'
+  | 'navy-blue'
+  | 'gold-black'
+  | 'dark-green'
+  | 'classic-burgundy'
+  | 'deep-teal';
   inkColor: string;
   inkFinish?: 'flat' | 'texture';
   inkTexture?: 'gold' | 'silver';

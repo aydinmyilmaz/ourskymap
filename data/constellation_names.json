@@ -1,0 +1,530 @@
+{
+    "Aquila": {
+        "latin": "Aquila",
+        "en": "Eagle",
+        "de": "Adler",
+        "es": "Águila"
+    },
+    "Andromeda": {
+        "latin": "Andromeda",
+        "en": "Andromeda",
+        "de": "Andromeda",
+        "es": "Andrómeda"
+    },
+    "Sculptor": {
+        "latin": "Sculptor",
+        "en": "Sculptor",
+        "de": "Bildhauer",
+        "es": "Escultor"
+    },
+    "Ara": {
+        "latin": "Ara",
+        "en": "Altar",
+        "de": "Altar",
+        "es": "Altar"
+    },
+    "Libra": {
+        "latin": "Libra",
+        "en": "Scales",
+        "de": "Waage",
+        "es": "Balanza"
+    },
+    "Cetus": {
+        "latin": "Cetus",
+        "en": "Sea Monster",
+        "de": "Walfisch",
+        "es": "Ballena"
+    },
+    "Aries": {
+        "latin": "Aries",
+        "en": "Ram",
+        "de": "Widder",
+        "es": "Carnero"
+    },
+    "Scutum": {
+        "latin": "Scutum",
+        "en": "Shield",
+        "de": "Schild",
+        "es": "Escudo"
+    },
+    "Pyxis": {
+        "latin": "Pyxis",
+        "en": "Compass",
+        "de": "Kompass",
+        "es": "Brújula"
+    },
+    "Bootes": {
+        "latin": "Boötes",
+        "en": "Herdsman",
+        "de": "Bärenhüter",
+        "es": "Boyero"
+    },
+    "Caelum": {
+        "latin": "Caelum",
+        "en": "Engraving Tool",
+        "de": "Grabstichel",
+        "es": "Buril"
+    },
+    "Chamaeleon": {
+        "latin": "Chamaeleon",
+        "en": "Chameleon",
+        "de": "Chamäleon",
+        "es": "Camaleón"
+    },
+    "Cancer": {
+        "latin": "Cancer",
+        "en": "Crab",
+        "de": "Krebs",
+        "es": "Cangrejo"
+    },
+    "Capricornus": {
+        "latin": "Capricornus",
+        "en": "Sea Goat",
+        "de": "Steinbock",
+        "es": "Capricornio"
+    },
+    "Carina": {
+        "latin": "Carina",
+        "en": "Keel",
+        "de": "Kiel",
+        "es": "Quilla"
+    },
+    "Cassiopeia": {
+        "latin": "Cassiopeia",
+        "en": "Seated Queen",
+        "de": "Kassiopeia",
+        "es": "Casiopea"
+    },
+    "Centaurus": {
+        "latin": "Centaurus",
+        "en": "Centaur",
+        "de": "Zentaur",
+        "es": "Centauro"
+    },
+    "Cepheus": {
+        "latin": "Cepheus",
+        "en": "King",
+        "de": "Kepheus",
+        "es": "Cefeo"
+    },
+    "Coma Berenices": {
+        "latin": "Coma Berenices",
+        "en": "Bernice's Hair",
+        "de": "Haar der Berenike",
+        "es": "Cabellera de Berenice"
+    },
+    "Canes Venatici": {
+        "latin": "Canes Venatici",
+        "en": "Hunting Dogs",
+        "de": "Jagdhunde",
+        "es": "Lebreles"
+    },
+    "Auriga": {
+        "latin": "Auriga",
+        "en": "Charioteer",
+        "de": "Fuhrmann",
+        "es": "Cochero"
+    },
+    "Columba": {
+        "latin": "Columba",
+        "en": "Dove",
+        "de": "Taube",
+        "es": "Paloma"
+    },
+    "Circinus": {
+        "latin": "Circinus",
+        "en": "Compass",
+        "de": "Zirkel",
+        "es": "Compás"
+    },
+    "Crater": {
+        "latin": "Crater",
+        "en": "Cup",
+        "de": "Becher",
+        "es": "Copa"
+    },
+    "Corona Australis": {
+        "latin": "Corona Australis",
+        "en": "Southern Crown",
+        "de": "Südliche Krone",
+        "es": "Corona Austral"
+    },
+    "Corona Borealis": {
+        "latin": "Corona Borealis",
+        "en": "Northern Crown",
+        "de": "Nördliche Krone",
+        "es": "Corona Boreal"
+    },
+    "Corvus": {
+        "latin": "Corvus",
+        "en": "Crow",
+        "de": "Rabe",
+        "es": "Cuervo"
+    },
+    "Crux": {
+        "latin": "Crux",
+        "en": "Southern Cross",
+        "de": "Kreuz des Südens",
+        "es": "Cruz del Sur"
+    },
+    "Cygnus": {
+        "latin": "Cygnus",
+        "en": "Swan",
+        "de": "Schwan",
+        "es": "Cisne"
+    },
+    "Delphinus": {
+        "latin": "Delphinus",
+        "en": "Dolphin",
+        "de": "Delfin",
+        "es": "Delfín"
+    },
+    "Dorado": {
+        "latin": "Dorado",
+        "en": "Swordfish",
+        "de": "Schwertfisch",
+        "es": "Dorado"
+    },
+    "Draco": {
+        "latin": "Draco",
+        "en": "Dragon",
+        "de": "Drache",
+        "es": "Dragón"
+    },
+    "Norma": {
+        "latin": "Norma",
+        "en": "Carpenter's Square",
+        "de": "Winkelmaß",
+        "es": "Escuadra"
+    },
+    "Eridanus": {
+        "latin": "Eridanus",
+        "en": "River",
+        "de": "Fluss Eridanus",
+        "es": "Erídano"
+    },
+    "Sagitta": {
+        "latin": "Sagitta",
+        "en": "Arrow",
+        "de": "Pfeil",
+        "es": "Flecha"
+    },
+    "Fornax": {
+        "latin": "Fornax",
+        "en": "Furnace",
+        "de": "Chemischer Ofen",
+        "es": "Horno"
+    },
+    "Gemini": {
+        "latin": "Gemini",
+        "en": "Twins",
+        "de": "Zwillinge",
+        "es": "Géminis"
+    },
+    "Camelopardalis": {
+        "latin": "Camelopardalis",
+        "en": "Giraffe",
+        "de": "Giraffe",
+        "es": "Jirafa"
+    },
+    "Canis Major": {
+        "latin": "Canis Major",
+        "en": "Great Dog",
+        "de": "Großer Hund",
+        "es": "Can Mayor"
+    },
+    "Ursa Major": {
+        "latin": "Ursa Major",
+        "en": "Great Bear",
+        "de": "Großer Bär",
+        "es": "Osa Mayor"
+    },
+    "Grus": {
+        "latin": "Grus",
+        "en": "Crane",
+        "de": "Kranich",
+        "es": "Grulla"
+    },
+    "Hercules": {
+        "latin": "Hercules",
+        "en": "Hercules",
+        "de": "Herkules",
+        "es": "Hércules"
+    },
+    "Horologium": {
+        "latin": "Horologium",
+        "en": "Clock",
+        "de": "Pendeluhr",
+        "es": "Reloj"
+    },
+    "Hydra": {
+        "latin": "Hydra",
+        "en": "Female Water Snake",
+        "de": "Wasserschlange",
+        "es": "Hidra"
+    },
+    "Hydrus": {
+        "latin": "Hydrus",
+        "en": "Male Water Snake",
+        "de": "Kleine Wasserschlange",
+        "es": "Hidra Macho"
+    },
+    "Indus": {
+        "latin": "Indus",
+        "en": "Indian",
+        "de": "Inder",
+        "es": "Indio"
+    },
+    "Lacerta": {
+        "latin": "Lacerta",
+        "en": "Lizard",
+        "de": "Eidechse",
+        "es": "Lagarto"
+    },
+    "Monoceros": {
+        "latin": "Monoceros",
+        "en": "Unicorn",
+        "de": "Einhorn",
+        "es": "Unicornio"
+    },
+    "Lepus": {
+        "latin": "Lepus",
+        "en": "Hare",
+        "de": "Hase",
+        "es": "Liebre"
+    },
+    "Leo": {
+        "latin": "Leo",
+        "en": "Lion",
+        "de": "Löwe",
+        "es": "León"
+    },
+    "Lupus": {
+        "latin": "Lupus",
+        "en": "Wolf",
+        "de": "Wolf",
+        "es": "Lobo"
+    },
+    "Lynx": {
+        "latin": "Lynx",
+        "en": "Lynx",
+        "de": "Luchs",
+        "es": "Lince"
+    },
+    "Lyra": {
+        "latin": "Lyra",
+        "en": "Lyre",
+        "de": "Leier",
+        "es": "Lira"
+    },
+    "Antlia": {
+        "latin": "Antlia",
+        "en": "Air Pump",
+        "de": "Luftpumpe",
+        "es": "Máquina Neumática"
+    },
+    "Microscopium": {
+        "latin": "Microscopium",
+        "en": "Microscope",
+        "de": "Mikroskop",
+        "es": "Microscopio"
+    },
+    "Musca": {
+        "latin": "Musca",
+        "en": "Fly",
+        "de": "Fliege",
+        "es": "Mosca"
+    },
+    "Octans": {
+        "latin": "Octans",
+        "en": "Octant",
+        "de": "Oktant",
+        "es": "Octante"
+    },
+    "Apus": {
+        "latin": "Apus",
+        "en": "Bird of Paradise",
+        "de": "Paradiesvogel",
+        "es": "Ave del Paraíso"
+    },
+    "Ophiuchus": {
+        "latin": "Ophiuchus",
+        "en": "Serpent Bearer",
+        "de": "Schlangenträger",
+        "es": "Ofiuco"
+    },
+    "Orion": {
+        "latin": "Orion",
+        "en": "Hunter",
+        "de": "Orion",
+        "es": "Orión"
+    },
+    "Pavo": {
+        "latin": "Pavo",
+        "en": "Peacock",
+        "de": "Pfau",
+        "es": "Pavo Real"
+    },
+    "Pegasus": {
+        "latin": "Pegasus",
+        "en": "Winged Horse",
+        "de": "Pegasus",
+        "es": "Pegaso"
+    },
+    "Pictor": {
+        "latin": "Pictor",
+        "en": "Painter's Easel",
+        "de": "Maler",
+        "es": "Caballete del Pintor"
+    },
+    "Perseus": {
+        "latin": "Perseus",
+        "en": "Hero",
+        "de": "Perseus",
+        "es": "Perseo"
+    },
+    "Equuleus": {
+        "latin": "Equuleus",
+        "en": "Little Horse",
+        "de": "Füllen",
+        "es": "Caballito"
+    },
+    "Canis Minor": {
+        "latin": "Canis Minor",
+        "en": "Lesser Dog",
+        "de": "Kleiner Hund",
+        "es": "Can Menor"
+    },
+    "Leo Minor": {
+        "latin": "Leo Minor",
+        "en": "Lesser Lion",
+        "de": "Kleiner Löwe",
+        "es": "León Menor"
+    },
+    "Vulpecula": {
+        "latin": "Vulpecula",
+        "en": "Fox",
+        "de": "Fuchs",
+        "es": "Zorra"
+    },
+    "Ursa Minor": {
+        "latin": "Ursa Minor",
+        "en": "Little Bear",
+        "de": "Kleiner Bär",
+        "es": "Osa Menor"
+    },
+    "Phoenix": {
+        "latin": "Phoenix",
+        "en": "Phoenix",
+        "de": "Phönix",
+        "es": "Fénix"
+    },
+    "Pisces": {
+        "latin": "Pisces",
+        "en": "Fishes",
+        "de": "Fische",
+        "es": "Piscis"
+    },
+    "Piscis Austrinus": {
+        "latin": "Piscis Austrinus",
+        "en": "Southern Fish",
+        "de": "Südlicher Fisch",
+        "es": "Pez Austral"
+    },
+    "Volans": {
+        "latin": "Volans",
+        "en": "Flying Fish",
+        "de": "Fliegender Fisch",
+        "es": "Pez Volador"
+    },
+    "Puppis": {
+        "latin": "Puppis",
+        "en": "Stern",
+        "de": "Achterschiff",
+        "es": "Popa"
+    },
+    "Reticulum": {
+        "latin": "Reticulum",
+        "en": "Reticle",
+        "de": "Netz",
+        "es": "Retículo"
+    },
+    "Sagittarius": {
+        "latin": "Sagittarius",
+        "en": "Archer",
+        "de": "Schütze",
+        "es": "Sagitario"
+    },
+    "Scorpius": {
+        "latin": "Scorpius",
+        "en": "Scorpion",
+        "de": "Skorpion",
+        "es": "Escorpión"
+    },
+    "Serpens": {
+        "latin": "Serpens",
+        "en": "Serpent",
+        "de": "Schlange",
+        "es": "Serpiente"
+    },
+    "Sextans": {
+        "latin": "Sextans",
+        "en": "Sextant",
+        "de": "Sextant",
+        "es": "Sextante"
+    },
+    "Mensa": {
+        "latin": "Mensa",
+        "en": "Table Mountain",
+        "de": "Tafelberg",
+        "es": "Mesa"
+    },
+    "Taurus": {
+        "latin": "Taurus",
+        "en": "Bull",
+        "de": "Stier",
+        "es": "Tauro"
+    },
+    "Telescopium": {
+        "latin": "Telescopium",
+        "en": "Telescope",
+        "de": "Teleskop",
+        "es": "Telescopio"
+    },
+    "Tucana": {
+        "latin": "Tucana",
+        "en": "Toucan",
+        "de": "Tukan",
+        "es": "Tucán"
+    },
+    "Triangulum": {
+        "latin": "Triangulum",
+        "en": "Triangle",
+        "de": "Dreieck",
+        "es": "Triángulo"
+    },
+    "Triangulum Australe": {
+        "latin": "Triangulum Australe",
+        "en": "Southern Triangle",
+        "de": "Südliches Dreieck",
+        "es": "Triángulo Austral"
+    },
+    "Aquarius": {
+        "latin": "Aquarius",
+        "en": "Water Bearer",
+        "de": "Wassermann",
+        "es": "Acuario"
+    },
+    "Virgo": {
+        "latin": "Virgo",
+        "en": "Maiden",
+        "de": "Jungfrau",
+        "es": "Virgo"
+    },
+    "Vela": {
+        "latin": "Vela",
+        "en": "Sails",
+        "de": "Segel",
+        "es": "Vela"
+    }
+}

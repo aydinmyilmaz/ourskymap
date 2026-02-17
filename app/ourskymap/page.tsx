@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import type { PosterParams, RenderParams } from '../../lib/types';
+import type { PosterParams, RenderParams, ConstellationLanguage } from '../../lib/types';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
 
 type SizePreset = {
@@ -636,6 +636,7 @@ export default function DesignPage() {
   const [companionPhotoDragStartY, setCompanionPhotoDragStartY] = useState(0);
   const [companionPhotoDragOriginX, setCompanionPhotoDragOriginX] = useState(0);
   const [companionPhotoDragOriginY, setCompanionPhotoDragOriginY] = useState(0);
+  const [constellationLanguage, setConstellationLanguage] = useState<ConstellationLanguage>('latin');
   const [posterSvg, setPosterSvg] = useState('');
   const [busy, setBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -882,6 +883,7 @@ export default function DesignPage() {
         timeZone: string;
       };
 
+
       const params: RenderParams = {
         ...defaultParams,
         theme: effectiveTheme,
@@ -890,8 +892,10 @@ export default function DesignPage() {
         labelConstellations: showNames,
         labelSolarSystem: showNames,
         constellationLineAlpha: 0.7,
-        mirrorHorizontal: true
+        mirrorHorizontal: true,
+        constellationLanguage
       };
+
 
       const isMoonPhase = size === 'moon-phase';
       const isSkyPhoto = size === 'sky-photo';
@@ -976,6 +980,7 @@ export default function DesignPage() {
     cityQuery,
     companionPhotoMeta,
     companionPhotoDataUrl,
+    constellationLanguage,
     date,
     fontPreset,
     frameOn,
@@ -1539,8 +1544,22 @@ export default function DesignPage() {
 
           <div className="panelBlock softD">
             <div className="toggleLocked">Constellation lines are always ON (required).</div>
+            <Toggle checked={showGraticule} onChange={setShowGraticule} label="Graticule" />
             <Toggle checked={showNames} onChange={setShowNames} label="Show Names" />
-            <Toggle checked={showGraticule} onChange={setShowGraticule} label="Show Grids" />
+
+            <div className="fieldGroup">
+              <label>Constellation Names:</label>
+              <select
+                value={constellationLanguage}
+                onChange={(e) => setConstellationLanguage(e.target.value as ConstellationLanguage)}
+                className="selectInput"
+              >
+                <option value="latin">Latin (Universal)</option>
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+                <option value="es">Español</option>
+              </select>
+            </div>
           </div>
 
           <div className="panelBlock softC">

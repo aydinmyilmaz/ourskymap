@@ -2,8 +2,9 @@ import { altAzToXY, clamp01, raDecToAltAz } from './astro';
 import { AstroTime, Body, Equator, Horizon, MoonPhase, Observer } from 'astronomy-engine';
 import stars from '../data/stars.json';
 import constellationsData from '../data/constellations.json';
+import constellationNames from '../data/constellation_names.json';
 import deepSky from '../data/deepsky.json';
-import type { RenderParams } from './types';
+import type { RenderParams, ConstellationLanguage } from './types';
 
 type StarRow = { hip: number; ra_deg: number; dec_deg: number; mag: number };
 type LabelKind = 'star' | 'constellation';
@@ -68,6 +69,12 @@ const BRIGHT_STAR_LABELS: Record<number, string> = {
   25336: 'Bellatrix',
   62956: 'Alioth'
 };
+
+function translateConstellationName(latinName: string, language: ConstellationLanguage = 'latin'): string {
+  const names = (constellationNames as any)[latinName];
+  if (!names) return latinName;
+  return names[language] || names.latin || latinName;
+}
 
 // ============================================================================
 // LABEL OBSTACLE TUNING (OurSkyMap)
@@ -453,15 +460,15 @@ export function buildChartGeometry(args: {
   const coordinateGridPaths =
     params.showCoordinateGrid
       ? buildCoordinateGridPaths({
-          latitude,
-          longitude,
-          date,
-          chartCx,
-          chartCy,
-          chartR,
-          mirrorX,
-          stepDeg: params.coordinateGridStepDeg
-        })
+        latitude,
+        longitude,
+        date,
+        chartCx,
+        chartCy,
+        chartR,
+        mirrorX,
+        stepDeg: params.coordinateGridStepDeg
+      })
       : [];
 
   const starPoints: { x: number; y: number; size: number }[] = [];
@@ -592,6 +599,7 @@ export function buildChartGeometry(args: {
 
   let constellationLabelCandidates: LabelCandidate[] = [];
   if (params.labelConstellations) {
+    const language = params.constellationLanguage || 'latin';
     for (const c of constellationList) {
       const pts = c.hips.map((h) => hipToXY.get(h)).filter(Boolean) as { x: number; y: number }[];
       if (!pts.length) continue;
@@ -603,11 +611,12 @@ export function buildChartGeometry(args: {
       const radial = Math.sqrt(dx * dx + dy * dy) / Math.max(1, chartR);
       if (radial > 0.92) continue;
       const priority = 120 - radial * 40 + Math.min(20, pts.length * 0.8);
+      const translatedName = translateConstellationName(c.label, language);
       constellationLabelCandidates.push({
         kind: 'constellation',
         x: anchor.x,
         y: anchor.y,
-        text: c.label,
+        text: translatedName,
         fontSize: CONSTELLATION_LABEL_FONT,
         anchor: 'middle',
         priority
