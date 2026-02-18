@@ -176,37 +176,49 @@ function getPosterLayout(size: PosterRequest['poster']['size']): {
 } {
   switch (size) {
     case 'us-letter':
-      return { width: 612, height: 792, layout: 'a4', defaultChartDiameter: 408.5 };
+      // W=8.5" → 8.5/16 × 12.8" = 6.8"
+      return { width: 612, height: 792, layout: 'a4', defaultChartDiameter: 6.8 * 72 };
     case 'a2':
-      return { width: 1191, height: 1684, layout: 'a4', defaultChartDiameter: 11.97 * 72 };
+      // W=1191px=16.54" → 16.54/16 × 12.8" ≈ 13.23"
+      return { width: 1191, height: 1684, layout: 'a4', defaultChartDiameter: Math.round((1191 / 72 / 16) * 12.8 * 72) };
     case '18x24':
-      return { width: 18 * 72, height: 24 * 72, layout: 'a4', defaultChartDiameter: 12.92 * 72 };
+      // W=18" → 18/16 × 12.8" = 14.4"
+      return { width: 18 * 72, height: 24 * 72, layout: 'a4', defaultChartDiameter: 14.4 * 72 };
     case '11x14':
+      // W=11" → 11/16 × 12.8" = 8.8" (unchanged)
       return { width: 11 * 72, height: 14 * 72, layout: 'a4', defaultChartDiameter: 8.8 * 72 };
     case 'a3':
+      // W=842px=11.69" → 11.69/16 × 12.8" ≈ 9.35" (keep existing close value)
       return { width: 842, height: 1191, layout: 'a4', defaultChartDiameter: (23.7 / 2.54) * 72 };
     case '12x12':
-      return { width: 12 * 72, height: 12 * 72, layout: 'square', defaultChartDiameter: 8.5 * 72 };
+      // Special case: fixed spec value (geometric constraint)
+      return { width: 12 * 72, height: 12 * 72, layout: 'square', defaultChartDiameter: 8.6 * 72 };
     case '12x16':
+      // W=12" → 12/16 × 12.8" = 9.6" (unchanged)
       return { width: 12 * 72, height: 16 * 72, layout: 'a4', defaultChartDiameter: 9.6 * 72 };
     case '16x20':
-      return { width: 16 * 72, height: 20 * 72, layout: 'square', defaultChartDiameter: 12.16 * 72 };
+      // W=16" → reference → 12.8"
+      return { width: 16 * 72, height: 20 * 72, layout: 'square', defaultChartDiameter: 12.8 * 72 };
     case '20x20':
-      return { width: 20 * 72, height: 20 * 72, layout: 'square', defaultChartDiameter: 13.585 * 72 };
+      // Special case: fixed spec value (geometric constraint)
+      return { width: 20 * 72, height: 20 * 72, layout: 'square', defaultChartDiameter: 14.3 * 72 };
     case 'a1':
+      // W=1701px=23.625" → 23.625/16 × 12.8" ≈ 18.9"
       return {
         width: Math.round((59.4 / 2.54) * 72),
         height: Math.round((84.1 / 2.54) * 72),
         layout: 'a4',
-        defaultChartDiameter: (47.5 / 2.54) * 72
+        defaultChartDiameter: Math.round((Math.round((59.4 / 2.54) * 72) / 72 / 16) * 12.8 * 72)
       };
     case '24x32':
+      // W=24" → 24/16 × 12.8" = 19.2" (unchanged)
       return { width: 24 * 72, height: 32 * 72, layout: 'a4', defaultChartDiameter: 19.2 * 72 };
     case 'square':
       return { width: 1024, height: 1024, layout: 'square', defaultChartDiameter: 722 };
     case 'a4':
     default:
-      return { width: 595, height: 842, layout: 'a4', defaultChartDiameter: 494 };
+      // W=595px=8.264" → 8.264/16 × 12.8" ≈ 6.61"
+      return { width: 595, height: 842, layout: 'a4', defaultChartDiameter: Math.round((595 / 72 / 16) * 12.8 * 72) };
   }
 }
 
@@ -675,7 +687,9 @@ export function renderPosterSvg(req: PosterRequest): string {
   const compOuterRRef = showCompanionCircle ? chartR + ringGapEarly : 0;
   const topVisualTop = showCompanionCircle ? Math.min(chartCy - compOuterRRef, moonCy - moonR) : chartCy - outerR;
   const topVisualBottom = showCompanionCircle ? Math.max(chartCy + compOuterRRef, moonCy + moonR) : chartCy + outerR;
-  const regionTop = topVisualBottom + (showCompanionCircle ? 56 : isSquareTextLayout ? 52 : 46);
+  // Proportional gap: outerR × 0.12 → 16x20'de ≈46px (reference), scales with chart size
+  const minTextGap = showCompanionCircle ? 56 : Math.round(outerR * 0.12);
+  const regionTop = topVisualBottom + minTextGap;
 
   // Her iki modda da spec-defined bottom margin
   const regionBottom = H - getVerticalSpacing(size, H).bottomMargin;
