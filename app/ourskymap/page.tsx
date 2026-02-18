@@ -1254,20 +1254,38 @@ export default function DesignPage() {
         <aside className="rightPanel">
           <div className="panelBlock sizeFrameBlock">
             <div className="stackField">
-              <label>Select Poster Type</label>
-              <select
-                className="dashedInput"
-                value={posterType}
-                onChange={(e) => {
-                  const nextType = e.target.value as PosterType;
-                  setPosterType(nextType);
-                  // size stays the same — same size works for both modes
-                }}
-              >
-                <option value="single">Single</option>
-                <option value="companion">Companion</option>
-              </select>
+              <label>Poster Type</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  className={posterType === 'single' ? 'typeBtn typeBtn--active' : 'typeBtn'}
+                  onClick={() => setPosterType('single')}
+                  type="button"
+                >
+                  Standard Star Map
+                </button>
+                <button
+                  className={posterType === 'companion' ? 'typeBtn typeBtn--active' : 'typeBtn'}
+                  onClick={() => setPosterType('companion')}
+                  type="button"
+                >
+                  Star Map with Moon Phase
+                </button>
+              </div>
             </div>
+
+            {posterType === 'companion' && (
+              <div className="stackField">
+                <label>Companion Type</label>
+                <select
+                  className="dashedInput"
+                  value={companionSubtype}
+                  onChange={(e) => setCompanionSubtype(e.target.value as CompanionSubtype)}
+                >
+                  <option value="moon-phase">Moon Phase</option>
+                  <option value="sky-photo">Photo Companion</option>
+                </select>
+              </div>
+            )}
 
             <div className="stackField">
               <label>Select Poster Size</label>
@@ -2075,6 +2093,25 @@ export default function DesignPage() {
           color: #4a4f56;
           outline: none;
           font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+
+        .typeBtn {
+          flex: 1;
+          padding: 8px 12px;
+          border: 1.5px dashed #747982;
+          background: transparent;
+          color: #4a4f56;
+          cursor: pointer;
+          font-size: 12px;
+          border-radius: 14px;
+          opacity: 0.6;
+          transition: opacity 0.15s;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+        .typeBtn--active {
+          opacity: 1;
+          border-style: solid;
+          color: #1a1f26;
         }
 
         .microHint {
