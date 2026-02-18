@@ -13,7 +13,8 @@ type SizePreset = {
   compact?: boolean;
 };
 
-type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x20' | 'a2' | '18x24' | '20x20' | 'a1' | '24x32' | 'moon-phase' | 'sky-photo';
+type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x20' | 'a2' | '18x24' | '20x20' | 'a1' | '24x32';
+type CompanionSubtype = 'moon-phase' | 'sky-photo';
 type PosterType = 'single' | 'companion';
 type InkPresetKey = 'gold' | 'silver';
 type InkFinish = 'flat' | 'texture';
@@ -39,19 +40,11 @@ const SIZE_PRESETS: SizePreset[] = [
   { key: '20x20', title: '20 x 20', sub: '50 x 50 cm', compact: true },
   { key: 'a1', title: 'A1', sub: '59.4 x 84.1 cm', compact: true },
   { key: '24x32', title: '24 x 32', sub: '60 x 80 cm', compact: true },
-  { key: 'moon-phase', title: 'Moon Companion', sub: '24 x 18 in', compact: true },
-  { key: 'sky-photo', title: 'Photo Companion', sub: '24 x 18 in', compact: true }
 ];
 const DEFAULT_SINGLE_SIZE: DesignSize = '16x20';
-const DEFAULT_COMPANION_SIZE: DesignSize = 'moon-phase';
-const COMPANION_SIZE_SET = new Set<DesignSize>(['moon-phase', 'sky-photo']);
-
-function isCompanionSize(size: DesignSize): boolean {
-  return COMPANION_SIZE_SET.has(size);
-}
-
-const SINGLE_SIZE_PRESETS = SIZE_PRESETS.filter((item) => !isCompanionSize(item.key));
-const COMPANION_SIZE_PRESETS = SIZE_PRESETS.filter((item) => isCompanionSize(item.key));
+const DEFAULT_COMPANION_SIZE: DesignSize = '16x20';
+const DEFAULT_COMPANION_SUBTYPE: CompanionSubtype = 'moon-phase';
+const STANDARD_SIZE_PRESETS = SIZE_PRESETS; // all sizes available for both modes
 
 const FONT_PRESETS: { key: FontPresetKey; label: string }[] = [
   { key: 'calligraphy', label: 'Calligraphy' },
@@ -465,32 +458,6 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     metaLineSpacing: 1.5,
     metaUppercase: true
   },
-  'moon-phase': {
-    chartDiameter: 10 * INCH,
-    titleFontSize: 54,
-    namesFontSize: 70,
-    metaFontSize: 24,
-    pageMargin: 1.4 * INCH,
-    ringInnerWidth: 5,
-    ringGap: 8,
-    ringOuterWidth: 3,
-    metaLetterSpacing: 5.3,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  'sky-photo': {
-    chartDiameter: 10 * INCH,
-    titleFontSize: 54,
-    namesFontSize: 70,
-    metaFontSize: 24,
-    pageMargin: 1.4 * INCH,
-    ringInnerWidth: 5,
-    ringGap: 8,
-    ringOuterWidth: 3,
-    metaLetterSpacing: 5.3,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  }
 };
 
 const defaultPoster: PosterParams = {
@@ -544,7 +511,7 @@ function mapFontPresetToPoster(fontPreset: FontPresetKey): Pick<PosterParams, 't
 }
 
 function mapDesignSizeToPosterSize(size: DesignSize): PosterParams['size'] {
-  return size === 'moon-phase' || size === 'sky-photo' ? '18x24' : size;
+  return size;
 }
 
 function formatMetaLine(dateIso: string, timeValue: string, showTime: boolean, label: string): string {
@@ -631,6 +598,8 @@ function Toggle({
 export default function DesignPage() {
   const router = useRouter();
   const [size, setSize] = useState<DesignSize>(DEFAULT_SINGLE_SIZE);
+  const [posterType, setPosterType] = useState<PosterType>('single');
+  const [companionSubtype, setCompanionSubtype] = useState<CompanionSubtype>(DEFAULT_COMPANION_SUBTYPE);
   const [frameOn, setFrameOn] = useState(false);
   const [palette, setPalette] = useState<PosterParams['palette']>('navy-blue');
   const [inkPreset, setInkPreset] = useState<InkPresetKey>('gold');
@@ -681,8 +650,9 @@ export default function DesignPage() {
   const selectedFont = useMemo(() => FONT_PRESETS.find((item) => item.key === fontPreset) ?? FONT_PRESETS[0], [fontPreset]);
   const selectedSizePreset = useMemo(() => SIZE_PRESETS.find((item) => item.key === size), [size]);
   const effectiveTheme = selectedPalette.tone;
-  const posterType: PosterType = isCompanionSize(size) ? 'companion' : 'single';
-  const sizeOptions = posterType === 'companion' ? COMPANION_SIZE_PRESETS : SINGLE_SIZE_PRESETS;
+  const sizeOptions = STANDARD_SIZE_PRESETS;
+  const isMoonPhaseUI = posterType === 'companion' && companionSubtype === 'moon-phase';
+  const isSkyPhotoUI = posterType === 'companion' && companionSubtype === 'sky-photo';
   const reviewLocation = useMemo(() => normalizePlaceLabel(locationLabel || cityQuery) || 'Custom location', [cityQuery, locationLabel]);
   const reviewLocationLine = useMemo(
     () => locationLine.trim() || formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery),
@@ -749,10 +719,10 @@ export default function DesignPage() {
   }, [cityQuery]);
 
   useEffect(() => {
-    if (size !== 'sky-photo') {
+    if (companionSubtype !== 'sky-photo') {
       setCompanionPhotoError('');
     }
-  }, [size]);
+  }, [companionSubtype]);
 
   useEffect(() => {
     if (!companionPhotoMeta) {
@@ -928,9 +898,9 @@ export default function DesignPage() {
       };
 
 
-      const isMoonPhase = size === 'moon-phase';
-      const isSkyPhoto = size === 'sky-photo';
-      const usesCompanionCircle = isMoonPhase || isSkyPhoto;
+      const isMoonPhase = posterType === 'companion' && companionSubtype === 'moon-phase';
+      const isSkyPhoto = posterType === 'companion' && companionSubtype === 'sky-photo';
+      const usesCompanionCircle = posterType === 'companion';
       if (isSkyPhoto && !companionPhotoDataUrl) {
         if (companionPhotoMeta) return;
         if (reqId === latestRequestRef.current) setPosterSvg('');
@@ -1100,9 +1070,9 @@ export default function DesignPage() {
         constellationLineAlpha: 0.7,
         mirrorHorizontal: true
       };
-      const isMoonPhase = size === 'moon-phase';
-      const isSkyPhoto = size === 'sky-photo';
-      const usesCompanionCircle = isMoonPhase || isSkyPhoto;
+      const isMoonPhase = posterType === 'companion' && companionSubtype === 'moon-phase';
+      const isSkyPhoto = posterType === 'companion' && companionSubtype === 'sky-photo';
+      const usesCompanionCircle = posterType === 'companion';
       if (isSkyPhoto && !companionPhotoDataUrl) {
         if (companionPhotoMeta) {
           throw new Error('Photo is still processing. Please wait a moment and try again.');
@@ -1290,12 +1260,8 @@ export default function DesignPage() {
                 value={posterType}
                 onChange={(e) => {
                   const nextType = e.target.value as PosterType;
-                  setSize((prev) => {
-                    if (nextType === 'companion') {
-                      return isCompanionSize(prev) ? prev : DEFAULT_COMPANION_SIZE;
-                    }
-                    return isCompanionSize(prev) ? DEFAULT_SINGLE_SIZE : prev;
-                  });
+                  setPosterType(nextType);
+                  // size stays the same — same size works for both modes
                 }}
               >
                 <option value="single">Single</option>
@@ -1323,7 +1289,7 @@ export default function DesignPage() {
               </select>
             </div>
 
-            {size === 'sky-photo' ? (
+            {isSkyPhotoUI ? (
               <div className="stackField">
                 <label>Companion Photo (Left Circle)</label>
                 <input
