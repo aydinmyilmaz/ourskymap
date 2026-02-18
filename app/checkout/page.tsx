@@ -55,6 +55,56 @@ function withAbsoluteMoonUrl(svg: string): string {
     .replaceAll("xlink:href='/moon.png'", `xlink:href='${absoluteMoon}'`);
 }
 
+/** CRC32 for PNG chunk integrity verification */
+function crc32(data: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data[i];
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * Injects a pHYs chunk into a PNG byte array to set the DPI metadata.
+ * canvas.toBlob() produces PNGs with no DPI info (defaults to 96 DPI in viewers).
+ * This rewrites the PNG to correctly report the target DPI for print software.
+ */
+function injectPngDpi(pngBytes: Uint8Array, dpi: number): Uint8Array {
+  const ppm = Math.round(dpi / 0.0254); // pixels per metre
+
+  // Build pHYs chunk data (9 bytes: X ppm + Y ppm + unit)
+  const chunkData = new Uint8Array(9);
+  const dataView = new DataView(chunkData.buffer);
+  dataView.setUint32(0, ppm, false); // X pixels per unit (big-endian)
+  dataView.setUint32(4, ppm, false); // Y pixels per unit (big-endian)
+  dataView.setUint8(8, 1);           // unit = metre (0x01)
+
+  // CRC32 over chunk type "pHYs" + data
+  const typeAndData = new Uint8Array(13);
+  typeAndData.set([112, 72, 89, 115], 0); // "pHYs"
+  typeAndData.set(chunkData, 4);
+  const crc = crc32(typeAndData);
+
+  // Full chunk: 4-byte length + "pHYs" + 9-byte data + 4-byte CRC = 21 bytes
+  const phys = new Uint8Array(21);
+  const physView = new DataView(phys.buffer);
+  physView.setUint32(0, 9, false);        // chunk data length = 9
+  phys.set([112, 72, 89, 115], 4);        // "pHYs"
+  phys.set(chunkData, 8);                 // X ppm + Y ppm + unit
+  physView.setUint32(17, crc, false);     // CRC
+
+  // Insert pHYs after PNG signature (8 bytes) + IHDR chunk (4+4+13+4 = 25 bytes) = offset 33
+  const IHDR_END = 33;
+  const result = new Uint8Array(pngBytes.length + phys.length);
+  result.set(pngBytes.slice(0, IHDR_END));
+  result.set(phys, IHDR_END);
+  result.set(pngBytes.slice(IHDR_END), IHDR_END + phys.length);
+  return result;
+}
+
 async function svgToPngBytes(svg: string, width: number, height: number): Promise<Uint8Array> {
   const scale = getRasterScale(width, height);
   const outW = Math.max(1, Math.round(width * scale));
@@ -84,7 +134,8 @@ async function svgToPngBytes(svg: string, width: number, height: number): Promis
         resolve(blob);
       }, 'image/png');
     });
-    return new Uint8Array(await pngBlob.arrayBuffer());
+    const rawPng = new Uint8Array(await pngBlob.arrayBuffer());
+    return injectPngDpi(rawPng, TARGET_EXPORT_DPI);
   } finally {
     URL.revokeObjectURL(svgUrl);
   }

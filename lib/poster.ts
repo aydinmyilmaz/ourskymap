@@ -464,18 +464,12 @@ export function renderPosterSvg(req: PosterRequest): string {
   const frameInset = poster.borderInset;
   const borderW = poster.borderWidth;
 
-  const W =
-    showCompanionCircle
-      ? 24 * 72
-      : layout.width;
-  const H =
-    showCompanionCircle
-      ? 18 * 72
-      : layout.height;
-  const defaultChartDiameter =
-    showCompanionCircle
-      ? 10 * 72
-      : layout.defaultChartDiameter;
+  // Companion mode: use landscape orientation (long edge horizontal) for better side-by-side layout
+  const originalW = layout.width;
+  const originalH = layout.height;
+  const W = showCompanionCircle && originalH > originalW ? originalH : originalW;
+  const H = showCompanionCircle && originalH > originalW ? originalW : originalH;
+  const defaultChartDiameter = layout.defaultChartDiameter;
   const chartDiameter = poster.chartDiameter > 0 ? poster.chartDiameter : defaultChartDiameter;
   let chartR = chartDiameter / 2;
   // outerR = dış çember (iç çember + ring gap) — margin bu çemberden ölçülür

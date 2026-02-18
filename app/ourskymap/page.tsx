@@ -13,7 +13,8 @@ type SizePreset = {
   compact?: boolean;
 };
 
-type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x20' | 'a2' | '18x24' | '20x20' | 'a1' | '24x32' | 'moon-phase' | 'sky-photo';
+type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x20' | 'a2' | '18x24' | '20x20' | 'a1' | '24x32';
+type CompanionSubtype = 'moon-phase' | 'sky-photo';
 type PosterType = 'single' | 'companion';
 type InkPresetKey = 'gold' | 'silver';
 type InkFinish = 'flat' | 'texture';
@@ -39,19 +40,11 @@ const SIZE_PRESETS: SizePreset[] = [
   { key: '20x20', title: '20 x 20', sub: '50 x 50 cm', compact: true },
   { key: 'a1', title: 'A1', sub: '59.4 x 84.1 cm', compact: true },
   { key: '24x32', title: '24 x 32', sub: '60 x 80 cm', compact: true },
-  { key: 'moon-phase', title: 'Moon Companion', sub: '24 x 18 in', compact: true },
-  { key: 'sky-photo', title: 'Photo Companion', sub: '24 x 18 in', compact: true }
 ];
 const DEFAULT_SINGLE_SIZE: DesignSize = '16x20';
-const DEFAULT_COMPANION_SIZE: DesignSize = 'moon-phase';
-const COMPANION_SIZE_SET = new Set<DesignSize>(['moon-phase', 'sky-photo']);
-
-function isCompanionSize(size: DesignSize): boolean {
-  return COMPANION_SIZE_SET.has(size);
-}
-
-const SINGLE_SIZE_PRESETS = SIZE_PRESETS.filter((item) => !isCompanionSize(item.key));
-const COMPANION_SIZE_PRESETS = SIZE_PRESETS.filter((item) => isCompanionSize(item.key));
+const DEFAULT_COMPANION_SIZE: DesignSize = '16x20';
+const DEFAULT_COMPANION_SUBTYPE: CompanionSubtype = 'moon-phase';
+const STANDARD_SIZE_PRESETS = SIZE_PRESETS; // all sizes available for both modes
 
 const FONT_PRESETS: { key: FontPresetKey; label: string }[] = [
   { key: 'calligraphy', label: 'Calligraphy' },
@@ -465,32 +458,6 @@ const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
     metaLineSpacing: 1.5,
     metaUppercase: true
   },
-  'moon-phase': {
-    chartDiameter: 10 * INCH,
-    titleFontSize: 54,
-    namesFontSize: 70,
-    metaFontSize: 24,
-    pageMargin: 1.4 * INCH,
-    ringInnerWidth: 5,
-    ringGap: 8,
-    ringOuterWidth: 3,
-    metaLetterSpacing: 5.3,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  'sky-photo': {
-    chartDiameter: 10 * INCH,
-    titleFontSize: 54,
-    namesFontSize: 70,
-    metaFontSize: 24,
-    pageMargin: 1.4 * INCH,
-    ringInnerWidth: 5,
-    ringGap: 8,
-    ringOuterWidth: 3,
-    metaLetterSpacing: 5.3,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  }
 };
 
 const defaultPoster: PosterParams = {
@@ -544,7 +511,18 @@ function mapFontPresetToPoster(fontPreset: FontPresetKey): Pick<PosterParams, 't
 }
 
 function mapDesignSizeToPosterSize(size: DesignSize): PosterParams['size'] {
-  return size === 'moon-phase' || size === 'sky-photo' ? '18x24' : size;
+  return size;
+}
+
+function getCompanionCanvasHint(sizeKey: DesignSize): string {
+  const dims: Record<DesignSize, [number, number]> = {
+    'us-letter': [612, 792], 'a4': [595, 842], '11x14': [792, 1008],
+    'a3': [842, 1191], '12x12': [864, 864], '12x16': [864, 1152],
+    '16x20': [1152, 1440], 'a2': [1191, 1684], '18x24': [1296, 1728],
+    '20x20': [1440, 1440], 'a1': [1701, 3024], '24x32': [1728, 2304],
+  };
+  const [w, h] = dims[sizeKey] ?? [0, 0];
+  return h > w ? ' (landscape)' : '';
 }
 
 function formatMetaLine(dateIso: string, timeValue: string, showTime: boolean, label: string): string {
@@ -631,6 +609,8 @@ function Toggle({
 export default function DesignPage() {
   const router = useRouter();
   const [size, setSize] = useState<DesignSize>(DEFAULT_SINGLE_SIZE);
+  const [posterType, setPosterType] = useState<PosterType>('single');
+  const [companionSubtype, setCompanionSubtype] = useState<CompanionSubtype>(DEFAULT_COMPANION_SUBTYPE);
   const [frameOn, setFrameOn] = useState(false);
   const [palette, setPalette] = useState<PosterParams['palette']>('navy-blue');
   const [inkPreset, setInkPreset] = useState<InkPresetKey>('gold');
@@ -681,8 +661,9 @@ export default function DesignPage() {
   const selectedFont = useMemo(() => FONT_PRESETS.find((item) => item.key === fontPreset) ?? FONT_PRESETS[0], [fontPreset]);
   const selectedSizePreset = useMemo(() => SIZE_PRESETS.find((item) => item.key === size), [size]);
   const effectiveTheme = selectedPalette.tone;
-  const posterType: PosterType = isCompanionSize(size) ? 'companion' : 'single';
-  const sizeOptions = posterType === 'companion' ? COMPANION_SIZE_PRESETS : SINGLE_SIZE_PRESETS;
+  const sizeOptions = STANDARD_SIZE_PRESETS;
+  const isMoonPhaseUI = posterType === 'companion' && companionSubtype === 'moon-phase';
+  const isSkyPhotoUI = posterType === 'companion' && companionSubtype === 'sky-photo';
   const reviewLocation = useMemo(() => normalizePlaceLabel(locationLabel || cityQuery) || 'Custom location', [cityQuery, locationLabel]);
   const reviewLocationLine = useMemo(
     () => locationLine.trim() || formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery),
@@ -749,10 +730,10 @@ export default function DesignPage() {
   }, [cityQuery]);
 
   useEffect(() => {
-    if (size !== 'sky-photo') {
+    if (companionSubtype !== 'sky-photo') {
       setCompanionPhotoError('');
     }
-  }, [size]);
+  }, [companionSubtype]);
 
   useEffect(() => {
     if (!companionPhotoMeta) {
@@ -928,9 +909,9 @@ export default function DesignPage() {
       };
 
 
-      const isMoonPhase = size === 'moon-phase';
-      const isSkyPhoto = size === 'sky-photo';
-      const usesCompanionCircle = isMoonPhase || isSkyPhoto;
+      const isMoonPhase = posterType === 'companion' && companionSubtype === 'moon-phase';
+      const isSkyPhoto = posterType === 'companion' && companionSubtype === 'sky-photo';
+      const usesCompanionCircle = posterType === 'companion';
       if (isSkyPhoto && !companionPhotoDataUrl) {
         if (companionPhotoMeta) return;
         if (reqId === latestRequestRef.current) setPosterSvg('');
@@ -1100,9 +1081,9 @@ export default function DesignPage() {
         constellationLineAlpha: 0.7,
         mirrorHorizontal: true
       };
-      const isMoonPhase = size === 'moon-phase';
-      const isSkyPhoto = size === 'sky-photo';
-      const usesCompanionCircle = isMoonPhase || isSkyPhoto;
+      const isMoonPhase = posterType === 'companion' && companionSubtype === 'moon-phase';
+      const isSkyPhoto = posterType === 'companion' && companionSubtype === 'sky-photo';
+      const usesCompanionCircle = posterType === 'companion';
       if (isSkyPhoto && !companionPhotoDataUrl) {
         if (companionPhotoMeta) {
           throw new Error('Photo is still processing. Please wait a moment and try again.');
@@ -1284,46 +1265,56 @@ export default function DesignPage() {
         <aside className="rightPanel">
           <div className="panelBlock sizeFrameBlock">
             <div className="stackField">
-              <label>Select Poster Type</label>
-              <select
-                className="dashedInput"
-                value={posterType}
-                onChange={(e) => {
-                  const nextType = e.target.value as PosterType;
-                  setSize((prev) => {
-                    if (nextType === 'companion') {
-                      return isCompanionSize(prev) ? prev : DEFAULT_COMPANION_SIZE;
-                    }
-                    return isCompanionSize(prev) ? DEFAULT_SINGLE_SIZE : prev;
-                  });
-                }}
-              >
-                <option value="single">Single</option>
-                <option value="companion">Companion</option>
-              </select>
+              <label>Poster Type</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  className={posterType === 'single' ? 'typeBtn typeBtn--active' : 'typeBtn'}
+                  onClick={() => setPosterType('single')}
+                  type="button"
+                >
+                  <img src="/poster-type-single.png" alt="" className="typeBtnImg" />
+                  <span className="typeBtnLabel">Standard<br />Star Map</span>
+                </button>
+                <button
+                  className={posterType === 'companion' ? 'typeBtn typeBtn--active' : 'typeBtn'}
+                  onClick={() => setPosterType('companion')}
+                  type="button"
+                >
+                  <img src="/poster-type-companion.png" alt="" className="typeBtnImg" />
+                  <span className="typeBtnLabel">Star Map<br />with Moon Phase</span>
+                </button>
+              </div>
             </div>
+
+            {posterType === 'companion' && (
+              <div className="stackField">
+                <label>Companion Type</label>
+                <select
+                  className="dashedInput"
+                  value={companionSubtype}
+                  onChange={(e) => setCompanionSubtype(e.target.value as CompanionSubtype)}
+                >
+                  <option value="moon-phase">Moon Phase</option>
+                  <option value="sky-photo">Photo Companion</option>
+                </select>
+              </div>
+            )}
 
             <div className="stackField">
               <label>Select Poster Size</label>
               <select className="dashedInput" value={size} onChange={(e) => setSize(e.target.value as DesignSize)}>
                 {sizeOptions.map((item) => (
                   <option key={item.key} value={item.key}>
-                    {item.title} - {item.sub}
+                    {item.title} - {item.sub}{posterType === 'companion' ? getCompanionCanvasHint(item.key) : ''}
                   </option>
                 ))}
               </select>
               <p className="microHint">Selected size is used for downloadable file output only.</p>
             </div>
 
-            <div className="stackField">
-              <label>Add Border/Outline?</label>
-              <select className="dashedInput" value={frameOn ? 'yes' : 'no'} onChange={(e) => setFrameOn(e.target.value === 'yes')}>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
+            <Toggle checked={frameOn} onChange={setFrameOn} label="Decorative Border" />
 
-            {size === 'sky-photo' ? (
+            {isSkyPhotoUI ? (
               <div className="stackField">
                 <label>Companion Photo (Left Circle)</label>
                 <input
@@ -1576,12 +1567,11 @@ export default function DesignPage() {
           </div>
 
           <div className="panelBlock softD">
-            <div className="toggleLocked">Constellation lines are always ON (required).</div>
-            <Toggle checked={showGraticule} onChange={setShowGraticule} label="Graticule" />
-            <Toggle checked={showNames} onChange={setShowNames} label="Show Names" />
+            <Toggle checked={showGraticule} onChange={setShowGraticule} label="Grids" />
+            <Toggle checked={showNames} onChange={setShowNames} label="Show Labels" />
 
             <div className="fieldGroup">
-              <label>Constellation Names:</label>
+              <label>Label Language</label>
               <select
                 value={constellationLanguage}
                 onChange={(e) => setConstellationLanguage(e.target.value as ConstellationLanguage)}
@@ -2111,6 +2101,42 @@ export default function DesignPage() {
           font-family: 'Signika', ui-sans-serif, system-ui;
         }
 
+        .typeBtn {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px;
+          border: 1.5px dashed #747982;
+          background: transparent;
+          color: #4a4f56;
+          cursor: pointer;
+          font-size: 12px;
+          border-radius: 14px;
+          opacity: 0.6;
+          transition: opacity 0.15s;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+          text-align: left;
+        }
+        .typeBtn--active {
+          opacity: 1;
+          border-style: solid;
+          color: #1a1f26;
+        }
+        .typeBtnImg {
+          width: 44px;
+          height: 66px;
+          border-radius: 6px;
+          object-fit: cover;
+          flex-shrink: 0;
+          display: block;
+        }
+        .typeBtnLabel {
+          font-size: 11px;
+          line-height: 1.4;
+          text-align: left;
+        }
+
         .microHint {
           margin: 0;
           font-size: 12px;
@@ -2388,9 +2414,9 @@ export default function DesignPage() {
         }
 
         .designRoot :global(.toggleRow[aria-pressed='true']) {
-          border-color: #1f2937;
-          background: #f7f9fc;
-          box-shadow: inset 0 0 0 1px rgba(31, 41, 55, 0.2);
+          border-color: #c8922a;
+          background: #fffbf3;
+          box-shadow: inset 0 0 0 1px rgba(200, 146, 42, 0.25);
         }
 
         .designRoot :global(.switch) {
@@ -2404,7 +2430,7 @@ export default function DesignPage() {
         }
 
         .designRoot :global(.switch.on) {
-          background: #131316;
+          background: #c8922a;
         }
 
         .designRoot :global(.knob) {
