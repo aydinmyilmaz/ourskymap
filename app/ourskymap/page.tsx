@@ -2414,9 +2414,9 @@ export default function DesignPage() {
         }
 
         .designRoot :global(.toggleRow[aria-pressed='true']) {
-          border-color: #1f2937;
-          background: #f7f9fc;
-          box-shadow: inset 0 0 0 1px rgba(31, 41, 55, 0.2);
+          border-color: #c8922a;
+          background: #fffbf3;
+          box-shadow: inset 0 0 0 1px rgba(200, 146, 42, 0.25);
         }
 
         .designRoot :global(.switch) {
@@ -2430,7 +2430,7 @@ export default function DesignPage() {
         }
 
         .designRoot :global(.switch.on) {
-          background: #131316;
+          background: #c8922a;
         }
 
         .designRoot :global(.knob) {
