@@ -45,8 +45,7 @@ age_test_images_2/
 photos/
 photos
 yas_kutlama_*.jpg
-test-scripts/image-processing/
-test-scripts/mapbox-minimal-tests*/
+test-scripts/
 
 # Env
 .env
@@ -60,3 +59,6 @@ archive/
 
 # Temporary local test scripts
 tmp/
+
+# Moon texture generation test assets
+test-scripts/moon_texture/
