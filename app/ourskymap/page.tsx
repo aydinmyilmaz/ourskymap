@@ -1567,12 +1567,11 @@ export default function DesignPage() {
           </div>
 
           <div className="panelBlock softD">
-            <div className="toggleLocked">Constellation lines are always ON (required).</div>
             <Toggle checked={showGraticule} onChange={setShowGraticule} label="Grids" />
             <Toggle checked={showNames} onChange={setShowNames} label="Show Names" />
 
             <div className="fieldGroup">
-              <label>Constellation Names:</label>
+              <label>Label Language</label>
               <select
                 value={constellationLanguage}
                 onChange={(e) => setConstellationLanguage(e.target.value as ConstellationLanguage)}
