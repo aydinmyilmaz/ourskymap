@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
-import type { PosterRequest } from '../../lib/types';
 
 type PaymentMethod = 'coupon' | 'paypal';
-type FlatExportEngine = 'server' | 'browser';
+type ExportEngine = 'browser' | 'server';
 
 type RedeemResponse = {
   success: boolean;
@@ -46,13 +45,18 @@ function parseSvgSize(svg: string): { width: number; height: number } {
   return { width: 1200, height: 1800 };
 }
 
-function withAbsoluteMoonUrl(svg: string): string {
-  const absoluteMoon = `${window.location.origin}/moon.png`;
-  return svg
-    .replaceAll('href="/moon.png"', `href="${absoluteMoon}"`)
-    .replaceAll("href='/moon.png'", `href='${absoluteMoon}'`)
-    .replaceAll('xlink:href="/moon.png"', `xlink:href="${absoluteMoon}"`)
-    .replaceAll("xlink:href='/moon.png'", `xlink:href='${absoluteMoon}'`);
+function withAbsoluteMoonUrls(svg: string): string {
+  const origin = window.location.origin;
+  let result = svg;
+  for (const name of ['moon_gold.png', 'moon_silver.png']) {
+    const abs = `${origin}/${name}`;
+    result = result
+      .replaceAll(`href="/${name}"`, `href="${abs}"`)
+      .replaceAll(`href='/${name}'`, `href='${abs}'`)
+      .replaceAll(`xlink:href="/${name}"`, `xlink:href="${abs}"`)
+      .replaceAll(`xlink:href='/${name}'`, `xlink:href='${abs}'`);
+  }
+  return result;
 }
 
 /** CRC32 for PNG chunk integrity verification */
@@ -144,7 +148,7 @@ async function svgToPngBytes(svg: string, width: number, height: number): Promis
 async function downloadFlatBrowserZip(args: { svg: string; filePrefix: string; fileCode: string }): Promise<void> {
   const [{ PDFDocument }, zipMod] = await Promise.all([import('pdf-lib'), import('jszip')]);
   const JSZipCtor = zipMod.default;
-  const svg = withAbsoluteMoonUrl(args.svg);
+  const svg = withAbsoluteMoonUrls(args.svg);
   const { width, height } = parseSvgSize(svg);
   const pngBytes = await svgToPngBytes(svg, width, height);
 
@@ -176,16 +180,11 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('coupon');
-  const [flatExportEngine, setFlatExportEngine] = useState<FlatExportEngine>('server');
+  const [exportEngine, setExportEngine] = useState<ExportEngine>('browser');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const isCity = draft?.productType === 'city';
-  const isFlatSky = useMemo(() => {
-    if (!draft || isCity) return false;
-    const maybe = draft.renderRequest as PosterRequest;
-    return (maybe?.poster?.inkFinish ?? 'flat') === 'flat';
-  }, [draft, isCity]);
 
   useEffect(() => {
     try {
@@ -210,9 +209,9 @@ export default function CheckoutPage() {
   const canSubmit = useMemo(() => {
     if (paymentMethod !== 'coupon') return false;
     if (loading) return false;
-    if (isFlatSky && flatExportEngine === 'browser') return true;
+    if (exportEngine === 'browser') return true;
     return !!email.trim() && !!couponCode.trim();
-  }, [couponCode, email, flatExportEngine, isFlatSky, loading, paymentMethod]);
+  }, [couponCode, email, exportEngine, loading, paymentMethod]);
 
   async function handleCouponSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -222,7 +221,7 @@ export default function CheckoutPage() {
     setInfo('');
 
     try {
-      if (paymentMethod === 'coupon' && isFlatSky && flatExportEngine === 'browser') {
+      if (paymentMethod === 'coupon' && exportEngine === 'browser') {
         const startedAt = performance.now();
         const safeCode = (couponCode.trim() || `browser-${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
         const filePrefix = isCity ? 'citymap' : 'ourskymap';
@@ -296,9 +295,9 @@ export default function CheckoutPage() {
                 placeholder="your.email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required={!(isFlatSky && flatExportEngine === 'browser')}
+                required={exportEngine !== 'browser'}
               />
-              <small>We’ll send your {isCity ? 'city map' : 'sky map'} to this email</small>
+              <small>We'll send your {isCity ? 'city map' : 'sky map'} to this email</small>
             </label>
 
             <div className="field">
@@ -335,41 +334,39 @@ export default function CheckoutPage() {
                   placeholder="Enter coupon code"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  required={!(isFlatSky && flatExportEngine === 'browser')}
+                  required={exportEngine !== 'browser'}
                 />
               </label>
             ) : null}
 
-            {isFlatSky ? (
-              <div className="field">
-                <span>Developer Test: Flat Export Engine</span>
-                <div className="engineToggle" role="tablist" aria-label="Flat export engine">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={flatExportEngine === 'server'}
-                    className={`engineBtn ${flatExportEngine === 'server' ? 'active' : ''}`}
-                    onClick={() => setFlatExportEngine('server')}
-                  >
-                    Server
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={flatExportEngine === 'browser'}
-                    className={`engineBtn ${flatExportEngine === 'browser' ? 'active' : ''}`}
-                    onClick={() => setFlatExportEngine('browser')}
-                  >
-                    Browser (Test)
-                  </button>
-                </div>
-                {flatExportEngine === 'browser' ? (
-                  <small>Browser mode is temporary test flow; email/coupon are optional and coupon is not redeemed.</small>
-                ) : (
-                  <small>Server mode keeps normal coupon + order flow.</small>
-                )}
+            <div className="field">
+              <span>Export Engine</span>
+              <div className="engineToggle" role="tablist" aria-label="Export engine">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={exportEngine === 'browser'}
+                  className={`engineBtn ${exportEngine === 'browser' ? 'active' : ''}`}
+                  onClick={() => setExportEngine('browser')}
+                >
+                  Browser
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={exportEngine === 'server'}
+                  className={`engineBtn ${exportEngine === 'server' ? 'active' : ''}`}
+                  onClick={() => setExportEngine('server')}
+                >
+                  Server
+                </button>
               </div>
-            ) : null}
+              {exportEngine === 'browser' ? (
+                <small>Browser renders locally; email/coupon are optional and coupon is not redeemed.</small>
+              ) : (
+                <small>Server mode uses normal coupon + order flow.</small>
+              )}
+            </div>
 
             {error ? <p className="error">{error}</p> : null}
             {info ? <p className="info">{info}</p> : null}
@@ -377,8 +374,8 @@ export default function CheckoutPage() {
             <button type="submit" className="submitBtn" disabled={!canSubmit}>
               {loading
                 ? 'Processing...'
-                : paymentMethod === 'coupon' && isFlatSky && flatExportEngine === 'browser'
-                  ? 'Download in Browser (Test)'
+                : paymentMethod === 'coupon' && exportEngine === 'browser'
+                  ? 'Download in Browser'
                   : 'Continue with Coupon'}
             </button>
           </form>

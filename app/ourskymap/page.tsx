@@ -17,8 +17,6 @@ type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x
 type CompanionSubtype = 'moon-phase' | 'sky-photo';
 type PosterType = 'single' | 'companion';
 type InkPresetKey = 'gold' | 'silver';
-type InkFinish = 'flat' | 'texture';
-
 type FontPresetKey = 'calligraphy' | 'signature' | 'serif' | 'gothic' | 'times';
 
 type GeocodeResult = {
@@ -464,8 +462,7 @@ const defaultPoster: PosterParams = {
   size: '16x20',
   palette: 'navy-blue',
   inkColor: '#ffbe4c',
-  inkFinish: 'flat',
-  inkTexture: 'gold',
+  inkPreset: 'gold',
   border: true,
   borderWidth: 2,
   borderInset: 2,
@@ -614,7 +611,6 @@ export default function DesignPage() {
   const [frameOn, setFrameOn] = useState(false);
   const [palette, setPalette] = useState<PosterParams['palette']>('navy-blue');
   const [inkPreset, setInkPreset] = useState<InkPresetKey>('gold');
-  const [inkFinish, setInkFinish] = useState<InkFinish>('flat');
   const [cityQuery, setCityQuery] = useState('Florida, USA');
   const [locationLabel, setLocationLabel] = useState('Florida, USA');
   const [lat, setLat] = useState(27.6648);
@@ -647,7 +643,7 @@ export default function DesignPage() {
   const [companionPhotoDragOriginX, setCompanionPhotoDragOriginX] = useState(0);
   const [companionPhotoDragOriginY, setCompanionPhotoDragOriginY] = useState(0);
   const [constellationLanguage, setConstellationLanguage] = useState<ConstellationLanguage>('latin');
-  const [verticalCentering, setVerticalCentering] = useState(false);
+
   const [posterSvg, setPosterSvg] = useState('');
   const [busy, setBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -923,7 +919,7 @@ export default function DesignPage() {
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
-      const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon.png';
+      const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon_gold.png';
       const moonPhaseInnerStroke = 8;
       const moonPhaseOuterStroke = 4;
       const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
@@ -939,9 +935,7 @@ export default function DesignPage() {
         metaText: nextMetaLine,
         palette,
         inkColor: selectedInk.hex,
-        // Keep live preview flat to avoid heavy client-side texture rendering.
-        inkFinish: 'flat',
-        inkTexture: selectedInk.key,
+        inkPreset: selectedInk.key,
         includeAzimuthScale: true,
         showCardinals: false,
         showCoordinates: false,
@@ -960,7 +954,6 @@ export default function DesignPage() {
         moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
-        verticalCentering
       };
 
       const posterRes = await fetch('/api/skymap', {
@@ -1010,8 +1003,7 @@ export default function DesignPage() {
     size,
     effectiveTheme,
     time,
-    title,
-    verticalCentering
+    title
   ]);
 
   useEffect(() => {
@@ -1096,7 +1088,7 @@ export default function DesignPage() {
       const cleanPlace = normalizePlaceLabel(locationLabel || cityQuery);
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
-      const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon.png';
+      const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon_gold.png';
       const moonPhaseInnerStroke = 8;
       const moonPhaseOuterStroke = 4;
       const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
@@ -1112,7 +1104,7 @@ export default function DesignPage() {
         metaText: nextMetaLine,
         palette,
         inkColor: selectedInk.hex,
-        inkTexture: selectedInk.key,
+        inkPreset: selectedInk.key,
         includeAzimuthScale: true,
         showCardinals: false,
         showCoordinates: false,
@@ -1133,16 +1125,7 @@ export default function DesignPage() {
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined
       };
 
-      const exportPoster: PosterParams = {
-        ...basePoster,
-        inkFinish
-      };
-      const previewPoster: PosterParams = {
-        ...basePoster,
-        inkFinish: 'flat'
-      };
-
-      const exportRenderRequest = {
+      const renderRequest = {
         latitude: lat,
         longitude: lon,
         timeUtcIso: normalized.timeUtcIso,
@@ -1150,17 +1133,13 @@ export default function DesignPage() {
         timeLocal: localDateTime,
         locationLabel: cleanPlace || 'Custom location',
         params,
-        poster: exportPoster
-      };
-      const previewRenderRequest = {
-        ...exportRenderRequest,
-        poster: previewPoster
+        poster: basePoster
       };
 
       const posterRes = await fetch('/api/skymap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(previewRenderRequest)
+        body: JSON.stringify(renderRequest)
       });
       if (!posterRes.ok) {
         throw new Error((await posterRes.text()) || 'Poster generation failed');
@@ -1172,7 +1151,7 @@ export default function DesignPage() {
         createdAtIso: new Date().toISOString(),
         productType: 'sky',
         previewSvg: svg,
-        renderRequest: exportRenderRequest,
+        renderRequest: renderRequest,
         mapData: {
           city: cleanPlace || 'Custom location',
           date,
@@ -1222,7 +1201,6 @@ export default function DesignPage() {
     lon,
     names,
     inkPreset,
-    inkFinish,
     palette,
     persistCheckoutDraft,
     router,
@@ -1461,32 +1439,6 @@ export default function DesignPage() {
               </div>
             </div>
 
-            <div className="fieldGroup">
-              <label>Ink Finish:</label>
-              <div className="inkFinishToggle" role="tablist" aria-label="Ink finish">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={inkFinish === 'flat'}
-                  className={`inkFinishBtn ${inkFinish === 'flat' ? 'active' : ''}`}
-                  onClick={() => setInkFinish('flat')}
-                >
-                  Flat
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={inkFinish === 'texture'}
-                  className={`inkFinishBtn ${inkFinish === 'texture' ? 'active' : ''}`}
-                  onClick={() => setInkFinish('texture')}
-                >
-                  Texture
-                </button>
-              </div>
-            </div>
-            {inkFinish === 'texture' ? (
-              <p className="microHint">Texture is applied to export files for stability. Live preview stays flat.</p>
-            ) : null}
           </div>
 
           <div className="panelBlock softB">
@@ -1583,24 +1535,6 @@ export default function DesignPage() {
                 <option value="es">Español</option>
               </select>
             </div>
-
-            {/* Vertical Centering Toggle (only for 12x12 and 20x20) */}
-            {(size === '12x12' || size === '20x20') && (
-              <div className="fieldGroup" style={{ marginTop: '12px' }}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={verticalCentering}
-                    onChange={(e) => setVerticalCentering(e.target.checked)}
-                    style={{ marginRight: '8px' }}
-                  />
-                  Vertical Centering (Test)
-                </label>
-                <small style={{ display: 'block', marginTop: '4px', color: '#999', fontSize: '12px' }}>
-                  Compare old vs new vertical spacing
-                </small>
-              </div>
-            )}
           </div>
 
           <div className="panelBlock softC">
@@ -1696,10 +1630,6 @@ export default function DesignPage() {
               <div className="confirmItem">
                 <span>Time Visibility</span>
                 <strong>{showTimeLine ? 'Shown on poster' : 'Hidden on poster'}</strong>
-              </div>
-              <div className="confirmItem">
-                <span>Ink Finish</span>
-                <strong>{inkFinish === 'texture' ? 'Texture (export)' : 'Flat'}</strong>
               </div>
               <div className="confirmItem full">
                 <span>Location/Date Text</span>
@@ -2362,38 +2292,6 @@ export default function DesignPage() {
           font-weight: 600;
           line-height: 1.35;
           padding: 10px 12px;
-        }
-
-        .inkFinishToggle {
-          width: 100%;
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 8px;
-        }
-
-        .inkFinishBtn {
-          min-height: 42px;
-          border-radius: 11px;
-          border: 1px solid #ccd3de;
-          background: #ffffff;
-          color: #1f2937;
-          font-size: 14px;
-          font-weight: 600;
-          letter-spacing: 0.01em;
-          cursor: pointer;
-          transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        .inkFinishBtn:hover {
-          border-color: #b8c2cf;
-          background: #f8fafd;
-        }
-
-        .inkFinishBtn.active {
-          border-color: #0f172a;
-          background: #0f172a;
-          color: #f8fafc;
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
         }
 
         .designRoot :global(.toggleRow) {

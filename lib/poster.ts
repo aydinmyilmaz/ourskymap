@@ -16,7 +16,7 @@ function svgAttrEscape(s: string): string {
 
 function resolvePosterPublicAssetUrl(preferredUrl: string, fallbackUrl: string): string {
   const preferred = preferredUrl.trim();
-  const fallback = fallbackUrl.trim() || '/moon.png';
+  const fallback = fallbackUrl.trim() || '/moon_gold.png';
 
   const assetExists = (url: string): boolean => {
     if (!url.startsWith('/')) return true;
@@ -27,7 +27,7 @@ function resolvePosterPublicAssetUrl(preferredUrl: string, fallbackUrl: string):
 
   if (preferred && assetExists(preferred)) return preferred;
   if (assetExists(fallback)) return fallback;
-  return '/moon.png';
+  return '/moon_gold.png';
 }
 
 function moonIlluminatedPath(cx: number, cy: number, r: number, phaseDeg: number, mirrorHorizontal: boolean): string {
@@ -73,11 +73,6 @@ type Palette = {
   ink: string;
   mutedInk: string;
   accent: string;
-};
-
-const INK_TEXTURE_URLS: Record<'gold' | 'silver', string> = {
-  gold: '/textures/gold_texture_hd_3500.jpg',
-  silver: '/textures/silver_texture_hd_3500.jpg'
 };
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -390,12 +385,12 @@ function buildMoonVisualProfile(phaseDeg: number): {
   return {
     illumination,
     // Dark hemisphere should get stronger as illumination drops.
-    backdropOpacity: clampNum(0.20 + darkness * 0.30, 0.18, 0.52),
+    backdropOpacity: clampNum(0.28 + darkness * 0.42, 0.26, 0.72),
     // Important: keep base texture dimmer on darker phases (opposite slope).
-    baseTextureOpacity: clampNum(0.64 - darkness * 0.34, 0.28, 0.68),
-    shadowLinearOpacity: clampNum(0.14 + darkness * 0.36, 0.14, 0.58),
-    shadeRadialOpacity: clampNum(0.12 + darkness * 0.30, 0.12, 0.44),
-    blurScale: clampNum(0.84 + darkness * 0.62, 0.75, 1.48)
+    baseTextureOpacity: clampNum(0.52 - darkness * 0.34, 0.16, 0.56),
+    shadowLinearOpacity: clampNum(0.22 + darkness * 0.48, 0.22, 0.72),
+    shadeRadialOpacity: clampNum(0.18 + darkness * 0.38, 0.18, 0.58),
+    blurScale: clampNum(1.0 + darkness * 0.80, 0.90, 1.80)
   };
 }
 
@@ -409,9 +404,10 @@ export function renderPosterSvg(req: PosterRequest): string {
   const showMoonPhase = !!poster.showMoonPhase;
   const showCompanionPhoto = !!poster.showCompanionPhoto && !!(poster.companionPhotoImageUrl || '').trim();
   const showCompanionCircle = showMoonPhase || showCompanionPhoto;
-  const defaultMoonImageUrl = poster.inkTexture === 'silver' ? '/moon_silver.png' : '/moon.png';
+  const defaultMoonImageUrl = poster.inkPreset === 'silver' ? '/moon_silver.png' : '/moon_gold.png';
   const requestedMoonImageUrl = (poster.moonPhaseImageUrl || defaultMoonImageUrl).trim() || defaultMoonImageUrl;
-  const moonImageUrl = resolvePosterPublicAssetUrl(requestedMoonImageUrl, '/moon.png');
+  const moonImageUrl = resolvePosterPublicAssetUrl(requestedMoonImageUrl, '/moon_gold.png');
+
   const companionPhotoUrl = (poster.companionPhotoImageUrl || '').trim();
   const layout = getPosterLayout(size);
   const geom = buildChartGeometry({ latitude, longitude, date, params, layout: layout.layout });
@@ -438,21 +434,13 @@ export function renderPosterSvg(req: PosterRequest): string {
   }
 
   const companionInk = palette.ink;
-  const renderVariant: 'normal' | 'ink-mask' = poster.renderVariant === 'ink-mask' ? 'ink-mask' : 'normal';
-  const isInkMaskVariant = renderVariant === 'ink-mask';
-  const inkFinish: 'flat' | 'texture' = poster.inkFinish === 'texture' ? 'texture' : 'flat';
-  const inkTexture: 'gold' | 'silver' = poster.inkTexture === 'silver' ? 'silver' : 'gold';
-  const useInkTexture = inkFinish === 'texture' && !isInkMaskVariant;
-  const inkTextureHref = INK_TEXTURE_URLS[inkTexture];
-  const layerInk = isInkMaskVariant ? '#ffffff' : useInkTexture ? 'url(#inkTexturePattern)' : palette.ink;
-  const layerMutedInk = isInkMaskVariant ? '#ffffff' : useInkTexture ? 'url(#inkTexturePattern)' : palette.mutedInk;
-  const layerAccent = isInkMaskVariant ? '#ffffff' : useInkTexture ? 'url(#inkTexturePattern)' : palette.accent;
-  // Dense star clouds are intentionally kept flat for renderer stability.
-  const layerDenseInk = isInkMaskVariant ? '#ffffff' : palette.ink;
-  const layerSolarStroke = isInkMaskVariant ? 'none' : palette.bg;
+  const layerInk = palette.ink;
+  const layerMutedInk = palette.mutedInk;
+  const layerAccent = palette.accent;
+  const layerDenseInk = palette.ink;
+  const layerSolarStroke = palette.bg;
   const mapLabelHalo = layerSolarStroke;
-  // Ink-mask variant needs full opacity for clean texture masking.
-  const strokeOpacity = isInkMaskVariant ? '1' : '0.9';
+  const strokeOpacity = '0.9';
 
   // Poster layout regions
   const margin =
@@ -477,7 +465,6 @@ export function renderPosterSvg(req: PosterRequest): string {
   const outerR = chartR + ringGapEarly;
 
   const isSquareTextLayout = size === '12x12' || size === '20x20' || size === 'square';
-  const useVerticalCentering = poster.verticalCentering && (size === '12x12' || size === '20x20');
 
   let chartCx = W / 2;
   let chartCy: number;
@@ -533,11 +520,11 @@ export function renderPosterSvg(req: PosterRequest): string {
       moonVisual = buildMoonVisualProfile(q.phaseDeg);
     }
   }
-  const moonBackdropOpacity = showMoonPhase ? moonVisual.backdropOpacity : 0.32;
+  const moonBackdropOpacity = 0.97;
   const moonBaseTextureOpacity = showMoonPhase ? moonVisual.baseTextureOpacity : 0.52;
   const moonShadowLinearOpacity = showMoonPhase ? moonVisual.shadowLinearOpacity : 0.28;
   const moonShadeRadialOpacity = showMoonPhase ? moonVisual.shadeRadialOpacity : 0.24;
-  const moonSoftBlurSigma = Math.max(1.2, moonR * 0.012 * (showMoonPhase ? moonVisual.blurScale : 1));
+  const moonSoftBlurSigma = Math.max(1.5, moonR * 0.018 * (showMoonPhase ? moonVisual.blurScale : 1));
 
   const title = (poster.title || '').trim();
   const subtitle = (poster.subtitle || '').trim();
@@ -880,15 +867,9 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${widthInches}in" height="${heightInches}in" viewBox="0 0 ${W} ${H}" inkscape:export-xdpi="300" inkscape:export-ydpi="300">
-  <rect x="0" y="0" width="${W}" height="${H}" fill="${isInkMaskVariant ? 'transparent' : palette.bg}"/>
+  <rect x="0" y="0" width="${W}" height="${H}" fill="${palette.bg}"/>
   ${frame}
   <defs>
-    ${useInkTexture
-      ? `<pattern id="inkTexturePattern" patternUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
-      <image href="${svgAttrEscape(inkTextureHref)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>
-    </pattern>`
-      : ''
-    }
     <clipPath id="clipCircle">
       <circle cx="${chartCx}" cy="${chartCy}" r="${chartR}"/>
     </clipPath>
@@ -912,14 +893,19 @@ export function renderPosterSvg(req: PosterRequest): string {
     <filter id="moonSoftBlur" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="${moonSoftBlurSigma.toFixed(2)}"/>
     </filter>
+    <filter id="moonTerminatorBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="${(moonR * 0.025).toFixed(2)}"/>
+    </filter>
     <mask id="moonLitMask">
       <rect x="0" y="0" width="${W}" height="${H}" fill="black"/>
+      <g filter="url(#moonTerminatorBlur)">
       ${moonPhaseReduced > 179.4
           ? `<circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="white"/>`
           : moonPhaseReduced < 0.6
             ? ''
             : `<path d="${moonIlluminatedPath(moonCx, moonCy, moonR, moonPhaseReduced, !moonWaxing)}" fill="white"/>`
         }
+      </g>
     </mask>`
         : ''
       }`
@@ -927,13 +913,7 @@ export function renderPosterSvg(req: PosterRequest): string {
     }
   </defs>
   ${chartLayer}
-  ${isInkMaskVariant && showCompanionCircle
-      ? `<g>
-      <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="#ffffff" opacity="1"/>
-    </g>`
-      : ''
-    }
-  ${!isInkMaskVariant && showCompanionCircle
+  ${showCompanionCircle
       ? showCompanionPhoto
         ? `<g>
     <g filter="url(#moonDropShadow)">
@@ -944,8 +924,8 @@ export function renderPosterSvg(req: PosterRequest): string {
         : `<g>
     <g filter="url(#moonDropShadow)">
       <circle cx="${moonCx}" cy="${moonCy}" r="${moonR}" fill="rgba(0,0,0,${moonBackdropOpacity.toFixed(2)})" data-moon-phase-index="${moonPhaseBucketIndex}"/>
-      <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" opacity="${moonBaseTextureOpacity.toFixed(2)}"/>
-      <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" mask="url(#moonLitMask)" opacity="1"/>
+      <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR * 1.03).toFixed(2)}" y="${(moonCy - moonR * 1.03).toFixed(2)}" width="${(moonR * 2.06).toFixed(2)}" height="${(moonR * 2.06).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" opacity="${moonBaseTextureOpacity.toFixed(2)}"/>
+      <image href="${svgAttrEscape(moonImageUrl)}" x="${(moonCx - moonR * 1.03).toFixed(2)}" y="${(moonCy - moonR * 1.03).toFixed(2)}" width="${(moonR * 2.06).toFixed(2)}" height="${(moonR * 2.06).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" mask="url(#moonLitMask)" opacity="1"/>
       <rect x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" fill="url(#moonShadowLinear)" clip-path="url(#moonClip)" opacity="${moonShadowLinearOpacity.toFixed(2)}" filter="url(#moonSoftBlur)"/>
       <rect x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" fill="url(#moonShadeRadial)" clip-path="url(#moonClip)" opacity="${moonShadeRadialOpacity.toFixed(2)}"/>
     </g>
