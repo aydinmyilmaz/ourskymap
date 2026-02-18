@@ -1568,7 +1568,7 @@ export default function DesignPage() {
 
           <div className="panelBlock softD">
             <Toggle checked={showGraticule} onChange={setShowGraticule} label="Grids" />
-            <Toggle checked={showNames} onChange={setShowNames} label="Show Names" />
+            <Toggle checked={showNames} onChange={setShowNames} label="Show Labels" />
 
             <div className="fieldGroup">
               <label>Label Language</label>
