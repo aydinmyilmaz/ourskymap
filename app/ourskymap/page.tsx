@@ -1310,13 +1310,7 @@ export default function DesignPage() {
               <p className="microHint">Selected size is used for downloadable file output only.</p>
             </div>
 
-            <div className="stackField">
-              <label>Add Border/Outline?</label>
-              <select className="dashedInput" value={frameOn ? 'yes' : 'no'} onChange={(e) => setFrameOn(e.target.value === 'yes')}>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
+            <Toggle checked={frameOn} onChange={setFrameOn} label="Decorative Border" />
 
             {isSkyPhotoUI ? (
               <div className="stackField">
@@ -1572,7 +1566,7 @@ export default function DesignPage() {
 
           <div className="panelBlock softD">
             <div className="toggleLocked">Constellation lines are always ON (required).</div>
-            <Toggle checked={showGraticule} onChange={setShowGraticule} label="Graticule" />
+            <Toggle checked={showGraticule} onChange={setShowGraticule} label="Grids" />
             <Toggle checked={showNames} onChange={setShowNames} label="Show Names" />
 
             <div className="fieldGroup">
