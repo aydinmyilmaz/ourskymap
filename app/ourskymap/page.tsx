@@ -637,6 +637,7 @@ export default function DesignPage() {
   const [companionPhotoDragOriginX, setCompanionPhotoDragOriginX] = useState(0);
   const [companionPhotoDragOriginY, setCompanionPhotoDragOriginY] = useState(0);
   const [constellationLanguage, setConstellationLanguage] = useState<ConstellationLanguage>('latin');
+  const [verticalCentering, setVerticalCentering] = useState(false);
   const [posterSvg, setPosterSvg] = useState('');
   const [busy, setBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -947,7 +948,8 @@ export default function DesignPage() {
         showMoonPhase: isMoonPhase,
         moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
-        companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined
+        companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
+        verticalCentering
       };
 
       const posterRes = await fetch('/api/skymap', {
@@ -997,7 +999,8 @@ export default function DesignPage() {
     size,
     effectiveTheme,
     time,
-    title
+    title,
+    verticalCentering
   ]);
 
   useEffect(() => {
@@ -1560,6 +1563,24 @@ export default function DesignPage() {
                 <option value="es">Español</option>
               </select>
             </div>
+
+            {/* Vertical Centering Toggle (only for 12x12 and 20x20) */}
+            {(size === '12x12' || size === '20x20') && (
+              <div className="fieldGroup" style={{ marginTop: '12px' }}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={verticalCentering}
+                    onChange={(e) => setVerticalCentering(e.target.checked)}
+                    style={{ marginRight: '8px' }}
+                  />
+                  Vertical Centering (Test)
+                </label>
+                <small style={{ display: 'block', marginTop: '4px', color: '#999', fontSize: '12px' }}>
+                  Compare old vs new vertical spacing
+                </small>
+              </div>
+            )}
           </div>
 
           <div className="panelBlock softC">

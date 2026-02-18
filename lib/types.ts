@@ -129,6 +129,7 @@ export type PosterParams = {
   showCompanionPhoto?: boolean;
   companionPhotoImageUrl?: string;
   renderVariant?: 'normal' | 'ink-mask';
+  verticalCentering?: boolean;
 };
 
 export type PosterRequest = {

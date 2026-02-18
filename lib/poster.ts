@@ -241,6 +241,28 @@ function getDefaultMargin(size: PosterRequest['poster']['size']): number {
   }
 }
 
+function getVerticalSpacing(size: PosterRequest['poster']['size'], heightPx: number): {
+  topMargin: number;
+  bottomMargin: number;
+} {
+  const heightInches = heightPx / 72;
+
+  // Special cases for square formats
+  if (size === '12x12') {
+    return { topMargin: 0.8 * 72, bottomMargin: 0.8 * 72 };
+  }
+  if (size === '20x20') {
+    return { topMargin: 1.3 * 72, bottomMargin: 1.3 * 72 };
+  }
+
+  // General formula: height / 12.5 (currently only applied to 12x12 and 20x20)
+  const marginInches = heightInches / 12.5;
+  const marginPx = marginInches * 72;
+
+  return { topMargin: marginPx, bottomMargin: marginPx };
+}
+
+
 function formatCoords(lat: number, lon: number): string {
   const latStr = `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'}`;
   const lonStr = `${Math.abs(lon).toFixed(4)}°${lon >= 0 ? 'E' : 'W'}`;
@@ -444,15 +466,21 @@ export function renderPosterSvg(req: PosterRequest): string {
       : layout.defaultChartDiameter;
   const chartDiameter = poster.chartDiameter > 0 ? poster.chartDiameter : defaultChartDiameter;
   let chartR = chartDiameter / 2;
+  // outerR = dış çember (iç çember + ring gap) — margin bu çemberden ölçülür
+  const ringGapEarly = Math.max(0, poster.ringGap ?? 18);
+  const outerR = chartR + ringGapEarly;
 
-  const isSquareTextLayout = size === 'square' || size === '20x20' || size === '12x12';
+  const isSquareTextLayout = size === '12x12' || size === '20x20' || size === 'square';
+  const useVerticalCentering = poster.verticalCentering && (size === '12x12' || size === '20x20');
+
   let chartCx = W / 2;
-  let chartCy =
-    isSquareTextLayout
-      ? H * 0.44
-      : size === 'a4'
-        ? 320
-        : margin + frameInset + chartR + (size === 'us-letter' ? 16 : 28);
+  let chartCy: number;
+
+  // Always use spec-defined vertical spacing:
+  // 12x12 → 0.8", 20x20 → 1.3", all others → H / 12.5
+  // topMargin = page top → dış çember üst kenarı
+  const { topMargin } = getVerticalSpacing(size, H);
+  chartCy = topMargin + outerR;
 
   let moonCx = 0;
   let moonCy = 0;
@@ -470,23 +498,26 @@ export function renderPosterSvg(req: PosterRequest): string {
   let moonPhaseBucketIndex = 0;
 
   if (showCompanionCircle) {
-    const frameLeft = margin + frameInset;
-    const frameRight = W - margin - frameInset;
-    const frameTop = margin + frameInset;
-    const frameBottom = H - margin - frameInset;
     const gap = 54;
-    const maxRByWidth = Math.max(80, (frameRight - frameLeft - gap) / 4);
-    const topBandHeight = (frameBottom - frameTop) * 0.72;
+    const { topMargin: compTopMargin, bottomMargin: compBottomMargin } = getVerticalSpacing(size, H);
+    const availableHeight = H - compTopMargin - compBottomMargin;
+    const topBandHeight = availableHeight * 0.72;
     const maxRByHeight = Math.max(80, (topBandHeight - 18) / 2);
-    const baseR = Math.max(120, Math.min(chartR, maxRByWidth, maxRByHeight));
+    // Gap ortası = W/2, chart sağ dış kenarı = W-margin kısıtı:
+    // chartCx + compOuterR = W-margin → W/2 + compOuterR + gap/2 + compOuterR = W-margin
+    // → chartR <= (W/2 - margin - gap/2) / 2 - ringGap
+    const maxRByWidthOuter = Math.max(80, (W / 2 - margin - gap / 2) / 2 - ringGapEarly);
+    const baseR = Math.max(120, Math.min(chartR, maxRByWidthOuter, maxRByHeight));
     chartR = baseR;
     moonR = chartR;
-    const pairCenterX = (frameLeft + frameRight) / 2;
-    const centerDistance = chartR * 2 + gap;
-    moonCx = pairCenterX - centerDistance / 2;
-    chartCx = pairCenterX + centerDistance / 2;
-    chartCy = frameTop + chartR + 10;
-    moonCy = chartCy;
+    const compOuterR = chartR + ringGapEarly;
+    // gap ortası = W/2
+    moonCx = W / 2 - moonR - gap / 2;
+    chartCx = W / 2 + compOuterR + gap / 2;
+    // dikey: her ikisi aynı cy → chart dış çember üstü = topMargin
+    const sharedCy = compTopMargin + compOuterR;
+    chartCy = sharedCy;
+    moonCy = sharedCy;
     if (showMoonPhase) {
       const moonPhaseDegRaw = MoonPhase(new AstroTime(date));
       const q = quantizeMoonPhaseDeg(moonPhaseDegRaw);
@@ -639,10 +670,16 @@ export function renderPosterSvg(req: PosterRequest): string {
   const makeTitleLines = () => wrapTextToWidth(title.toUpperCase(), titleMaxWidth, titleFont, titleLetterSpacing);
   let titleLines = title ? makeTitleLines() : [];
 
-  const topVisualTop = showCompanionCircle ? Math.min(chartCy - chartR, moonCy - moonR) : chartCy - chartR;
-  const topVisualBottom = showCompanionCircle ? Math.max(chartCy + chartR, moonCy + moonR) : chartCy + chartR;
+  // companion: chart dış çemberi (compOuterR) ve moon (moonR) en üst/alt kenarlar
+  // normal: outerR (dış çember)
+  const compOuterRRef = showCompanionCircle ? chartR + ringGapEarly : 0;
+  const topVisualTop = showCompanionCircle ? Math.min(chartCy - compOuterRRef, moonCy - moonR) : chartCy - outerR;
+  const topVisualBottom = showCompanionCircle ? Math.max(chartCy + compOuterRRef, moonCy + moonR) : chartCy + outerR;
   const regionTop = topVisualBottom + (showCompanionCircle ? 56 : isSquareTextLayout ? 52 : 46);
-  const regionBottom = showCompanionCircle ? H - margin - 16 : H - margin - (isSquareTextLayout ? 52 : 54);
+
+  // Her iki modda da spec-defined bottom margin
+  const regionBottom = H - getVerticalSpacing(size, H).bottomMargin;
+
   const regionH = Math.max(0, regionBottom - regionTop);
 
   const titleLineHeight = () => titleFont * (is12x12Layout ? 1.06 : 1.12);
@@ -672,11 +709,13 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   const textBlock: string[] = [];
   const neededH = calcNeeded();
-  const centeredStart = regionTop + Math.max(0, (regionH - neededH) / 2) + textBlockYOffset;
+  // Text bloğu regionBottom'a yaslanır: textBottom = regionBottom → bottomMargin spec'e uyar
+  const bottomAlignedStart = regionBottom - neededH;
   const balancedStart = H - topVisualTop - neededH;
   const maxStart = regionBottom - neededH;
   const companionStart = Math.max(regionTop, Math.min(maxStart, balancedStart));
-  let y = showCompanionCircle ? companionStart : centeredStart;
+  let y = showCompanionCircle ? companionStart : bottomAlignedStart;
+  const textBlockStartY = y;
 
   if (titleLines.length) {
     for (const line of titleLines) {
@@ -905,8 +944,70 @@ export function renderPosterSvg(req: PosterRequest): string {
   </g>`
       : ''
     }
+  
   ${azScale.join('\n  ')}
   ${textBlock.join('\n  ')}
   ${metaLines.join('\n  ')}
+  ${process.env.SHOW_RULER === 'true' ? (() => {
+    const cx = W / 2;   // horizontal center (0 point for horizontal ruler)
+    const cy = H / 2;   // vertical center (0 point for vertical ruler)
+    const stepsV = Math.ceil((H / 2) / 7.2);  // steps from center to edge (up & down)
+    const stepsH = Math.ceil((W / 2) / 7.2);  // steps from center to edge (left & right)
+
+    const vTicks = Array.from({ length: stepsV * 2 + 1 }, (_, i) => {
+      const step = i - stepsV;  // negative = above center, positive = below
+      const y = cy + step * 7.2;
+      if (y < 0 || y > H) return '';
+      const absStep = Math.abs(step);
+      const isWholeInch = absStep % 10 === 0;
+      const isHalfInch = absStep % 5 === 0 && !isWholeInch;
+      const tickLen = isWholeInch ? 32 : isHalfInch ? 20 : 8;
+      const inchVal = (absStep / 10).toFixed(absStep % 10 === 0 ? 0 : 1);
+      const sign = step < 0 ? '-' : step > 0 ? '+' : '';
+      const label = (isWholeInch || isHalfInch) ? `${sign}${inchVal}"` : '';
+      return `
+    <line x1="${(cx - tickLen).toFixed(2)}" y1="${y.toFixed(2)}" x2="${(cx + tickLen).toFixed(2)}" y2="${y.toFixed(2)}" stroke="${isWholeInch ? '#FF4444' : isHalfInch ? '#FFDD00' : '#00FFFF'}" stroke-width="${isWholeInch ? 3 : isHalfInch ? 2 : 1}" opacity="1"/>
+    ${label ? `<text x="${(cx + tickLen + 5).toFixed(2)}" y="${(y + 5).toFixed(2)}" font-size="${isWholeInch ? 16 : 13}" fill="${isWholeInch ? '#FF4444' : '#FFDD00'}" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">${label}</text>` : ''}`;
+    }).join('');
+
+    const hTicks = Array.from({ length: stepsH * 2 + 1 }, (_, i) => {
+      const step = i - stepsH;  // negative = left of center, positive = right
+      const x = cx + step * 7.2;
+      if (x < 0 || x > W) return '';
+      const absStep = Math.abs(step);
+      const isWholeInch = absStep % 10 === 0;
+      const isHalfInch = absStep % 5 === 0 && !isWholeInch;
+      const tickLen = isWholeInch ? 32 : isHalfInch ? 20 : 8;
+      const inchVal = (absStep / 10).toFixed(absStep % 10 === 0 ? 0 : 1);
+      const sign = step < 0 ? '-' : step > 0 ? '+' : '';
+      const label = (isWholeInch || isHalfInch) ? `${sign}${inchVal}"` : '';
+      return `
+    <line x1="${x.toFixed(2)}" y1="${(cy - tickLen).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(cy + tickLen).toFixed(2)}" stroke="${isWholeInch ? '#FF4444' : isHalfInch ? '#FFDD00' : '#00FFFF'}" stroke-width="${isWholeInch ? 3 : isHalfInch ? 2 : 1}" opacity="1"/>
+    ${label ? `<text x="${(x - 14).toFixed(2)}" y="${(cy + tickLen + 16).toFixed(2)}" font-size="${isWholeInch ? 16 : 13}" fill="${isWholeInch ? '#FF4444' : '#FFDD00'}" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">${label}</text>` : ''}`;
+    }).join('');
+
+    const visTopR = showCompanionCircle ? chartR : outerR;    // companion: chartR, normal: outerR
+    const chartTopIn   = (chartCy - visTopR) / 72;           // page top → görsel üst kenar
+    const chartBotIn   = (chartCy + visTopR) / 72;           // page top → görsel alt kenar
+    const textBottomPx = textBlockStartY + neededH;           // actual last text line
+    const textBotFromPageBotIn = (H - textBottomPx) / 72;    // text bottom → page bottom
+
+    return `<!-- Measurement Ruler Overlay (SHOW_RULER=true) -->
+  <g id="measurement-ruler">
+    <line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="#00FFFF" stroke-width="2" opacity="0.85"/>
+    <line x1="0" y1="${cy}" x2="${W}" y2="${cy}" stroke="#00FFFF" stroke-width="2" opacity="0.85"/>
+    ${vTicks}
+    ${hTicks}
+    <!-- Chart top: page top → görsel üst kenar -->
+    <line x1="${(cx - 60).toFixed(2)}" y1="${(chartCy - visTopR).toFixed(2)}" x2="${(cx + 60).toFixed(2)}" y2="${(chartCy - visTopR).toFixed(2)}" stroke="#00FF44" stroke-width="3" opacity="1"/>
+    <text x="${(cx + 66).toFixed(2)}" y="${(chartCy - visTopR + 6).toFixed(2)}" font-size="16" fill="#00FF44" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">TOP: ${chartTopIn.toFixed(3)}"</text>
+    <!-- Chart bottom: görsel alt kenar -->
+    <line x1="${(cx - 60).toFixed(2)}" y1="${(chartCy + visTopR).toFixed(2)}" x2="${(cx + 60).toFixed(2)}" y2="${(chartCy + visTopR).toFixed(2)}" stroke="#FFAA00" stroke-width="2" opacity="1"/>
+    <text x="${(cx + 66).toFixed(2)}" y="${(chartCy + visTopR + 6).toFixed(2)}" font-size="14" fill="#FFAA00" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">chart-bot: ${chartBotIn.toFixed(3)}"</text>
+    <!-- Text bottom: text son satiri → page alti -->
+    <line x1="${(cx - 60).toFixed(2)}" y1="${textBottomPx.toFixed(2)}" x2="${(cx + 60).toFixed(2)}" y2="${textBottomPx.toFixed(2)}" stroke="#FF44FF" stroke-width="3" opacity="1"/>
+    <text x="${(cx + 66).toFixed(2)}" y="${(textBottomPx + 6).toFixed(2)}" font-size="16" fill="#FF44FF" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">BOT: ${textBotFromPageBotIn.toFixed(3)}"</text>
+  </g>`;
+  })() : ''}
 </svg>`;
 }
