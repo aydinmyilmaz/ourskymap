@@ -514,6 +514,17 @@ function mapDesignSizeToPosterSize(size: DesignSize): PosterParams['size'] {
   return size;
 }
 
+function getCompanionCanvasHint(sizeKey: DesignSize): string {
+  const dims: Record<DesignSize, [number, number]> = {
+    'us-letter': [612, 792], 'a4': [595, 842], '11x14': [792, 1008],
+    'a3': [842, 1191], '12x12': [864, 864], '12x16': [864, 1152],
+    '16x20': [1152, 1440], 'a2': [1191, 1684], '18x24': [1296, 1728],
+    '20x20': [1440, 1440], 'a1': [1701, 3024], '24x32': [1728, 2304],
+  };
+  const [w, h] = dims[sizeKey] ?? [0, 0];
+  return h > w ? ' (landscape)' : '';
+}
+
 function formatMetaLine(dateIso: string, timeValue: string, showTime: boolean, label: string): string {
   const parts = label
     .split(',')
@@ -1292,7 +1303,7 @@ export default function DesignPage() {
               <select className="dashedInput" value={size} onChange={(e) => setSize(e.target.value as DesignSize)}>
                 {sizeOptions.map((item) => (
                   <option key={item.key} value={item.key}>
-                    {item.title} - {item.sub}
+                    {item.title} - {item.sub}{posterType === 'companion' ? getCompanionCanvasHint(item.key) : ''}
                   </option>
                 ))}
               </select>
