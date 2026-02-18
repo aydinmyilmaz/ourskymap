@@ -1272,14 +1272,16 @@ export default function DesignPage() {
                   onClick={() => setPosterType('single')}
                   type="button"
                 >
-                  Standard Star Map
+                  <img src="/poster-type-single.png" alt="" className="typeBtnImg" />
+                  <span className="typeBtnLabel">Standard<br />Star Map</span>
                 </button>
                 <button
                   className={posterType === 'companion' ? 'typeBtn typeBtn--active' : 'typeBtn'}
                   onClick={() => setPosterType('companion')}
                   type="button"
                 >
-                  Star Map with Moon Phase
+                  <img src="/poster-type-companion.png" alt="" className="typeBtnImg" />
+                  <span className="typeBtnLabel">Star Map<br />with Moon Phase</span>
                 </button>
               </div>
             </div>
@@ -2102,7 +2104,10 @@ export default function DesignPage() {
 
         .typeBtn {
           flex: 1;
-          padding: 8px 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px;
           border: 1.5px dashed #747982;
           background: transparent;
           color: #4a4f56;
@@ -2112,11 +2117,25 @@ export default function DesignPage() {
           opacity: 0.6;
           transition: opacity 0.15s;
           font-family: 'Signika', ui-sans-serif, system-ui;
+          text-align: left;
         }
         .typeBtn--active {
           opacity: 1;
           border-style: solid;
           color: #1a1f26;
+        }
+        .typeBtnImg {
+          width: 44px;
+          height: 66px;
+          border-radius: 6px;
+          object-fit: cover;
+          flex-shrink: 0;
+          display: block;
+        }
+        .typeBtnLabel {
+          font-size: 11px;
+          line-height: 1.4;
+          text-align: left;
         }
 
         .microHint {

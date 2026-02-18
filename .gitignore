@@ -30,6 +30,8 @@ __pycache__/
 *.png
 !public/moon.png
 !public/logo_ourskymap_round.png
+!public/poster-type-single.png
+!public/poster-type-companion.png
 
 # Local caches / downloads
 *.bsp
