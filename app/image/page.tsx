@@ -406,6 +406,7 @@ export default function ImageDesignPage() {
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [textLayers, setTextLayers] = useState<TextLayer[]>([]);
   const [activeTextId, setActiveTextId] = useState<string | null>(null);
+  const [bottomTab, setBottomTab] = useState<'person' | 'text'>('person');
   const [backgroundColor, setBackgroundColor] = useState('#101217');
   const [backgroundHexInput, setBackgroundHexInput] = useState('#101217');
   const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
@@ -490,6 +491,16 @@ export default function ImageDesignPage() {
     const exists = textLayers.some((layer) => layer.id === activeTextId);
     if (!exists) setActiveTextId(textLayers[textLayers.length - 1]?.id ?? null);
   }, [activeTextId, textLayers]);
+
+  // Auto-switch bottom tab when user selects a person layer
+  useEffect(() => {
+    if (activeLayerId) setBottomTab('person');
+  }, [activeLayerId]);
+
+  // Auto-switch bottom tab when user selects a text layer
+  useEffect(() => {
+    if (activeTextId) setBottomTab('text');
+  }, [activeTextId]);
 
   const activePhoto = useMemo(() => photos.find((photo) => photo.id === activePhotoId) ?? null, [activePhotoId, photos]);
   const activeSelections = activePhoto?.selections ?? [];
