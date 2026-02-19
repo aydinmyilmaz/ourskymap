@@ -1876,6 +1876,24 @@ export default function ImageDesignPage() {
 
         <aside className="rightPanel">
           <div className="rightPanelScroll">
+            <div className="modeSwitcher">
+              <button
+                type="button"
+                className={`modeTab${designMode === 'custom' ? ' active' : ''}`}
+                onClick={() => setDesignMode('custom')}
+              >
+                Custom Design
+              </button>
+              <button
+                type="button"
+                className={`modeTab${designMode === 'template' ? ' active' : ''}`}
+                onClick={() => setDesignMode('template')}
+              >
+                Template Design
+              </button>
+            </div>
+
+            {designMode === 'custom' && (
             <section className="panelBlock">
               <div className="panelTitleRow">
                 <h3>Upload Photos</h3>
@@ -1955,6 +1973,7 @@ export default function ImageDesignPage() {
                 </div>
               ) : null}
             </section>
+            )}
 
             {activeTemplate && (
               <section className="panelBlock">
