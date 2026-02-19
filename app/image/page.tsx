@@ -1406,6 +1406,294 @@ export default function ImageDesignPage() {
               ) : null}
             </div>
           </div>
+          <div className="bottomPanel">
+            <div className="bottomTabStrip">
+              <button
+                type="button"
+                className={`bottomTab ${bottomTab === 'person' ? 'active' : ''}`}
+                onClick={() => setBottomTab('person')}
+              >
+                Person Layer
+              </button>
+              <button
+                type="button"
+                className={`bottomTab ${bottomTab === 'text' ? 'active' : ''}`}
+                onClick={() => setBottomTab('text')}
+              >
+                Text Designer
+              </button>
+            </div>
+
+            {bottomTab === 'person' && (
+              <div className="bottomTabContent">
+                {activeLayer ? (
+                  <>
+                    <div className="field">
+                      <label>Crop Top ({Math.round(activeLayer.cropTopPct)}%)</label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={80}
+                        step={1}
+                        value={activeLayer.cropTopPct}
+                        onChange={(e) => updateActiveLayer({ cropTopPct: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Crop Left ({Math.round(activeLayer.cropLeftPct)}%)</label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={70}
+                        step={1}
+                        value={activeLayer.cropLeftPct}
+                        onChange={(e) => {
+                          const nextLeft = Number(e.target.value);
+                          updateActiveLayer({ cropLeftPct: Math.min(nextLeft, 92 - activeLayer.cropRightPct) });
+                        }}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Crop Right ({Math.round(activeLayer.cropRightPct)}%)</label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={70}
+                        step={1}
+                        value={activeLayer.cropRightPct}
+                        onChange={(e) => {
+                          const nextRight = Number(e.target.value);
+                          updateActiveLayer({ cropRightPct: Math.min(nextRight, 92 - activeLayer.cropLeftPct) });
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <p className="hint">Select a person layer on the canvas to adjust crop. Pinch to zoom · Two-finger rotate.</p>
+                )}
+
+                <div className="buttonGrid">
+                  <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('front')}>
+                    To Front
+                  </button>
+                  <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('back')}>
+                    To Back
+                  </button>
+                  <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('forward')}>
+                    Forward
+                  </button>
+                  <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('backward')}>
+                    Backward
+                  </button>
+                </div>
+
+                <div className="buttonRow">
+                  <button type="button" className="dangerBtn" disabled={!activeLayerId} onClick={removeActiveLayer}>
+                    Remove Active Layer
+                  </button>
+                </div>
+
+                {layers.length > 0 ? (
+                  <div className="layerList">
+                    {layers.map((layer, index) => (
+                      <button
+                        key={layer.id}
+                        type="button"
+                        className={`layerItem ${layer.id === activeLayerId ? 'active' : ''}`}
+                        onClick={() => setActiveLayerId(layer.id)}
+                      >
+                        <span>#{index + 1}</span>
+                        <span>{layer.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {bottomTab === 'text' && (
+              <div className="bottomTabContent">
+                <div className="buttonRow">
+                  <button
+                    type="button"
+                    className="primaryBtn"
+                    onClick={addTextLayer}
+                    disabled={textLayers.length >= MAX_TEXT_LAYERS}
+                  >
+                    Add Text Layer
+                  </button>
+                  <span className="countBadge">
+                    {textLayers.length}/{MAX_TEXT_LAYERS}
+                  </span>
+                </div>
+                {textError ? <p className="error">{textError}</p> : null}
+
+                {activeTextLayer ? (
+                  <>
+                    <div className="field">
+                      <label>Text Content</label>
+                      <textarea
+                        className="textInput"
+                        rows={2}
+                        value={activeTextLayer.text}
+                        onChange={(e) => updateActiveTextLayer({ text: e.target.value })}
+                        placeholder="Enter your text"
+                      />
+                    </div>
+
+                    <div className="field">
+                      <div className="fieldLabelRow">
+                        <label>Choose Font</label>
+                        <button
+                          type="button"
+                          className="exploreBtn"
+                          onClick={() => setFontExplore((prev) => !prev)}
+                        >
+                          <span className={`expandGlyph ${fontExplore ? 'open' : ''}`} aria-hidden="true">
+                            <span />
+                            <span />
+                            <span />
+                            <span />
+                          </span>
+                          <span>{fontExplore ? 'Compact' : 'Explore'}</span>
+                        </button>
+                      </div>
+                      <div className={`fontPresetGrid ${fontExplore ? 'expanded' : 'compact'}`}>
+                        {visibleTextStyles.map((preset) => (
+                          <button
+                            key={preset.key}
+                            type="button"
+                            className={`fontPresetCard ${activeTextLayer.styleKey === preset.key ? 'active' : ''}`}
+                            onClick={() => updateActiveTextLayer({ styleKey: preset.key })}
+                          >
+                            <span
+                              className="fontPreview"
+                              style={{
+                                fontFamily: preset.fontFamily,
+                                fontWeight: preset.fontWeight,
+                                fontStyle: preset.fontStyle ?? 'normal',
+                                letterSpacing: `${preset.letterSpacing}px`,
+                                textTransform: preset.textTransform ?? 'none',
+                                textShadow: preset.textShadow
+                              }}
+                            >
+                              {preset.sample}
+                            </span>
+                            <span className="fontLabel">{preset.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="field">
+                      <div className="fieldLabelRow">
+                        <label>Text Color</label>
+                        <button
+                          type="button"
+                          className="exploreBtn"
+                          onClick={() => setTextColorExplore((prev) => !prev)}
+                        >
+                          <span className={`expandGlyph ${textColorExplore ? 'open' : ''}`} aria-hidden="true">
+                            <span />
+                            <span />
+                            <span />
+                            <span />
+                          </span>
+                          <span>{textColorExplore ? 'Compact' : 'Explore'}</span>
+                        </button>
+                      </div>
+                      <div className={`swatchGrid ${textColorExplore ? 'expanded' : 'compact'}`}>
+                        {visibleTextColors.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            className={`colorSwatchBtn ${activeTextLayer.color.toLowerCase() === color.toLowerCase() ? 'active' : ''}`}
+                            onClick={() => {
+                              updateActiveTextLayer({ color });
+                              setTextColorError('');
+                            }}
+                            title={color}
+                          >
+                            <span className="colorSwatchDot" style={{ background: color }} />
+                          </button>
+                        ))}
+                      </div>
+                      <div className="hexRow">
+                        <input
+                          type="color"
+                          value={activeTextLayer.color}
+                          onChange={(e) => {
+                            updateActiveTextLayer({ color: e.target.value });
+                            setTextColorError('');
+                          }}
+                        />
+                        <input
+                          type="text"
+                          value={textColorHexInput}
+                          onChange={(e) => setTextColorHexInput(e.target.value)}
+                          onBlur={() => applyTextHex(textColorHexInput)}
+                          className="hexInput"
+                          placeholder="#f8fafc"
+                        />
+                        <button type="button" className="ghostBtn" onClick={() => applyTextHex(textColorHexInput)}>
+                          Apply
+                        </button>
+                      </div>
+                      {textColorError ? <p className="error">{textColorError}</p> : null}
+                    </div>
+
+                    <div className="field">
+                      <label>Text Size ({Math.round(activeTextLayer.fontSize)}px)</label>
+                      <input
+                        type="range"
+                        min={20}
+                        max={190}
+                        step={1}
+                        value={activeTextLayer.fontSize}
+                        onChange={(e) => updateActiveTextLayer({ fontSize: Number(e.target.value) })}
+                      />
+                    </div>
+
+                    <div className="field">
+                      <label>Rotation ({Math.round(activeTextLayer.rotationDeg)} deg)</label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={360}
+                        step={1}
+                        value={activeTextLayer.rotationDeg}
+                        onChange={(e) => updateActiveTextLayer({ rotationDeg: Number(e.target.value) })}
+                      />
+                    </div>
+
+                    <div className="buttonRow">
+                      <button type="button" className="dangerBtn" onClick={removeActiveTextLayer}>
+                        Remove Active Text
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="hint">Add a text layer, then drag it onto the canvas.</p>
+                )}
+
+                {textLayers.length > 0 ? (
+                  <div className="layerList">
+                    {textLayers.map((layer, index) => (
+                      <button
+                        key={layer.id}
+                        type="button"
+                        className={`layerItem ${layer.id === activeTextId ? 'active' : ''}`}
+                        onClick={() => setActiveTextId(layer.id)}
+                      >
+                        <span>T{index + 1}</span>
+                        <span>{layer.text.trim() || `Text ${index + 1}`}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
         </section>
 
         <aside className="rightPanel">
@@ -1719,303 +2007,7 @@ export default function ImageDesignPage() {
               </div>
             </section>
 
-            <section className="panelBlock">
-              <div className="panelTitleRow">
-                <h3>Person Image Layer</h3>
-              </div>
-              {activeLayer ? (
-                <>
-                  <div className="field">
-                    <label>Active Layer Scale ({activeLayer.scale.toFixed(2)}x)</label>
-                    <input
-                      type="range"
-                      min={0.3}
-                      max={2.6}
-                      step={0.05}
-                      value={activeLayer.scale}
-                      onChange={(e) => updateActiveLayer({ scale: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Active Layer Rotation ({Math.round(activeLayer.rotationDeg)} deg)</label>
-                    <input
-                      type="range"
-                      min={-60}
-                      max={60}
-                      step={1}
-                      value={activeLayer.rotationDeg}
-                      onChange={(e) => updateActiveLayer({ rotationDeg: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Crop Top ({Math.round(activeLayer.cropTopPct)}%)</label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={80}
-                      step={1}
-                      value={activeLayer.cropTopPct}
-                      onChange={(e) => updateActiveLayer({ cropTopPct: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Crop Left ({Math.round(activeLayer.cropLeftPct)}%)</label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={70}
-                      step={1}
-                      value={activeLayer.cropLeftPct}
-                      onChange={(e) => {
-                        const nextLeft = Number(e.target.value);
-                        const safeLeft = Math.min(nextLeft, 92 - activeLayer.cropRightPct);
-                        updateActiveLayer({ cropLeftPct: safeLeft });
-                      }}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Crop Right ({Math.round(activeLayer.cropRightPct)}%)</label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={70}
-                      step={1}
-                      value={activeLayer.cropRightPct}
-                      onChange={(e) => {
-                        const nextRight = Number(e.target.value);
-                        const safeRight = Math.min(nextRight, 92 - activeLayer.cropLeftPct);
-                        updateActiveLayer({ cropRightPct: safeRight });
-                      }}
-                    />
-                  </div>
-                </>
-              ) : (
-                <p className="hint">Select a person layer on poster to adjust it.</p>
-              )}
 
-              <div className="buttonGrid">
-                <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('front')}>
-                  To Front
-                </button>
-                <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('back')}>
-                  To Back
-                </button>
-                <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('forward')}>
-                  Forward
-                </button>
-                <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('backward')}>
-                  Backward
-                </button>
-              </div>
-
-              <div className="buttonRow">
-                <button type="button" className="dangerBtn" disabled={!activeLayerId} onClick={removeActiveLayer}>
-                  Remove Active Layer
-                </button>
-              </div>
-
-              {layers.length > 0 ? (
-                <div className="layerList">
-                  {layers.map((layer, index) => (
-                    <button
-                      key={layer.id}
-                      type="button"
-                      className={`layerItem ${layer.id === activeLayerId ? 'active' : ''}`}
-                      onClick={() => setActiveLayerId(layer.id)}
-                    >
-                      <span>#{index + 1}</span>
-                      <span>{layer.name}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-
-            <section className="panelBlock">
-              <div className="panelTitleRow">
-                <h3>Text Designer</h3>
-                <span>
-                  {textLayers.length}/{MAX_TEXT_LAYERS}
-                </span>
-              </div>
-              <div className="buttonRow">
-                <button
-                  type="button"
-                  className="primaryBtn"
-                  onClick={addTextLayer}
-                  disabled={textLayers.length >= MAX_TEXT_LAYERS}
-                >
-                  Add Text Layer
-                </button>
-              </div>
-              {textError ? <p className="error">{textError}</p> : null}
-
-              {activeTextLayer ? (
-                <>
-                  <div className="field">
-                    <label>Text Content</label>
-                    <textarea
-                      className="textInput"
-                      rows={3}
-                      value={activeTextLayer.text}
-                      onChange={(e) => updateActiveTextLayer({ text: e.target.value })}
-                      placeholder="Enter your text"
-                    />
-                  </div>
-
-                  <div className="field">
-                    <div className="fieldLabelRow">
-                      <label>Choose Font</label>
-                      <button
-                        type="button"
-                        className="exploreBtn"
-                        onClick={() => setFontExplore((prev) => !prev)}
-                      >
-                        <span className={`expandGlyph ${fontExplore ? 'open' : ''}`} aria-hidden="true">
-                          <span />
-                          <span />
-                          <span />
-                          <span />
-                        </span>
-                        <span>{fontExplore ? 'Compact' : 'Explore'}</span>
-                      </button>
-                    </div>
-                    <div className={`fontPresetGrid ${fontExplore ? 'expanded' : 'compact'}`}>
-                      {visibleTextStyles.map((preset) => (
-                        <button
-                          key={preset.key}
-                          type="button"
-                          className={`fontPresetCard ${activeTextLayer.styleKey === preset.key ? 'active' : ''}`}
-                          onClick={() => updateActiveTextLayer({ styleKey: preset.key })}
-                        >
-                          <span
-                            className="fontPreview"
-                            style={{
-                              fontFamily: preset.fontFamily,
-                              fontWeight: preset.fontWeight,
-                              fontStyle: preset.fontStyle ?? 'normal',
-                              letterSpacing: `${preset.letterSpacing}px`,
-                              textTransform: preset.textTransform ?? 'none',
-                              textShadow: preset.textShadow
-                            }}
-                          >
-                            {preset.sample}
-                          </span>
-                          <span className="fontLabel">{preset.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="field">
-                    <div className="fieldLabelRow">
-                      <label>Text Color</label>
-                      <button
-                        type="button"
-                        className="exploreBtn"
-                        onClick={() => setTextColorExplore((prev) => !prev)}
-                      >
-                        <span className={`expandGlyph ${textColorExplore ? 'open' : ''}`} aria-hidden="true">
-                          <span />
-                          <span />
-                          <span />
-                          <span />
-                        </span>
-                        <span>{textColorExplore ? 'Compact' : 'Explore'}</span>
-                      </button>
-                    </div>
-                    <div className={`swatchGrid ${textColorExplore ? 'expanded' : 'compact'}`}>
-                      {visibleTextColors.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          className={`colorSwatchBtn ${activeTextLayer.color.toLowerCase() === color.toLowerCase() ? 'active' : ''}`}
-                          onClick={() => {
-                            updateActiveTextLayer({ color });
-                            setTextColorError('');
-                          }}
-                          title={color}
-                        >
-                          <span className="colorSwatchDot" style={{ background: color }} />
-                        </button>
-                      ))}
-                    </div>
-                    <div className="hexRow">
-                      <input
-                        type="color"
-                        value={activeTextLayer.color}
-                        onChange={(e) => {
-                          updateActiveTextLayer({ color: e.target.value });
-                          setTextColorError('');
-                        }}
-                      />
-                      <input
-                        type="text"
-                        value={textColorHexInput}
-                        onChange={(e) => setTextColorHexInput(e.target.value)}
-                        onBlur={() => applyTextHex(textColorHexInput)}
-                        className="hexInput"
-                        placeholder="#f8fafc"
-                      />
-                      <button type="button" className="ghostBtn" onClick={() => applyTextHex(textColorHexInput)}>
-                        Apply
-                      </button>
-                    </div>
-                    {textColorError ? <p className="error">{textColorError}</p> : null}
-                  </div>
-
-                  <div className="field">
-                    <label>Text Size ({Math.round(activeTextLayer.fontSize)}px)</label>
-                    <input
-                      type="range"
-                      min={20}
-                      max={190}
-                      step={1}
-                      value={activeTextLayer.fontSize}
-                      onChange={(e) => updateActiveTextLayer({ fontSize: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div className="field">
-                    <label>Rotation ({Math.round(activeTextLayer.rotationDeg)} deg)</label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={360}
-                      step={1}
-                      value={activeTextLayer.rotationDeg}
-                      onChange={(e) => updateActiveTextLayer({ rotationDeg: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div className="buttonRow">
-                    <button type="button" className="dangerBtn" onClick={removeActiveTextLayer}>
-                      Remove Active Text
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p className="hint">
-                  Add a text layer, then drag it on poster area. Rotation supports full 0-360 degrees.
-                </p>
-              )}
-
-              {textLayers.length > 0 ? (
-                <div className="layerList">
-                  {textLayers.map((layer, index) => (
-                    <button
-                      key={layer.id}
-                      type="button"
-                      className={`layerItem ${layer.id === activeTextId ? 'active' : ''}`}
-                      onClick={() => setActiveTextId(layer.id)}
-                    >
-                      <span>T{index + 1}</span>
-                      <span>{layer.text.trim() || `Text ${index + 1}`}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </section>
           </div>
 
           <div className="rightPanelFooter">
