@@ -1073,52 +1073,136 @@ export default function ImageDesignPage() {
 
   const handleLayerPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>, layerId: string) => {
-      if (e.button !== 0) return;
       const layer = layers.find((item) => item.id === layerId);
       const canvas = posterCanvasRef.current;
       if (!layer || !canvas) return;
       setActiveLayerId(layerId);
-      layerDragRef.current = {
-        pointerId: e.pointerId,
-        layerId,
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        originX: layer.x,
-        originY: layer.y
-      };
       e.currentTarget.setPointerCapture(e.pointerId);
+
+      const gesture = layerGestureRef.current;
+      const newEntry: LayerPointerEntry = { pointerId: e.pointerId, clientX: e.clientX, clientY: e.clientY };
+
+      if (!gesture || gesture.layerId !== layerId) {
+        layerGestureRef.current = {
+          layerId,
+          pointers: [newEntry],
+          baseScale: layer.scale,
+          baseRotationDeg: layer.rotationDeg,
+          baseDistance: 0,
+          baseAngleDeg: 0
+        };
+        layerDragRef.current = {
+          pointerId: e.pointerId,
+          layerId,
+          startClientX: e.clientX,
+          startClientY: e.clientY,
+          originX: layer.x,
+          originY: layer.y
+        };
+      } else if (gesture.pointers.length === 1) {
+        const existing = gesture.pointers[0];
+        const dx = e.clientX - existing.clientX;
+        const dy = e.clientY - existing.clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+        layerGestureRef.current = {
+          layerId,
+          pointers: [existing, newEntry],
+          baseScale: layer.scale,
+          baseRotationDeg: layer.rotationDeg,
+          baseDistance: distance,
+          baseAngleDeg: angleDeg
+        };
+        layerDragRef.current = null;
+      }
     },
     [layers]
   );
 
-  const handleLayerPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>, layerId: string) => {
-    const drag = layerDragRef.current;
-    const canvas = posterCanvasRef.current;
-    if (!drag || drag.pointerId !== e.pointerId || drag.layerId !== layerId || !canvas) return;
-    const bounds = canvas.getBoundingClientRect();
-    const dx = ((e.clientX - drag.startClientX) / bounds.width) * DESIGN_CANVAS_W;
-    const dy = ((e.clientY - drag.startClientY) / bounds.height) * DESIGN_CANVAS_H;
-    setLayers((prev) =>
-      prev.map((layer) =>
-        layer.id !== layerId
-          ? layer
-          : {
-              ...layer,
-              x: clamp(drag.originX + dx, 0, DESIGN_CANVAS_W),
-              y: clamp(drag.originY + dy, 0, DESIGN_CANVAS_H)
-            }
-      )
-    );
-  }, []);
+  const handleLayerPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>, layerId: string) => {
+      const gesture = layerGestureRef.current;
+      const canvas = posterCanvasRef.current;
+      if (!gesture || gesture.layerId !== layerId || !canvas) return;
 
-  const handleLayerPointerUp = useCallback((e: ReactPointerEvent<HTMLDivElement>, layerId: string) => {
-    const drag = layerDragRef.current;
-    if (!drag || drag.pointerId !== e.pointerId || drag.layerId !== layerId) return;
-    layerDragRef.current = null;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-  }, []);
+      const updatedPointers = gesture.pointers.map((p) =>
+        p.pointerId === e.pointerId ? { ...p, clientX: e.clientX, clientY: e.clientY } : p
+      );
+
+      if (gesture.pointers.length === 2) {
+        const [p1, p2] = updatedPointers;
+        const dx = p2.clientX - p1.clientX;
+        const dy = p2.clientY - p1.clientY;
+        const currentDistance = Math.sqrt(dx * dx + dy * dy);
+        const currentAngleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+
+        const scaleFactor = gesture.baseDistance > 0 ? currentDistance / gesture.baseDistance : 1;
+        const newScale = clamp(gesture.baseScale * scaleFactor, 0.15, 4.0);
+        const deltaAngle = currentAngleDeg - gesture.baseAngleDeg;
+        const newRotation = gesture.baseRotationDeg + deltaAngle;
+
+        layerGestureRef.current = { ...gesture, pointers: updatedPointers };
+        setLayers((prev) =>
+          prev.map((layer) =>
+            layer.id !== layerId ? layer : { ...layer, scale: newScale, rotationDeg: newRotation }
+          )
+        );
+      } else if (gesture.pointers.length === 1) {
+        const drag = layerDragRef.current;
+        if (!drag || drag.pointerId !== e.pointerId || drag.layerId !== layerId) return;
+        const bounds = canvas.getBoundingClientRect();
+        const dx = ((e.clientX - drag.startClientX) / bounds.width) * DESIGN_CANVAS_W;
+        const dy = ((e.clientY - drag.startClientY) / bounds.height) * DESIGN_CANVAS_H;
+        layerGestureRef.current = { ...gesture, pointers: updatedPointers };
+        setLayers((prev) =>
+          prev.map((layer) =>
+            layer.id !== layerId
+              ? layer
+              : { ...layer, x: clamp(drag.originX + dx, 0, DESIGN_CANVAS_W), y: clamp(drag.originY + dy, 0, DESIGN_CANVAS_H) }
+          )
+        );
+      }
+    },
+    []
+  );
+
+  const handleLayerPointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>, layerId: string) => {
+      const gesture = layerGestureRef.current;
+      if (gesture && gesture.layerId === layerId) {
+        const remaining = gesture.pointers.filter((p) => p.pointerId !== e.pointerId);
+        if (remaining.length === 0) {
+          layerGestureRef.current = null;
+          layerDragRef.current = null;
+        } else {
+          const layer = layers.find((l) => l.id === layerId);
+          if (layer) {
+            const [p] = remaining;
+            layerGestureRef.current = {
+              layerId,
+              pointers: remaining,
+              baseScale: layer.scale,
+              baseRotationDeg: layer.rotationDeg,
+              baseDistance: 0,
+              baseAngleDeg: 0
+            };
+            layerDragRef.current = {
+              pointerId: p.pointerId,
+              layerId,
+              startClientX: p.clientX,
+              startClientY: p.clientY,
+              originX: layer.x,
+              originY: layer.y
+            };
+          }
+        }
+      }
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    },
+    [layers]
+  );
 
   const addTextLayer = useCallback(() => {
     setTextError('');
@@ -1270,7 +1354,8 @@ export default function ImageDesignPage() {
                     width: `${layer.width}px`,
                     height: `${layer.height}px`,
                     zIndex: index + 1,
-                    transform: `translate(-50%, -50%) scale(${layer.scale}) rotate(${layer.rotationDeg}deg)`
+                    transform: `translate(-50%, -50%) scale(${layer.scale}) rotate(${layer.rotationDeg}deg)`,
+                    touchAction: 'none' as const
                   }}
                   onPointerDown={(e) => handleLayerPointerDown(e, layer.id)}
                   onPointerMove={(e) => handleLayerPointerMove(e, layer.id)}
