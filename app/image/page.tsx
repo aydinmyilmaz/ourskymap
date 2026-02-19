@@ -436,6 +436,10 @@ export default function ImageDesignPage() {
   const [textColorError, setTextColorError] = useState('');
   const [processing, setProcessing] = useState(false);
   const [processingLabel, setProcessingLabel] = useState('');
+  type ReplicateHealth = 'operational' | 'degraded' | 'outage' | 'unknown';
+  const [replicateHealth, setReplicateHealth] = useState<ReplicateHealth>('unknown');
+  const [healthDescription, setHealthDescription] = useState('');
+  const [healthBannerDismissed, setHealthBannerDismissed] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
@@ -580,6 +584,38 @@ export default function ImageDesignPage() {
     const exists = activePhoto.selections.some((selection) => selection.id === activeSelectionId);
     if (!exists) setActiveSelectionId(null);
   }, [activePhoto, activeSelectionId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkHealth() {
+      try {
+        const res = await fetch('/api/health/replicate');
+        if (!res.ok) {
+          if (!cancelled) setReplicateHealth('unknown');
+          return;
+        }
+        const data = (await res.json()) as { status: ReplicateHealth; description: string };
+        if (!cancelled) {
+          setReplicateHealth(data.status ?? 'unknown');
+          setHealthDescription(data.description ?? '');
+          // Reset banner dismiss when status changes to degraded/outage
+          if (data.status === 'degraded' || data.status === 'outage') {
+            setHealthBannerDismissed(false);
+          }
+        }
+      } catch {
+        if (!cancelled) setReplicateHealth('unknown');
+      }
+    }
+
+    void checkHealth();
+    const interval = setInterval(() => { void checkHealth(); }, 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleUploadFiles = useCallback(
     async (list: FileList | null) => {
@@ -1326,10 +1362,36 @@ export default function ImageDesignPage() {
             <div className="brandSub">STUDIO</div>
           </div>
         </div>
-        <div className="bannerPlaceholder" aria-hidden="true" />
+        <div className="healthBadge" aria-label={`AI Service status: ${replicateHealth}`}>
+          <span className={`healthDot health-${replicateHealth}`} aria-hidden="true" />
+          <span className="healthLabel">
+            {replicateHealth === 'operational' && 'AI: Online'}
+            {replicateHealth === 'degraded' && 'AI: Degraded'}
+            {replicateHealth === 'outage' && 'AI: Down'}
+            {replicateHealth === 'unknown' && 'AI: Checking…'}
+          </span>
+        </div>
       </header>
 
       <main className="layout">
+        {(replicateHealth === 'degraded' || replicateHealth === 'outage') && !healthBannerDismissed && (
+          <div className={`healthBanner health-banner-${replicateHealth}`} role="alert">
+            <span>
+              {replicateHealth === 'outage'
+                ? '🔴 Background removal is currently unavailable (Replicate is down). Please try again later.'
+                : '🟡 Background removal may be slow or unreliable right now. Replicate is experiencing issues.'}
+              {healthDescription ? ` — ${healthDescription}` : ''}
+            </span>
+            <button
+              type="button"
+              className="healthBannerClose"
+              aria-label="Dismiss"
+              onClick={() => setHealthBannerDismissed(true)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <section className="previewPanel">
           <div className="previewHeader">
             <h2>Poster Area</h2>
