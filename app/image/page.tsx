@@ -96,6 +96,21 @@ type TextDragState = {
   originY: number;
 };
 
+type LayerPointerEntry = {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+};
+
+type LayerGestureState = {
+  layerId: string;
+  pointers: LayerPointerEntry[];
+  baseScale: number;
+  baseRotationDeg: number;
+  baseDistance: number;
+  baseAngleDeg: number;
+};
+
 type SelectionGestureState =
   | {
       pointerId: number;
@@ -427,6 +442,7 @@ export default function ImageDesignPage() {
   const selectionBoardRef = useRef<HTMLDivElement>(null);
   const posterCanvasRef = useRef<HTMLDivElement>(null);
   const layerDragRef = useRef<LayerDragState | null>(null);
+  const layerGestureRef = useRef<LayerGestureState | null>(null);
   const textDragRef = useRef<TextDragState | null>(null);
   const selectionGestureRef = useRef<SelectionGestureState | null>(null);
   const draftRef = useRef<SelectionDraft | null>(null);
