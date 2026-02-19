@@ -3660,6 +3660,52 @@ export default function ImageDesignPage() {
         @keyframes slotSpin {
           to { transform: rotate(360deg); }
         }
+
+        /* ── Mode switcher ── */
+        .modeSwitcher {
+          display: flex;
+          gap: 0;
+          margin-bottom: 12px;
+          border-radius: 10px;
+          overflow: hidden;
+          border: 1px solid #e2e8f0;
+          background: #f1f5f9;
+        }
+
+        .modeTab {
+          flex: 1;
+          padding: 8px 0;
+          font-size: 12px;
+          font-weight: 600;
+          color: #64748b;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s;
+        }
+
+        .modeTab.active {
+          background: #fff;
+          color: #0f172a;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .modeTab:hover:not(.active) {
+          background: #e2e8f0;
+        }
+
+        /* ── Queued slot state ── */
+        .slotQueued {
+          color: #f59e0b;
+          font-size: 14px;
+          font-weight: 700;
+          line-height: 1;
+        }
+
+        .slotFileBtn.disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
       `}</style>
     </div>
   );
