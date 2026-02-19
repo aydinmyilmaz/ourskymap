@@ -904,7 +904,7 @@ export function renderPosterSvg(req: PosterRequest): string {
     ${label ? `<text x="${(x - 14).toFixed(2)}" y="${(cy + tickLen + 16).toFixed(2)}" font-size="${isWholeInch ? 16 : 13}" fill="${isWholeInch ? '#FF4444' : '#FFDD00'}" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">${label}</text>` : ''}`;
     }).join('');
 
-    const visTopR = showCompanionCircle ? chartR : outerR;    // companion: chartR, normal: outerR
+    const visTopR = outerR;                                   // both modes: outer ring radius
     const chartTopIn   = (chartCy - visTopR) / 72;           // page top → görsel üst kenar
     const chartBotIn   = (chartCy + visTopR) / 72;           // page top → görsel alt kenar
     const chartDiamIn  = (2 * visTopR) / 72;                 // visible chart diameter
@@ -922,6 +922,9 @@ export function renderPosterSvg(req: PosterRequest): string {
     <line x1="${x.toFixed(2)}" y1="${(chartCy - tickLen).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(chartCy + tickLen).toFixed(2)}" stroke="#FFFFFF" stroke-width="${isWholeInch ? 2 : 1.4}" opacity="0.95"/>
     ${label ? `<text x="${x.toFixed(2)}" y="${(chartCy - tickLen - 6).toFixed(2)}" font-size="11" fill="#FFFFFF" font-family="monospace" text-anchor="middle" opacity="0.95" stroke="#000" stroke-width="2" paint-order="stroke">${label}</text>` : ''}`;
     }).join('');
+    const fontDebugX = W - 18;
+    const fontDebugLineH = 18;
+    const fontDebugY = H - (fontDebugLineH * 3 + 14);
     const textBottomPx = textBlockStartY + neededH;           // actual last text line
     const textBotFromPageBotIn = (H - textBottomPx) / 72;    // text bottom → page bottom
 
@@ -943,6 +946,11 @@ export function renderPosterSvg(req: PosterRequest): string {
     <line x1="${diaLeftX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaLeftX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
     <line x1="${diaRightX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
     <text x="${(chartCx + visTopR + 10).toFixed(2)}" y="${(chartCy + 5).toFixed(2)}" font-size="15" fill="#FFFFFF" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">DIA: ${chartDiamIn.toFixed(3)}"</text>
+    <!-- Font sizes -->
+    <text x="${fontDebugX}" y="${fontDebugY}" font-size="13" fill="#FFFFFF" font-family="monospace" font-weight="700" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="3" paint-order="stroke">FONT SIZES</text>
+    <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Title: ${titleFont.toFixed(2)}px</text>
+    <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 2).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Names: ${namesFont.toFixed(2)}px</text>
+    <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 3).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Location/Date: ${metaFont.toFixed(2)}px</text>
     <!-- Text bottom: text son satiri → page alti -->
     <line x1="${(cx - 60).toFixed(2)}" y1="${textBottomPx.toFixed(2)}" x2="${(cx + 60).toFixed(2)}" y2="${textBottomPx.toFixed(2)}" stroke="#FF44FF" stroke-width="3" opacity="1"/>
     <text x="${(cx + 66).toFixed(2)}" y="${(textBottomPx + 6).toFixed(2)}" font-size="16" fill="#FF44FF" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">BOT: ${textBotFromPageBotIn.toFixed(3)}"</text>
