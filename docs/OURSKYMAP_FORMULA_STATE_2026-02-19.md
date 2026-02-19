@@ -137,3 +137,44 @@ Asagidaki tablo chart/margin/font etkisini tum boyutlar icin ozetler.
 - API endpoint:
   - `app/api/skymap/route.ts` (`renderPosterSvg` cagri noktasi)
 
+## 7) Bugun Yapilan Ekler (2026-02-19)
+
+Bu bolum, bugun konustugumuz "moon phase dogrulugu" ve "ruler toggle" kararlarini kaydeder.
+
+### A) Moon Phase esleme davranisi (Companion)
+
+- Hesaplama `MoonPhase(new AstroTime(date))` ile aliniyor.
+- Faz acisi 30 bucket'a quantize ediliyor:
+
+```text
+phaseIndex = floor((rawDeg + 6) / 12) % 30
+```
+
+- Asset secimi deterministik offset ile yapiliyor:
+
+```text
+assetNumber = ((phaseIndex + 15) % 30) + 1
+```
+
+- Sonuc:
+  - Ayni `timeUtcIso` icin her zaman ayni moon image secilir (deterministik).
+  - Ancak sistem "continuous birebir render" degil, "30-step deterministik esleme"dir.
+  - Pratikte musterinin gozunde faz kategorisi dogru gorunur; ama teknik olarak sonsuz ara faz yerine en yakin adim secilir.
+
+### B) Ruler toggle (Prod/test)
+
+- `SHOW_RULER` env togglei case-insensitive boolean parser ile acilir/kapanir.
+- Acik sayilan degerler:
+  - `true`, `1`, `yes`, `on` (buyuk/kucuk harf fark etmez)
+- Ornek:
+
+```bash
+SHOW_RULER=TRUE
+```
+
+- Bu sayede tester/prod ortaminda ruler'i deploy sonrasi env degiskeniyle acip kapatmak mumkundur.
+
+### C) Bu turda istenmeyen degisiklik
+
+- Continuous moon shading/render bu turda bilerek uygulanmadi.
+- Mevcut karar: 30-image deterministic mapping ile devam.

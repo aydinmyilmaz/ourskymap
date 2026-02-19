@@ -14,6 +14,11 @@ function svgAttrEscape(s: string): string {
   return svgEscape(s).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
+function envFlagEnabled(v: string | undefined): boolean {
+  if (!v) return false;
+  return /^(1|true|yes|on)$/i.test(v.trim());
+}
+
 function resolvePosterPublicAssetUrl(preferredUrl: string, fallbackUrl: string): string {
   const preferred = preferredUrl.trim();
   const fallback = fallbackUrl.trim() || '/moon_gold.png';
@@ -32,7 +37,11 @@ function resolvePosterPublicAssetUrl(preferredUrl: string, fallbackUrl: string):
 
 function resolveMoonPhaseAssetUrl(inkPreset: PosterRequest['poster']['inkPreset'], phaseIndex: number): string {
   const variant = inkPreset === 'silver' ? 'silver' : 'gold';
-  const phaseNumber = Math.max(1, Math.min(MOON_PHASE_BUCKET_COUNT, Math.floor(phaseIndex) + 1));
+  // Asset set starts near full-moon frames; shift by half-cycle so astronomical
+  // phase index (0=new, ~15=full) lands on the expected visual bucket.
+  const normalizedPhaseIndex = ((Math.floor(phaseIndex) % MOON_PHASE_BUCKET_COUNT) + MOON_PHASE_BUCKET_COUNT) % MOON_PHASE_BUCKET_COUNT;
+  const assetPhaseIndex = (normalizedPhaseIndex + 15) % MOON_PHASE_BUCKET_COUNT;
+  const phaseNumber = assetPhaseIndex + 1;
   return resolvePosterPublicAssetUrl(
     `/moon-phases/${variant}/${phaseNumber}.png`,
     variant === 'silver' ? '/moon_silver.png' : '/moon_gold.png'
@@ -384,6 +393,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   const { latitude, longitude, timeUtcIso, locationLabel, params, poster } = req;
   const date = new Date(timeUtcIso);
   if (Number.isNaN(date.getTime())) throw new Error('Invalid timeUtcIso');
+  const showRuler = envFlagEnabled(process.env.SHOW_RULER);
 
   const size = poster.size;
   const is12x12Layout = size === '12x12';
@@ -866,7 +876,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   ${azScale.join('\n  ')}
   ${textBlock.join('\n  ')}
   ${metaLines.join('\n  ')}
-  ${process.env.SHOW_RULER === 'true' ? (() => {
+  ${showRuler ? (() => {
     const cx = W / 2;   // horizontal center (0 point for horizontal ruler)
     const cy = H / 2;   // vertical center (0 point for vertical ruler)
     const stepsV = Math.ceil((H / 2) / 7.2);  // steps from center to edge (up & down)
