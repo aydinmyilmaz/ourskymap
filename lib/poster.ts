@@ -278,6 +278,19 @@ function getVerticalSpacing(size: PosterRequest['poster']['size'], heightPx: num
   return { topMargin: marginPx, bottomMargin: marginPx };
 }
 
+function getCompanionVerticalSpacing(size: PosterRequest['poster']['size'], shortHeightPx: number): {
+  topMargin: number;
+  bottomMargin: number;
+} {
+  const shortHeightInches = shortHeightPx / 72;
+  const marginInches =
+    size === '12x12' || size === '20x20'
+      ? (shortHeightInches / 20) * 3.3
+      : (shortHeightInches / 16) * 1.6;
+  const marginPx = marginInches * 72;
+  return { topMargin: marginPx, bottomMargin: marginPx };
+}
+
 
 function formatCoords(lat: number, lon: number): string {
   const latStr = `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'}`;
@@ -416,7 +429,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   // Poster layout regions
   const margin =
     showCompanionCircle
-      ? 72
+      ? ((layout.width > layout.height ? layout.width : layout.height) / 72 / 20) * 1.1 * 72
       : typeof poster.pageMargin === 'number' && poster.pageMargin > 0
         ? poster.pageMargin
         : getDefaultMargin(size);
@@ -441,9 +454,10 @@ export function renderPosterSvg(req: PosterRequest): string {
   let chartCy: number;
 
   // Always use spec-defined vertical spacing:
-  // 12x12 → 0.8", 20x20 → 1.3", all others → H / 12.5
-  // topMargin = page top → dış çember üst kenarı
-  const { topMargin } = getVerticalSpacing(size, H);
+  // companion: updated formula set with short-edge H
+  // single: legacy vertical spacing logic
+  const verticalSpacing = showCompanionCircle ? getCompanionVerticalSpacing(size, H) : getVerticalSpacing(size, H);
+  const { topMargin } = verticalSpacing;
   chartCy = topMargin + outerR;
 
   let moonCx = 0;
@@ -453,7 +467,7 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   if (showCompanionCircle) {
     const gap = 54;
-    const { topMargin: compTopMargin, bottomMargin: compBottomMargin } = getVerticalSpacing(size, H);
+    const { topMargin: compTopMargin, bottomMargin: compBottomMargin } = verticalSpacing;
     const availableHeight = H - compTopMargin - compBottomMargin;
     const topBandHeight = availableHeight * 0.72;
     const maxRByHeight = Math.max(80, (topBandHeight - 18) / 2);
@@ -606,14 +620,13 @@ export function renderPosterSvg(req: PosterRequest): string {
   // TR: Baslik genislik siniri (yildiz haritasi capina gore oran).
   // EN: Title max width ratio relative to chart diameter.
   const TITLE_CHART_DIAMETER_RATIO = 0.96;
-
   const titleLetterSpacing = 2;
-  // TR: Baslik genisligi, sayfa genisliginin %80'i veya harita capinin %96'sindan hangisi buyukse o olacak sekilde ayarlanir.
-  // EN: Title width is set to the larger of: 80% of page width OR 96% of chart diameter.
-  const titleMaxWidth = Math.max(
-    40,
-    Math.max(W * TITLE_PAGE_WIDTH_RATIO, chartDiameter * TITLE_CHART_DIAMETER_RATIO)
-  );
+  const titleMaxWidth = showCompanionCircle
+    ? Math.max(40, W * 0.75)
+    : Math.max(
+      40,
+      Math.max(W * TITLE_PAGE_WIDTH_RATIO, chartDiameter * TITLE_CHART_DIAMETER_RATIO)
+    );
   const makeTitleLines = () => wrapTextToWidth(title.toUpperCase(), titleMaxWidth, titleFont, titleLetterSpacing);
   let titleLines = title ? makeTitleLines() : [];
 
@@ -627,7 +640,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   const regionTop = topVisualBottom + minTextGap;
 
   // Her iki modda da spec-defined bottom margin
-  const regionBottom = H - getVerticalSpacing(size, H).bottomMargin;
+  const regionBottom = H - verticalSpacing.bottomMargin;
 
   const regionH = Math.max(0, regionBottom - regionTop);
 
@@ -894,6 +907,21 @@ export function renderPosterSvg(req: PosterRequest): string {
     const visTopR = showCompanionCircle ? chartR : outerR;    // companion: chartR, normal: outerR
     const chartTopIn   = (chartCy - visTopR) / 72;           // page top → görsel üst kenar
     const chartBotIn   = (chartCy + visTopR) / 72;           // page top → görsel alt kenar
+    const chartDiamIn  = (2 * visTopR) / 72;                 // visible chart diameter
+    const diaLeftX = chartCx - visTopR;
+    const diaRightX = chartCx + visTopR;
+    const quarterInPx = 72 / 4;
+    const diaTickSteps = Math.floor((diaRightX - diaLeftX) / quarterInPx);
+    const diaTicks = Array.from({ length: diaTickSteps + 1 }, (_, i) => {
+      const x = diaLeftX + i * quarterInPx;
+      const isWholeInch = i % 4 === 0;
+      const isHalfInch = i % 2 === 0 && !isWholeInch;
+      const tickLen = isWholeInch ? 16 : isHalfInch ? 11 : 7;
+      const label = isWholeInch ? `${(i / 4).toFixed(0)}"` : '';
+      return `
+    <line x1="${x.toFixed(2)}" y1="${(chartCy - tickLen).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(chartCy + tickLen).toFixed(2)}" stroke="#FFFFFF" stroke-width="${isWholeInch ? 2 : 1.4}" opacity="0.95"/>
+    ${label ? `<text x="${x.toFixed(2)}" y="${(chartCy - tickLen - 6).toFixed(2)}" font-size="11" fill="#FFFFFF" font-family="monospace" text-anchor="middle" opacity="0.95" stroke="#000" stroke-width="2" paint-order="stroke">${label}</text>` : ''}`;
+    }).join('');
     const textBottomPx = textBlockStartY + neededH;           // actual last text line
     const textBotFromPageBotIn = (H - textBottomPx) / 72;    // text bottom → page bottom
 
@@ -909,6 +937,12 @@ export function renderPosterSvg(req: PosterRequest): string {
     <!-- Chart bottom: görsel alt kenar -->
     <line x1="${(cx - 60).toFixed(2)}" y1="${(chartCy + visTopR).toFixed(2)}" x2="${(cx + 60).toFixed(2)}" y2="${(chartCy + visTopR).toFixed(2)}" stroke="#FFAA00" stroke-width="2" opacity="1"/>
     <text x="${(cx + 66).toFixed(2)}" y="${(chartCy + visTopR + 6).toFixed(2)}" font-size="14" fill="#FFAA00" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">chart-bot: ${chartBotIn.toFixed(3)}"</text>
+    <!-- Chart diameter (white): sol kenar ↔ sag kenar -->
+    <line x1="${diaLeftX.toFixed(2)}" y1="${chartCy.toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${chartCy.toFixed(2)}" stroke="#FFFFFF" stroke-width="2.5" opacity="1"/>
+    ${diaTicks}
+    <line x1="${diaLeftX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaLeftX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
+    <line x1="${diaRightX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
+    <text x="${(chartCx + visTopR + 10).toFixed(2)}" y="${(chartCy + 5).toFixed(2)}" font-size="15" fill="#FFFFFF" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">DIA: ${chartDiamIn.toFixed(3)}"</text>
     <!-- Text bottom: text son satiri → page alti -->
     <line x1="${(cx - 60).toFixed(2)}" y1="${textBottomPx.toFixed(2)}" x2="${(cx + 60).toFixed(2)}" y2="${textBottomPx.toFixed(2)}" stroke="#FF44FF" stroke-width="3" opacity="1"/>
     <text x="${(cx + 66).toFixed(2)}" y="${(textBottomPx + 6).toFixed(2)}" font-size="16" fill="#FF44FF" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">BOT: ${textBotFromPageBotIn.toFixed(3)}"</text>
