@@ -456,7 +456,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   let chartR = chartDiameter / 2;
   // outerR = dış çember (iç çember + ring gap) — margin bu çemberden ölçülür
   const ringGapEarly = Math.max(0, poster.ringGap ?? 18);
-  const outerR = chartR + ringGapEarly;
+  let outerR = chartR + ringGapEarly;
 
   const isSquareTextLayout = size === '12x12' || size === '20x20' || size === 'square';
 
@@ -487,8 +487,9 @@ export function renderPosterSvg(req: PosterRequest): string {
     const maxRByWidthOuter = Math.max(80, (W / 2 - margin - gap / 2) / 2 - ringGapEarly);
     const baseR = Math.max(120, Math.min(chartR, maxRByWidthOuter, maxRByHeight));
     chartR = baseR;
+    outerR = chartR + ringGapEarly;
     moonR = chartR;
-    const compOuterR = chartR + ringGapEarly;
+    const compOuterR = outerR;
     // gap ortası = W/2
     moonCx = W / 2 - moonR - gap / 2;
     chartCx = W / 2 + compOuterR + gap / 2;
@@ -850,6 +851,9 @@ export function renderPosterSvg(req: PosterRequest): string {
     <clipPath id="clipCircle">
       <circle cx="${chartCx}" cy="${chartCy}" r="${chartR}"/>
     </clipPath>
+    <clipPath id="rulerDiaClip">
+      <circle cx="${chartCx}" cy="${chartCy}" r="${outerR}"/>
+    </clipPath>
     ${showCompanionCircle
       ? `<clipPath id="moonClip"><circle cx="${moonCx}" cy="${moonCy}" r="${moonR}"/></clipPath>
     <filter id="moonDropShadow" x="-40%" y="-40%" width="180%" height="180%">
@@ -914,7 +918,7 @@ export function renderPosterSvg(req: PosterRequest): string {
     ${label ? `<text x="${(x - 14).toFixed(2)}" y="${(cy + tickLen + 16).toFixed(2)}" font-size="${isWholeInch ? 16 : 13}" fill="${isWholeInch ? '#FF4444' : '#FFDD00'}" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">${label}</text>` : ''}`;
     }).join('');
 
-    const visTopR = outerR;                                   // both modes: outer ring radius
+    const visTopR = outerR;                                   // final outer ring radius
     const chartTopIn   = (chartCy - visTopR) / 72;           // page top → görsel üst kenar
     const chartBotIn   = (chartCy + visTopR) / 72;           // page top → görsel alt kenar
     const chartDiamIn  = (2 * visTopR) / 72;                 // visible chart diameter
@@ -935,6 +939,7 @@ export function renderPosterSvg(req: PosterRequest): string {
     const fontDebugX = W - 18;
     const fontDebugLineH = 18;
     const fontDebugY = H - (fontDebugLineH * 3 + 14);
+    const diaDebugY = fontDebugY - fontDebugLineH;
     const textBottomPx = textBlockStartY + neededH;           // actual last text line
     const textBotFromPageBotIn = (H - textBottomPx) / 72;    // text bottom → page bottom
 
@@ -950,13 +955,15 @@ export function renderPosterSvg(req: PosterRequest): string {
     <!-- Chart bottom: görsel alt kenar -->
     <line x1="${(cx - 60).toFixed(2)}" y1="${(chartCy + visTopR).toFixed(2)}" x2="${(cx + 60).toFixed(2)}" y2="${(chartCy + visTopR).toFixed(2)}" stroke="#FFAA00" stroke-width="2" opacity="1"/>
     <text x="${(cx + 66).toFixed(2)}" y="${(chartCy + visTopR + 6).toFixed(2)}" font-size="14" fill="#FFAA00" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">chart-bot: ${chartBotIn.toFixed(3)}"</text>
-    <!-- Chart diameter (white): sol kenar ↔ sag kenar -->
-    <line x1="${diaLeftX.toFixed(2)}" y1="${chartCy.toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${chartCy.toFixed(2)}" stroke="#FFFFFF" stroke-width="2.5" opacity="1"/>
-    ${diaTicks}
-    <line x1="${diaLeftX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaLeftX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
-    <line x1="${diaRightX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
-    <text x="${(chartCx + visTopR + 10).toFixed(2)}" y="${(chartCy + 5).toFixed(2)}" font-size="15" fill="#FFFFFF" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">DIA: ${chartDiamIn.toFixed(3)}"</text>
+    <!-- Chart diameter (white): sol kenar ↔ sag kenar (clip: dis cember) -->
+    <g clip-path="url(#rulerDiaClip)">
+      <line x1="${diaLeftX.toFixed(2)}" y1="${chartCy.toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${chartCy.toFixed(2)}" stroke="#FFFFFF" stroke-width="2.5" opacity="1"/>
+      ${diaTicks}
+      <line x1="${diaLeftX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaLeftX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
+      <line x1="${diaRightX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
+    </g>
     <!-- Font sizes -->
+    <text x="${fontDebugX}" y="${diaDebugY}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">DIA: ${chartDiamIn.toFixed(3)}"</text>
     <text x="${fontDebugX}" y="${fontDebugY}" font-size="13" fill="#FFFFFF" font-family="monospace" font-weight="700" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="3" paint-order="stroke">FONT SIZES</text>
     <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Title: ${titleFont.toFixed(2)}px</text>
     <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 2).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Names: ${namesFont.toFixed(2)}px</text>
