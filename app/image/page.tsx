@@ -1581,7 +1581,7 @@ export default function ImageDesignPage() {
 
                 <div className="buttonRow">
                   <button type="button" className="dangerBtn" disabled={!activeLayerId} onClick={removeActiveLayer}>
-                    Remove Active Layer
+                    Delete Image
                   </button>
                 </div>
 
