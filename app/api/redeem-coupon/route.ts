@@ -41,46 +41,55 @@ function isSimulationCoupon(orderCode: string): boolean {
   return prefix.length > 0 && orderCode.toUpperCase().startsWith(prefix.toUpperCase());
 }
 
+const MOON_ASSET_PATH_REGEX = /\/(?:moon_(?:gold|silver)\.png|moon-phases\/(?:gold|silver)\/(?:[1-9]|[12]\d|30)\.png)/g;
+const SAFE_MOON_ASSET_REL_PATH_REGEX = /^(?:moon_(?:gold|silver)\.png|moon-phases\/(?:gold|silver)\/(?:[1-9]|[12]\d|30)\.png)$/;
+
+function listMoonAssetPaths(svg: string): string[] {
+  return [...new Set(svg.match(MOON_ASSET_PATH_REGEX) ?? [])];
+}
+
 function withAbsoluteMoonUrls(svg: string, req: Request): string {
   const configuredBase = (process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
   const requestBase = new URL(req.url).origin;
   const base = configuredBase || requestBase;
   let result = svg;
-  for (const name of ['moon_gold.png', 'moon_silver.png']) {
-    const abs = `${base}/${name}`;
+  for (const assetPath of listMoonAssetPaths(svg)) {
+    const abs = `${base}${assetPath}`;
     result = result
-      .replaceAll(`href="/${name}"`, `href="${abs}"`)
-      .replaceAll(`href='/${name}'`, `href='${abs}'`)
-      .replaceAll(`xlink:href="/${name}"`, `xlink:href="${abs}"`)
-      .replaceAll(`xlink:href='/${name}'`, `xlink:href='${abs}'`);
+      .replaceAll(`href="${assetPath}"`, `href="${abs}"`)
+      .replaceAll(`href='${assetPath}'`, `href='${abs}'`)
+      .replaceAll(`xlink:href="${assetPath}"`, `xlink:href="${abs}"`)
+      .replaceAll(`xlink:href='${assetPath}'`, `xlink:href='${abs}'`);
   }
   return result;
 }
 
 const moonDataUriCache: Record<string, string | null> = {};
 
-function getMoonImageDataUri(fileName: string): string | null {
-  if (Object.prototype.hasOwnProperty.call(moonDataUriCache, fileName)) return moonDataUriCache[fileName];
+function getMoonImageDataUri(assetPath: string): string | null {
+  const relPath = assetPath.replace(/^\/+/, '');
+  if (!SAFE_MOON_ASSET_REL_PATH_REGEX.test(relPath)) return null;
+  if (Object.prototype.hasOwnProperty.call(moonDataUriCache, relPath)) return moonDataUriCache[relPath];
   try {
-    const moonPath = path.join(process.cwd(), 'public', fileName);
+    const moonPath = path.join(process.cwd(), 'public', relPath);
     const raw = readFileSync(moonPath);
-    moonDataUriCache[fileName] = `data:image/png;base64,${raw.toString('base64')}`;
+    moonDataUriCache[relPath] = `data:image/png;base64,${raw.toString('base64')}`;
   } catch {
-    moonDataUriCache[fileName] = null;
+    moonDataUriCache[relPath] = null;
   }
-  return moonDataUriCache[fileName];
+  return moonDataUriCache[relPath];
 }
 
 function withEmbeddedMoonUrls(svg: string): string {
   let result = svg;
-  for (const name of ['moon_gold.png', 'moon_silver.png']) {
-    const dataUri = getMoonImageDataUri(name);
+  for (const assetPath of listMoonAssetPaths(svg)) {
+    const dataUri = getMoonImageDataUri(assetPath);
     if (!dataUri) continue;
     result = result
-      .replaceAll(`href="/${name}"`, `href="${dataUri}"`)
-      .replaceAll(`href='/${name}'`, `href='${dataUri}'`)
-      .replaceAll(`xlink:href="/${name}"`, `xlink:href="${dataUri}"`)
-      .replaceAll(`xlink:href='/${name}'`, `xlink:href='${dataUri}'`);
+      .replaceAll(`href="${assetPath}"`, `href="${dataUri}"`)
+      .replaceAll(`href='${assetPath}'`, `href='${dataUri}'`)
+      .replaceAll(`xlink:href="${assetPath}"`, `xlink:href="${dataUri}"`)
+      .replaceAll(`xlink:href='${assetPath}'`, `xlink:href='${dataUri}'`);
   }
   return result;
 }

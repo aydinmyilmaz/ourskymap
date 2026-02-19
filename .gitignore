@@ -29,6 +29,13 @@ __pycache__/
 *.svg
 *.png
 !public/moon.png
+!public/moon_gold.png
+!public/moon_silver.png
+!public/moon-phases/
+!public/moon-phases/gold/
+!public/moon-phases/silver/
+!public/moon-phases/gold/*.png
+!public/moon-phases/silver/*.png
 !public/logo_ourskymap_round.png
 !public/poster-type-single.png
 !public/poster-type-companion.png
