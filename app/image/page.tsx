@@ -440,6 +440,8 @@ export default function ImageDesignPage() {
   const [replicateHealth, setReplicateHealth] = useState<ReplicateHealth>('unknown');
   const [healthDescription, setHealthDescription] = useState('');
   const [healthBannerDismissed, setHealthBannerDismissed] = useState(false);
+  const [healthCheckedAt, setHealthCheckedAt] = useState('');
+  const [healthChecking, setHealthChecking] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
@@ -585,37 +587,33 @@ export default function ImageDesignPage() {
     if (!exists) setActiveSelectionId(null);
   }, [activePhoto, activeSelectionId]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function checkHealth() {
-      try {
-        const res = await fetch('/api/health/replicate');
-        if (!res.ok) {
-          if (!cancelled) setReplicateHealth('unknown');
-          return;
-        }
-        const data = (await res.json()) as { status: ReplicateHealth; description: string };
-        if (!cancelled) {
-          setReplicateHealth(data.status ?? 'unknown');
-          setHealthDescription(data.description ?? '');
-          // Reset banner dismiss when status changes to degraded/outage
-          if (data.status === 'degraded' || data.status === 'outage') {
-            setHealthBannerDismissed(false);
-          }
-        }
-      } catch {
-        if (!cancelled) setReplicateHealth('unknown');
+  const runHealthCheck = useCallback(async () => {
+    setHealthChecking(true);
+    try {
+      const res = await fetch('/api/health/replicate');
+      if (!res.ok) {
+        setReplicateHealth('unknown');
+        return;
       }
+      const data = (await res.json()) as { status: ReplicateHealth; description: string; checkedAt: string };
+      setReplicateHealth(data.status ?? 'unknown');
+      setHealthDescription(data.description ?? '');
+      setHealthCheckedAt(data.checkedAt ?? '');
+      if (data.status === 'degraded' || data.status === 'outage') {
+        setHealthBannerDismissed(false);
+      }
+    } catch {
+      setReplicateHealth('unknown');
+    } finally {
+      setHealthChecking(false);
     }
-
-    void checkHealth();
-    const interval = setInterval(() => { void checkHealth(); }, 5 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
   }, []);
+
+  useEffect(() => {
+    void runHealthCheck();
+    const interval = setInterval(() => { void runHealthCheck(); }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [runHealthCheck]);
 
   const handleUploadFiles = useCallback(
     async (list: FileList | null) => {
@@ -2069,6 +2067,38 @@ export default function ImageDesignPage() {
               </div>
             </section>
 
+            {process.env.NODE_ENV === 'development' && (
+              <section className="panelBlock devHealthBlock">
+                <div className="panelTitleRow">
+                  <h3>Replicate Health</h3>
+                  <div className={`healthDot health-${replicateHealth}`} style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }} aria-hidden="true" />
+                </div>
+                <div className="devHealthRow">
+                  <span className="devHealthStatus">
+                    {replicateHealth === 'operational' && '✅ Operational'}
+                    {replicateHealth === 'degraded' && '⚠️ Degraded'}
+                    {replicateHealth === 'outage' && '🔴 Outage'}
+                    {replicateHealth === 'unknown' && '⬜ Unknown'}
+                  </span>
+                </div>
+                {healthDescription ? (
+                  <p className="devHealthDesc">{healthDescription}</p>
+                ) : null}
+                {healthCheckedAt ? (
+                  <p className="devHealthTs">
+                    Last checked: {new Date(healthCheckedAt).toLocaleTimeString()}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  className="devHealthBtn"
+                  disabled={healthChecking}
+                  onClick={() => { void runHealthCheck(); }}
+                >
+                  {healthChecking ? 'Checking…' : 'Check Now'}
+                </button>
+              </section>
+            )}
 
           </div>
 
@@ -2362,6 +2392,59 @@ export default function ImageDesignPage() {
           padding: 12px;
           display: grid;
           gap: 10px;
+        }
+
+        .devHealthBlock {
+          border-color: #b8c4d8;
+          background: #f0f4fa;
+        }
+
+        .devHealthRow {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .devHealthStatus {
+          font-size: 12px;
+          font-weight: 600;
+          color: #334155;
+        }
+
+        .devHealthDesc {
+          font-size: 11px;
+          color: #64748b;
+          margin: 0;
+        }
+
+        .devHealthTs {
+          font-size: 10px;
+          color: #94a3b8;
+          margin: 0;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .devHealthBtn {
+          align-self: start;
+          padding: 5px 12px;
+          border-radius: 8px;
+          border: 1px solid #94a3b8;
+          background: #fff;
+          font-size: 11px;
+          font-weight: 600;
+          color: #334155;
+          cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
+        }
+
+        .devHealthBtn:hover:not(:disabled) {
+          background: #e2e8f0;
+          border-color: #64748b;
+        }
+
+        .devHealthBtn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .panelTitleRow {
