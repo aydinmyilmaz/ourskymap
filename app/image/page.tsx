@@ -2110,7 +2110,8 @@ export default function ImageDesignPage() {
 
         .previewPanel {
           padding: 20px;
-          display: grid;
+          display: flex;
+          flex-direction: column;
           align-content: start;
           gap: 16px;
           background: radial-gradient(1300px 740px at 45% 12%, #f6f9ff 0%, #dbe3f2 52%, #c8d2e5 100%);
@@ -2134,6 +2135,59 @@ export default function ImageDesignPage() {
         .posterWrap {
           display: grid;
           place-items: center;
+        }
+
+        .bottomPanel {
+          background: #1a1d24;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-top: none;
+          border-radius: 0 0 12px 12px;
+          overflow: hidden;
+        }
+
+        .bottomTabStrip {
+          display: flex;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .bottomTab {
+          flex: 1;
+          padding: 10px 16px;
+          background: transparent;
+          border: none;
+          color: rgba(255,255,255,0.45);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          letter-spacing: 0.3px;
+          transition: color 0.15s, background 0.15s;
+        }
+
+        .bottomTab:hover {
+          color: rgba(255,255,255,0.75);
+          background: rgba(255,255,255,0.04);
+        }
+
+        .bottomTab.active {
+          color: #fff;
+          background: rgba(255,255,255,0.06);
+          border-bottom: 2px solid #6366f1;
+        }
+
+        .bottomTabContent {
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          max-height: 340px;
+          overflow-y: auto;
+        }
+
+        .countBadge {
+          font-size: 12px;
+          color: rgba(255,255,255,0.4);
+          align-self: center;
+          margin-left: 8px;
         }
 
         .posterCanvas {
