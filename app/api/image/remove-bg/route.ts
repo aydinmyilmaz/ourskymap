@@ -5,6 +5,8 @@ export const runtime = 'nodejs';
 
 const BACKGROUND_REMOVER_MODEL =
   '851-labs/background-remover:a029dff38972b5fda4ec5d75d7d1cd25aeff621d2cf4946a41055d7db66b80bc';
+const BACKGROUND_REMOVER_FALLBACK_MODEL =
+  'smoretalk/rembg-enhance:4067ee2a58f6c161d434a9c077cfa012820b8e076efa2772aa171e26557da919';
 
 type RemoveBgRequestBody = {
   imageUrl?: string;
@@ -151,9 +153,16 @@ export async function POST(req: Request) {
     }
 
     const replicate = new Replicate({ auth: token });
-    const output = await runWithRetry(replicate, BACKGROUND_REMOVER_MODEL, {
-      image: imageInput
-    });
+    let output: unknown;
+    try {
+      output = await runWithRetry(replicate, BACKGROUND_REMOVER_MODEL, {
+        image: imageInput
+      });
+    } catch {
+      output = await runWithRetry(replicate, BACKGROUND_REMOVER_FALLBACK_MODEL, {
+        image: imageInput
+      });
+    }
 
     const outputUrl = await extractOutputUrl(output);
     if (!outputUrl) {
