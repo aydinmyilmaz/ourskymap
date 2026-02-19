@@ -3565,6 +3565,7 @@ export default function ImageDesignPage() {
           display: flex;
           align-items: center;
           gap: 8px;
+          min-width: 0;
         }
 
         .slotLabel {
@@ -3579,7 +3580,8 @@ export default function ImageDesignPage() {
 
         .slotFileBtn {
           flex: 1;
-          display: inline-flex;
+          min-width: 0;
+          display: flex;
           align-items: center;
           justify-content: center;
           padding: 5px 10px;
