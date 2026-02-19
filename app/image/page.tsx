@@ -547,6 +547,18 @@ export default function ImageDesignPage() {
   const remainingPhotoSlots = Math.max(0, MAX_UPLOAD_PHOTOS - photos.length);
   const peopleUsage = layers.length + pendingSelections;
   const remainingPeopleSlots = Math.max(0, MAX_TOTAL_PEOPLE - peopleUsage);
+  const queuedCount = useMemo(
+    () => Object.values(slotStates).filter((s) => s === 'queued').length,
+    [slotStates]
+  );
+  const processingCount = useMemo(
+    () => Object.values(slotStates).filter((s) => s === 'processing').length,
+    [slotStates]
+  );
+  const doneCount = useMemo(
+    () => Object.values(slotStates).filter((s) => s === 'done').length,
+    [slotStates]
+  );
   const activeLayer = useMemo(() => layers.find((layer) => layer.id === activeLayerId) ?? null, [activeLayerId, layers]);
   const activeTextLayer = useMemo(
     () => textLayers.find((layer) => layer.id === activeTextId) ?? null,
@@ -1975,45 +1987,91 @@ export default function ImageDesignPage() {
             </section>
             )}
 
-            {activeTemplate && (
+            {designMode === 'template' && (
               <section className="panelBlock">
                 <div className="panelTitleRow">
-                  <h3>Template Slots</h3>
-                  <span>{Object.values(slotStates).filter((s) => s === 'done').length}/{activeTemplate.slots.length}</span>
+                  <h3>Upload Photos</h3>
+                  <span>{Object.values(slotStates).filter((s) => s === 'done').length}/{activeTemplate ? activeTemplate.slots.length : 0}</span>
                 </div>
-                <div className="slotList">
-                  {activeTemplate.slots.map((slot) => {
-                    const label = slot.index === 0 ? 'Center' : `#${slot.index}`;
-                    const state = slotStates[slot.index] ?? 'idle';
-                    return (
-                      <div key={slot.index} className="slotRow">
-                        <span className="slotLabel">{label}</span>
-                        <label className="slotFileBtn">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hiddenInput"
-                            disabled={state === 'processing'}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                setSlotFiles((prev) => ({ ...prev, [slot.index]: file }));
-                                void handleSlotUpload(slot.index);
-                              }
-                              e.currentTarget.value = '';
-                            }}
-                          />
-                          {state === 'processing' ? 'Uploading…' : state === 'done' ? 'Replace' : 'Choose File'}
-                        </label>
-                        <span className="slotStatus">
-                          {state === 'processing' && <span className="slotSpinner" aria-hidden="true" />}
-                          {state === 'done' && <span className="slotDone" aria-label="Done">✓</span>}
-                          {state === 'idle' && <span className="slotEmpty" aria-hidden="true">○</span>}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="buttonRow">
+                  <button
+                    type="button"
+                    className="ghostBtn"
+                    onClick={() => setTemplateModalOpen(true)}
+                  >
+                    Use a Template
+                  </button>
                 </div>
+                {activeTemplate && (
+                  <div className="templateActiveBadge">
+                    <span>🎨 {activeTemplate.name}</span>
+                    <button
+                      type="button"
+                      className="templateBadgeClear"
+                      aria-label="Clear template"
+                      onClick={() => {
+                        setActiveTemplate(null);
+                        setBackgroundImageUrl('');
+                        setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
+                        setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
+                        setSlotStates({});
+                        setSlotLayerIds({});
+                        setSlotFiles({});
+                        setTemplateTextIds([]);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                {activeTemplate && (
+                  <div className="slotList">
+                    {activeTemplate.slots.map((slot) => {
+                      const label = slot.index === 0 ? 'Center' : `#${slot.index}`;
+                      const state = slotStates[slot.index] ?? 'idle';
+                      return (
+                        <div key={slot.index} className="slotRow">
+                          <span className="slotLabel">{label}</span>
+                          <label className={`slotFileBtn${state === 'processing' ? ' disabled' : ''}`}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hiddenInput"
+                              disabled={state === 'processing'}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setSlotFiles((prev) => ({ ...prev, [slot.index]: file }));
+                                  setSlotStates((prev) => ({ ...prev, [slot.index]: 'queued' }));
+                                }
+                                e.currentTarget.value = '';
+                              }}
+                            />
+                            {state === 'processing' ? 'Uploading…' : state === 'done' ? 'Replace' : 'Choose File'}
+                          </label>
+                          <span className="slotStatus">
+                            {state === 'processing' && <span className="slotSpinner" aria-hidden="true" />}
+                            {state === 'done' && <span className="slotDone" aria-label="Done">✓</span>}
+                            {state === 'queued' && <span className="slotQueued" aria-label="Queued">…</span>}
+                            {state === 'idle' && <span className="slotEmpty" aria-hidden="true">○</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {queuedCount > 0 && (
+                      <button
+                        type="button"
+                        className="primaryBtn"
+                        disabled={processingCount > 0}
+                        onClick={() => void handleProcessAllSlots()}
+                      >
+                        {processingCount > 0
+                          ? `Processing ${doneCount}/${activeTemplate.slots.length}…`
+                          : `Process All (${queuedCount})`}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {Object.keys(slotStates).length > 0 && (
                   <button
                     type="button"
