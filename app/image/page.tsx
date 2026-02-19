@@ -1126,10 +1126,12 @@ export default function ImageDesignPage() {
   }, [layers.length, photos]);
 
   const handleSlotUpload = useCallback(
-    async (slotIndex: number, file: File) => {
+    async (slotIndex: number) => {
       if (!activeTemplate) return;
       const slot = activeTemplate.slots[slotIndex];
       if (!slot) return;
+      const file = slotFiles[slotIndex];
+      if (!file) return;
 
       setSlotStates((prev) => ({ ...prev, [slotIndex]: 'processing' }));
 
@@ -1202,8 +1204,16 @@ export default function ImageDesignPage() {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
       }
     },
-    [activeTemplate, slotLayerIds]
+    [activeTemplate, slotLayerIds, slotFiles]
   );
+
+  const handleProcessAllSlots = useCallback(async () => {
+    if (!activeTemplate) return;
+    const queuedIndices = activeTemplate.slots
+      .map((s) => s.index)
+      .filter((i) => (slotStates[i] ?? 'idle') === 'queued');
+    await Promise.allSettled(queuedIndices.map((i) => handleSlotUpload(i)));
+  }, [activeTemplate, slotStates, handleSlotUpload]);
 
   const handleLayerPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>, layerId: string) => {
@@ -1915,6 +1925,7 @@ export default function ImageDesignPage() {
                       setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
                       setSlotStates({});
                       setSlotLayerIds({});
+                      setSlotFiles({});
                       setTemplateTextIds([]);
                     }}
                   >
@@ -1966,7 +1977,10 @@ export default function ImageDesignPage() {
                             disabled={state === 'processing'}
                             onChange={(e) => {
                               const file = e.target.files?.[0];
-                              if (file) void handleSlotUpload(slot.index, file);
+                              if (file) {
+                                setSlotFiles((prev) => ({ ...prev, [slot.index]: file }));
+                                void handleSlotUpload(slot.index);
+                              }
                               e.currentTarget.value = '';
                             }}
                           />
@@ -1989,6 +2003,7 @@ export default function ImageDesignPage() {
                       setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
                       setSlotStates({});
                       setSlotLayerIds({});
+                      setSlotFiles({});
                     }}
                   >
                     Clear Slots
@@ -2245,6 +2260,7 @@ export default function ImageDesignPage() {
                       setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
                       setSlotStates({});
                       setSlotLayerIds({});
+                      setSlotFiles({});
                       setTemplateTextIds([]);
                     }}
                   >
@@ -2354,6 +2370,7 @@ export default function ImageDesignPage() {
                       setTemplateTextIds(newTextLayers.map((l) => l.id));
                       setSlotStates({});
                       setSlotLayerIds({});
+                      setSlotFiles({});
                     }}
                   >
                     <div className="templateThumb">
