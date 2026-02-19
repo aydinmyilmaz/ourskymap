@@ -447,9 +447,11 @@ export default function ImageDesignPage() {
   const [healthChecking, setHealthChecking] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<DesignTemplate | null>(null);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
-  const [slotStates, setSlotStates] = useState<Record<number, 'idle' | 'processing' | 'done'>>({});
+  const [slotStates, setSlotStates] = useState<Record<number, 'idle' | 'queued' | 'processing' | 'done'>>({});
   const [slotLayerIds, setSlotLayerIds] = useState<Record<number, string>>({});
   const [templateTextIds, setTemplateTextIds] = useState<string[]>([]);
+  const [designMode, setDesignMode] = useState<'custom' | 'template'>('custom');
+  const [slotFiles, setSlotFiles] = useState<Record<number, File>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
