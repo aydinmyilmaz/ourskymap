@@ -2112,11 +2112,11 @@ export default function ImageDesignPage() {
           padding: 20px;
           display: flex;
           flex-direction: column;
-          align-content: start;
+          align-items: center;
           gap: 16px;
           background: radial-gradient(1300px 740px at 45% 12%, #f6f9ff 0%, #dbe3f2 52%, #c8d2e5 100%);
           border-right: 1px solid #c3ccdd;
-          overflow: hidden;
+          overflow-y: auto;
         }
 
         .previewHeader h2 {
@@ -2133,21 +2133,25 @@ export default function ImageDesignPage() {
         }
 
         .posterWrap {
+          width: min(100%, calc(620px * 1.2));
           display: grid;
           place-items: center;
         }
 
         .bottomPanel {
-          background: #1a1d24;
-          border: 1px solid rgba(255,255,255,0.08);
-          border-top: none;
-          border-radius: 0 0 12px 12px;
+          width: min(100%, calc(620px * 1.2));
+          align-self: center;
+          background: #fff;
+          border: 1px solid #c3ccdd;
+          border-radius: 14px;
           overflow: hidden;
+          box-shadow: 0 2px 12px rgba(15,23,42,0.08);
         }
 
         .bottomTabStrip {
           display: flex;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
+          border-bottom: 1px solid #dde3ee;
+          background: #f0f3f9;
         }
 
         .bottomTab {
@@ -2155,23 +2159,24 @@ export default function ImageDesignPage() {
           padding: 10px 16px;
           background: transparent;
           border: none;
-          color: rgba(255,255,255,0.45);
+          border-bottom: 2px solid transparent;
+          color: #6b7280;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
           letter-spacing: 0.3px;
-          transition: color 0.15s, background 0.15s;
+          transition: color 0.15s, background 0.15s, border-color 0.15s;
         }
 
         .bottomTab:hover {
-          color: rgba(255,255,255,0.75);
-          background: rgba(255,255,255,0.04);
+          color: #374151;
+          background: rgba(99,102,241,0.05);
         }
 
         .bottomTab.active {
-          color: #fff;
-          background: rgba(255,255,255,0.06);
-          border-bottom: 2px solid #6366f1;
+          color: #4f46e5;
+          background: #fff;
+          border-bottom: 2px solid #4f46e5;
         }
 
         .bottomTabContent {
@@ -2179,13 +2184,14 @@ export default function ImageDesignPage() {
           display: flex;
           flex-direction: column;
           gap: 12px;
-          max-height: 340px;
+          max-height: 300px;
           overflow-y: auto;
+          background: #fff;
         }
 
         .countBadge {
           font-size: 12px;
-          color: rgba(255,255,255,0.4);
+          color: #9ca3af;
           align-self: center;
           margin-left: 8px;
         }
