@@ -2200,7 +2200,7 @@ export default function ImageDesignPage() {
           height: calc(100vh - 84px);
           margin-top: 84px;
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 300px 360px;
+          grid-template-columns: minmax(0, 1fr) 360px 360px;
           grid-template-rows: 1fr;
         }
 
