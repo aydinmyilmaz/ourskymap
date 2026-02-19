@@ -1799,7 +1799,30 @@ export default function ImageDesignPage() {
                 >
                   {remainingPhotoSlots > 0 ? 'Add Photos' : 'Max Photos Reached'}
                 </button>
+                <button
+                  type="button"
+                  className="ghostBtn"
+                  onClick={() => setTemplateModalOpen(true)}
+                >
+                  Use a Template
+                </button>
               </div>
+              {activeTemplate && (
+                <div className="templateActiveBadge">
+                  <span>🎨 {activeTemplate.name}</span>
+                  <button
+                    type="button"
+                    className="templateBadgeClear"
+                    aria-label="Clear template"
+                    onClick={() => {
+                      setActiveTemplate(null);
+                      setBackgroundImageUrl('');
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <p className="hint">Maximum {MAX_UPLOAD_PHOTOS} photos. Draw person frames in next card.</p>
               {uploadError ? <p className="error">{uploadError}</p> : null}
               {photos.length > 0 ? (
