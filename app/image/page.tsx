@@ -2089,6 +2089,7 @@ export default function ImageDesignPage() {
               </section>
             )}
 
+            {designMode === 'custom' && (
             <section className="panelBlock">
               <div className="panelTitleRow">
                 <h3>Frame People</h3>
@@ -2251,6 +2252,7 @@ export default function ImageDesignPage() {
                 <p className="hint">Upload a photo first.</p>
               )}
             </section>
+            )}
 
             <section className="panelBlock">
               <div className="panelTitleRow">
