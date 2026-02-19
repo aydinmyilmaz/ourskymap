@@ -1507,6 +1507,29 @@ export default function ImageDesignPage() {
                     onPointerCancel={(e) => handleTextPointerUp(e, layer.id)}
                   >
                     {layer.text || 'Text'}
+                    {activeTextId === layer.id && (
+                      <div
+                        className="layerControls"
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <button type="button" className="layerControlBtn" aria-label="Rotate counter-clockwise"
+                          onClick={(e) => { e.stopPropagation(); updateActiveTextLayer({ rotationDeg: layer.rotationDeg - 15 }); }}>
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5.5A5 5 0 1 1 3.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M3 2.5v3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </button>
+                        <button type="button" className="layerControlBtn" aria-label="Decrease size"
+                          onClick={(e) => { e.stopPropagation(); updateActiveTextLayer({ fontSize: Math.max(20, layer.fontSize - 8) }); }}>
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        </button>
+                        <button type="button" className="layerControlBtn" aria-label="Increase size"
+                          onClick={(e) => { e.stopPropagation(); updateActiveTextLayer({ fontSize: Math.min(190, layer.fontSize + 8) }); }}>
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                        </button>
+                        <button type="button" className="layerControlBtn" aria-label="Rotate clockwise"
+                          onClick={(e) => { e.stopPropagation(); updateActiveTextLayer({ rotationDeg: layer.rotationDeg + 15 }); }}>
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11 5.5A5 5 0 1 0 10.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M11 2.5v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1515,7 +1538,9 @@ export default function ImageDesignPage() {
               ) : null}
             </div>
           </div>
-          <div className="bottomPanel">
+        </section>
+
+        <div className="bottomPanel">
             <div className="bottomTabStrip">
               <button
                 type="button"
@@ -1717,30 +1742,6 @@ export default function ImageDesignPage() {
                       {textColorError ? <p className="error">{textColorError}</p> : null}
                     </div>
 
-                    <div className="field">
-                      <label>Text Size ({Math.round(activeTextLayer.fontSize)}px)</label>
-                      <input
-                        type="range"
-                        min={20}
-                        max={190}
-                        step={1}
-                        value={activeTextLayer.fontSize}
-                        onChange={(e) => updateActiveTextLayer({ fontSize: Number(e.target.value) })}
-                      />
-                    </div>
-
-                    <div className="field">
-                      <label>Rotation ({Math.round(activeTextLayer.rotationDeg)} deg)</label>
-                      <input
-                        type="range"
-                        min={0}
-                        max={360}
-                        step={1}
-                        value={activeTextLayer.rotationDeg}
-                        onChange={(e) => updateActiveTextLayer({ rotationDeg: Number(e.target.value) })}
-                      />
-                    </div>
-
                   </>
                 ) : (
                   <p className="hint">Add a text layer, then drag it onto the canvas.</p>
@@ -1764,7 +1765,6 @@ export default function ImageDesignPage() {
               </div>
             )}
           </div>
-        </section>
 
         <aside className="rightPanel">
           <div className="rightPanelScroll">
@@ -2207,7 +2207,8 @@ export default function ImageDesignPage() {
           height: calc(100vh - 84px);
           margin-top: 84px;
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 516px;
+          grid-template-columns: minmax(0, 1fr) 300px 360px;
+          grid-template-rows: 1fr;
         }
 
         .previewPanel {
@@ -2241,12 +2242,12 @@ export default function ImageDesignPage() {
         }
 
         .bottomPanel {
-          width: min(100%, calc(620px * 1.2));
-          align-self: center;
+          display: flex;
+          flex-direction: column;
           background: #fff;
-          border: 1px solid #c3ccdd;
-          border-radius: 14px;
-          box-shadow: 0 2px 12px rgba(15,23,42,0.08);
+          border-left: 1px solid #c3ccdd;
+          border-right: 1px solid #c3ccdd;
+          overflow: hidden;
         }
 
         .bottomTabStrip {
@@ -2282,14 +2283,14 @@ export default function ImageDesignPage() {
 
         .bottomTabContent {
           padding: 14px 16px;
-          padding-bottom: 20px;
+          padding-bottom: 24px;
           display: flex;
           flex-direction: column;
           gap: 12px;
-          max-height: 260px;
+          flex: 1;
+          min-height: 0;
           overflow-y: auto;
           background: #fff;
-          border-radius: 0 0 14px 14px;
         }
 
         .countBadge {
@@ -3043,12 +3044,20 @@ export default function ImageDesignPage() {
         @media (max-width: 1200px) {
           .layout {
             grid-template-columns: 1fr;
-            grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
           }
 
           .previewPanel {
             border-right: 0;
             border-bottom: 1px solid #c3ccdd;
+          }
+
+          .bottomPanel {
+            border-left: 0;
+            border-right: 0;
+            border-top: 0;
+            border-bottom: 1px solid #c3ccdd;
+            max-height: 300px;
           }
 
           .rightPanel {
