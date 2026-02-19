@@ -1525,44 +1525,7 @@ export default function ImageDesignPage() {
 
             {bottomTab === 'person' && (
               <div className="bottomTabContent">
-                {activeLayer ? (
-                  <div className="cropWidget">
-                    <div className="cropWidgetLabel">
-                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M1 4h8v8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M4 1v8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9 12v-3M12 9h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                      Crop
-                    </div>
-                    <div className="cropGrid">
-                      {/* Top row */}
-                      <div />
-                      <div className="cropEdgeCell">
-                        <button type="button" className="cropBtn" aria-label="Crop top more" onClick={() => updateActiveLayer({ cropTopPct: Math.min(80, activeLayer.cropTopPct + 5) })}>▲</button>
-                        <span className="cropVal">{Math.round(activeLayer.cropTopPct)}%</span>
-                        <button type="button" className="cropBtn" aria-label="Crop top less" onClick={() => updateActiveLayer({ cropTopPct: Math.max(0, activeLayer.cropTopPct - 5) })}>▼</button>
-                      </div>
-                      <div />
-                      {/* Middle row */}
-                      <div className="cropEdgeCell cropEdgeSide">
-                        <button type="button" className="cropBtn" aria-label="Crop left more" onClick={() => updateActiveLayer({ cropLeftPct: Math.min(70, Math.min(activeLayer.cropLeftPct + 5, 92 - activeLayer.cropRightPct)) })}>◀</button>
-                        <span className="cropVal">{Math.round(activeLayer.cropLeftPct)}%</span>
-                        <button type="button" className="cropBtn" aria-label="Crop left less" onClick={() => updateActiveLayer({ cropLeftPct: Math.max(0, activeLayer.cropLeftPct - 5) })}>▶</button>
-                      </div>
-                      <div className="cropCenter">
-                        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="2" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"/><path d="M1 7h4M1 15h4M17 7h4M17 15h4M7 1v4M15 1v4M7 17v4M15 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                      </div>
-                      <div className="cropEdgeCell cropEdgeSide">
-                        <button type="button" className="cropBtn" aria-label="Crop right less" onClick={() => updateActiveLayer({ cropRightPct: Math.max(0, activeLayer.cropRightPct - 5) })}>◀</button>
-                        <span className="cropVal">{Math.round(activeLayer.cropRightPct)}%</span>
-                        <button type="button" className="cropBtn" aria-label="Crop right more" onClick={() => updateActiveLayer({ cropRightPct: Math.min(70, Math.min(activeLayer.cropRightPct + 5, 92 - activeLayer.cropLeftPct)) })}>▶</button>
-                      </div>
-                      {/* Bottom row — reset */}
-                      <div />
-                      <div className="cropEdgeCell">
-                        <button type="button" className="cropResetBtn" onClick={() => updateActiveLayer({ cropTopPct: 0, cropLeftPct: 0, cropRightPct: 0 })}>Reset</button>
-                      </div>
-                      <div />
-                    </div>
-                  </div>
-                ) : (
+                {!activeLayer && (
                   <p className="hint">Select a person layer on the canvas to edit. Pinch to zoom · Two-finger rotate.</p>
                 )}
 
@@ -2403,100 +2366,6 @@ export default function ImageDesignPage() {
 
         .layerControlBtn:active {
           background: rgba(255,255,255,0.25);
-        }
-
-        .cropWidget {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .cropWidgetLabel {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          font-size: 11px;
-          font-weight: 700;
-          color: #64748b;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
-        }
-
-        .cropGrid {
-          display: grid;
-          grid-template-columns: 1fr auto 1fr;
-          grid-template-rows: auto auto auto;
-          gap: 4px;
-          align-items: center;
-          justify-items: center;
-        }
-
-        .cropEdgeCell {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 2px;
-        }
-
-        .cropEdgeCell.cropEdgeSide {
-          flex-direction: row;
-          gap: 4px;
-        }
-
-        .cropCenter {
-          width: 44px;
-          height: 44px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #94a3b8;
-        }
-
-        .cropBtn {
-          width: 24px;
-          height: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 1px solid #d1d5db;
-          border-radius: 5px;
-          background: #f8fafc;
-          color: #374151;
-          font-size: 9px;
-          cursor: pointer;
-          transition: background 0.1s, border-color 0.1s;
-          padding: 0;
-          line-height: 1;
-        }
-
-        .cropBtn:hover {
-          background: #e2e8f0;
-          border-color: #94a3b8;
-        }
-
-        .cropVal {
-          font-size: 10px;
-          font-weight: 600;
-          color: #475569;
-          min-width: 26px;
-          text-align: center;
-          font-variant-numeric: tabular-nums;
-        }
-
-        .cropResetBtn {
-          font-size: 10px;
-          font-weight: 600;
-          color: #6366f1;
-          background: transparent;
-          border: 1px solid #c7d2fe;
-          border-radius: 5px;
-          padding: 3px 10px;
-          cursor: pointer;
-          transition: background 0.1s;
-        }
-
-        .cropResetBtn:hover {
-          background: #eef2ff;
         }
 
         .textLayer {
