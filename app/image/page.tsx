@@ -467,10 +467,15 @@ export default function ImageDesignPage() {
   const processingRef = useRef(false);
   const lastBatchKeyRef = useRef('');
   const lastBatchAtRef = useRef(0);
+  const slotFilesRef = useRef<Record<number, File>>({});
 
   useEffect(() => {
     photosRef.current = photos;
   }, [photos]);
+
+  useEffect(() => {
+    slotFilesRef.current = slotFiles;
+  }, [slotFiles]);
 
   useEffect(() => {
     return () => {
@@ -1142,7 +1147,7 @@ export default function ImageDesignPage() {
       if (!activeTemplate) return;
       const slot = activeTemplate.slots[slotIndex];
       if (!slot) return;
-      const file = slotFiles[slotIndex];
+      const file = slotFilesRef.current[slotIndex];
       if (!file) return;
 
       setSlotStates((prev) => ({ ...prev, [slotIndex]: 'processing' }));
@@ -1216,7 +1221,7 @@ export default function ImageDesignPage() {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
       }
     },
-    [activeTemplate, slotLayerIds, slotFiles]
+    [activeTemplate, slotLayerIds]
   );
 
   const handleProcessAllSlots = useCallback(async () => {
