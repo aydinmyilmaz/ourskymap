@@ -3167,6 +3167,153 @@ export default function ImageDesignPage() {
             grid-template-columns: repeat(4, minmax(0, 1fr));
           }
         }
+
+        /* ── Template picker ── */
+        .templateActiveBadge {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          padding: 6px 10px;
+          border-radius: 8px;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          font-size: 12px;
+          font-weight: 600;
+          color: #1d4ed8;
+        }
+
+        .templateBadgeClear {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          font-size: 13px;
+          color: #1d4ed8;
+          opacity: 0.6;
+          padding: 0 2px;
+          line-height: 1;
+        }
+
+        .templateBadgeClear:hover {
+          opacity: 1;
+        }
+
+        .templateModalBackdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 1000;
+          background: rgba(10, 15, 30, 0.72);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+
+        .templateModal {
+          background: #fff;
+          border-radius: 18px;
+          width: min(860px, 100%);
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+        }
+
+        .templateModalHeader {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 18px 24px;
+          border-bottom: 1px solid #e5e7eb;
+          flex-shrink: 0;
+        }
+
+        .templateModalHeader h2 {
+          font-size: 18px;
+          font-weight: 700;
+          color: #0f172a;
+          margin: 0;
+        }
+
+        .templateModalClose {
+          background: transparent;
+          border: none;
+          font-size: 18px;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 4px 8px;
+          border-radius: 6px;
+          line-height: 1;
+        }
+
+        .templateModalClose:hover {
+          background: #f3f4f6;
+          color: #111827;
+        }
+
+        .templateModalEmpty {
+          padding: 48px 24px;
+          text-align: center;
+          color: #9ca3af;
+          font-size: 14px;
+        }
+
+        .templateGrid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          gap: 16px;
+          padding: 20px 24px 24px;
+          overflow-y: auto;
+        }
+
+        .templateCard {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          border: 2px solid #e5e7eb;
+          border-radius: 12px;
+          background: #f9fafb;
+          padding: 10px;
+          cursor: pointer;
+          transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .templateCard:hover {
+          border-color: #93c5fd;
+          box-shadow: 0 4px 12px rgba(59,130,246,0.15);
+        }
+
+        .templateCard.active {
+          border-color: #2563eb;
+          background: #eff6ff;
+          box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
+        }
+
+        .templateThumb {
+          width: 100%;
+          aspect-ratio: 620 / 780;
+          border-radius: 8px;
+          overflow: hidden;
+          background: #e5e7eb;
+        }
+
+        .templateThumb img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .templateCardName {
+          font-size: 12px;
+          font-weight: 600;
+          color: #374151;
+          text-align: center;
+          line-height: 1.3;
+        }
       `}</style>
     </div>
   );
