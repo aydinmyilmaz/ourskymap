@@ -1589,6 +1589,14 @@ export default function ImageDesignPage() {
                   >
                     Add Text Layer
                   </button>
+                  <button
+                    type="button"
+                    className="dangerBtn"
+                    onClick={removeActiveTextLayer}
+                    disabled={!activeTextId}
+                  >
+                    Remove
+                  </button>
                   <span className="countBadge">
                     {textLayers.length}/{MAX_TEXT_LAYERS}
                   </span>
@@ -1733,11 +1741,6 @@ export default function ImageDesignPage() {
                       />
                     </div>
 
-                    <div className="buttonRow">
-                      <button type="button" className="dangerBtn" onClick={removeActiveTextLayer}>
-                        Remove Active Text
-                      </button>
-                    </div>
                   </>
                 ) : (
                   <p className="hint">Add a text layer, then drag it onto the canvas.</p>
@@ -2243,7 +2246,6 @@ export default function ImageDesignPage() {
           background: #fff;
           border: 1px solid #c3ccdd;
           border-radius: 14px;
-          overflow: hidden;
           box-shadow: 0 2px 12px rgba(15,23,42,0.08);
         }
 
@@ -2279,11 +2281,15 @@ export default function ImageDesignPage() {
         }
 
         .bottomTabContent {
-          padding: 14px 16px 18px;
+          padding: 14px 16px;
+          padding-bottom: 20px;
           display: flex;
           flex-direction: column;
           gap: 12px;
+          max-height: 260px;
+          overflow-y: auto;
           background: #fff;
+          border-radius: 0 0 14px 14px;
         }
 
         .countBadge {
