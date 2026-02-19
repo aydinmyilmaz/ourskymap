@@ -54,6 +54,7 @@ type PersonLayer = {
   height: number;
   scale: number;
   rotationDeg: number;
+  flipX: boolean;
   cropTopPct: number;
   cropLeftPct: number;
   cropRightPct: number;
@@ -1043,6 +1044,7 @@ export default function ImageDesignPage() {
             height: baseHeight,
             scale: 1,
             rotationDeg: 0,
+            flipX: false,
             cropTopPct: 0,
             cropLeftPct: 0,
             cropRightPct: 0
@@ -1414,7 +1416,7 @@ export default function ImageDesignPage() {
                     width: `${layer.width}px`,
                     height: `${layer.height}px`,
                     zIndex: index + 1,
-                    transform: `translate(-50%, -50%) scale(${layer.scale}) rotate(${layer.rotationDeg}deg)`,
+                    transform: `translate(-50%, -50%) scale(${layer.scale}) rotate(${layer.rotationDeg}deg) scaleX(${layer.flipX ? -1 : 1})`,
                     touchAction: 'none' as const
                   }}
                   onPointerDown={(e) => handleLayerPointerDown(e, layer.id)}
@@ -1458,6 +1460,14 @@ export default function ImageDesignPage() {
                         onClick={(e) => { e.stopPropagation(); updateActiveLayer({ scale: Math.min(4.0, layer.scale + 0.1) }); }}
                       >
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </button>
+                      <button
+                        type="button"
+                        className={`layerControlBtn${layer.flipX ? ' layerControlBtnActive' : ''}`}
+                        aria-label="Mirror horizontal"
+                        onClick={(e) => { e.stopPropagation(); updateActiveLayer({ flipX: !layer.flipX }); }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 4.5l3 2.5-3 2.5M12 4.5l-3 2.5 3 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       </button>
                       <button
                         type="button"
@@ -2366,6 +2376,11 @@ export default function ImageDesignPage() {
 
         .layerControlBtn:active {
           background: rgba(255,255,255,0.25);
+        }
+
+        .layerControlBtnActive {
+          background: rgba(255,255,255,0.2);
+          color: #fff;
         }
 
         .textLayer {
