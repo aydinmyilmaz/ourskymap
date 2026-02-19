@@ -2147,6 +2147,53 @@ export default function ImageDesignPage() {
         </aside>
       </main>
 
+      {templateModalOpen && (
+        <div
+          className="templateModalBackdrop"
+          onClick={() => setTemplateModalOpen(false)}
+        >
+          <div
+            className="templateModal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="templateModalHeader">
+              <h2>Choose a Template</h2>
+              <button
+                type="button"
+                className="templateModalClose"
+                aria-label="Close"
+                onClick={() => setTemplateModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            {DESIGN_TEMPLATES.length === 0 ? (
+              <p className="templateModalEmpty">No templates available yet.</p>
+            ) : (
+              <div className="templateGrid">
+                {DESIGN_TEMPLATES.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    className={`templateCard${activeTemplate?.id === template.id ? ' active' : ''}`}
+                    onClick={() => {
+                      setActiveTemplate(template);
+                      setBackgroundImageUrl(template.backgroundUrl);
+                      setTemplateModalOpen(false);
+                    }}
+                  >
+                    <div className="templateThumb">
+                      <img src={template.thumbnail} alt={template.name} />
+                    </div>
+                    <span className="templateCardName">{template.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         .designRoot :global(*),
         .designRoot :global(*::before),
