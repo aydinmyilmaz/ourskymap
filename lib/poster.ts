@@ -924,6 +924,7 @@ export function renderPosterSvg(req: PosterRequest): string {
     const chartDiamIn  = (2 * visTopR) / 72;                 // visible chart diameter
     const diaLeftX = chartCx - visTopR;
     const diaRightX = chartCx + visTopR;
+    const diaRulerColor = '#00FFFF';
     const quarterInPx = 72 / 4;
     const diaTickSteps = Math.floor((diaRightX - diaLeftX) / quarterInPx);
     const diaTicks = Array.from({ length: diaTickSteps + 1 }, (_, i) => {
@@ -933,8 +934,8 @@ export function renderPosterSvg(req: PosterRequest): string {
       const tickLen = isWholeInch ? 16 : isHalfInch ? 11 : 7;
       const label = isWholeInch ? `${(i / 4).toFixed(0)}"` : '';
       return `
-    <line x1="${x.toFixed(2)}" y1="${(chartCy - tickLen).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(chartCy + tickLen).toFixed(2)}" stroke="#FFFFFF" stroke-width="${isWholeInch ? 2 : 1.4}" opacity="0.95"/>
-    ${label ? `<text x="${x.toFixed(2)}" y="${(chartCy - tickLen - 6).toFixed(2)}" font-size="11" fill="#FFFFFF" font-family="monospace" text-anchor="middle" opacity="0.95" stroke="#000" stroke-width="2" paint-order="stroke">${label}</text>` : ''}`;
+    <line x1="${x.toFixed(2)}" y1="${(chartCy - tickLen).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(chartCy + tickLen).toFixed(2)}" stroke="${diaRulerColor}" stroke-width="${isWholeInch ? 2 : 1.4}" opacity="0.95"/>
+    ${label ? `<text x="${x.toFixed(2)}" y="${(chartCy - tickLen - 6).toFixed(2)}" font-size="11" fill="${diaRulerColor}" font-family="monospace" text-anchor="middle" opacity="0.95" stroke="#000" stroke-width="2" paint-order="stroke">${label}</text>` : ''}`;
     }).join('');
     const fontDebugX = W - 18;
     const fontDebugLineH = 18;
@@ -957,13 +958,13 @@ export function renderPosterSvg(req: PosterRequest): string {
     <text x="${(cx + 66).toFixed(2)}" y="${(chartCy + visTopR + 6).toFixed(2)}" font-size="14" fill="#FFAA00" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">chart-bot: ${chartBotIn.toFixed(3)}"</text>
     <!-- Chart diameter (white): sol kenar ↔ sag kenar (clip: dis cember) -->
     <g clip-path="url(#rulerDiaClip)">
-      <line x1="${diaLeftX.toFixed(2)}" y1="${chartCy.toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${chartCy.toFixed(2)}" stroke="#FFFFFF" stroke-width="2.5" opacity="1"/>
+      <line x1="${diaLeftX.toFixed(2)}" y1="${chartCy.toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${chartCy.toFixed(2)}" stroke="${diaRulerColor}" stroke-width="2.5" opacity="1"/>
       ${diaTicks}
-      <line x1="${diaLeftX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaLeftX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
-      <line x1="${diaRightX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="#FFFFFF" stroke-width="2.2" opacity="1"/>
+      <line x1="${diaLeftX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaLeftX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="${diaRulerColor}" stroke-width="2.2" opacity="1"/>
+      <line x1="${diaRightX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="${diaRulerColor}" stroke-width="2.2" opacity="1"/>
     </g>
     <!-- Font sizes -->
-    <text x="${fontDebugX}" y="${diaDebugY}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">DIA: ${chartDiamIn.toFixed(3)}"</text>
+    <text x="${fontDebugX}" y="${diaDebugY}" font-size="12" fill="${diaRulerColor}" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">DIA: ${chartDiamIn.toFixed(3)}"</text>
     <text x="${fontDebugX}" y="${fontDebugY}" font-size="13" fill="#FFFFFF" font-family="monospace" font-weight="700" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="3" paint-order="stroke">FONT SIZES</text>
     <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Title: ${titleFont.toFixed(2)}px</text>
     <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 2).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Names: ${namesFont.toFixed(2)}px</text>
