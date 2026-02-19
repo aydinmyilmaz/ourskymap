@@ -1970,7 +1970,7 @@ export default function ImageDesignPage() {
                     className="ghostBtn"
                     onClick={() => setTemplateModalOpen(true)}
                   >
-                    Use a Template
+                    {activeTemplate ? 'Change Template' : 'Select a Template'}
                   </button>
                 </div>
                 {activeTemplate && (
