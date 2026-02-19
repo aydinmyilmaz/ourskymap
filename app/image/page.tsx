@@ -452,6 +452,7 @@ export default function ImageDesignPage() {
   const [templateTextIds, setTemplateTextIds] = useState<string[]>([]);
   const [designMode, setDesignMode] = useState<'custom' | 'template'>('custom');
   const [slotFiles, setSlotFiles] = useState<Record<number, File>>({});
+  const [slotError, setSlotError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
@@ -1150,6 +1151,7 @@ export default function ImageDesignPage() {
       const file = slotFilesRef.current[slotIndex];
       if (!file) return;
 
+      setSlotError('');
       setSlotStates((prev) => ({ ...prev, [slotIndex]: 'processing' }));
 
       // If this slot already has a layer, remove it
@@ -1214,8 +1216,9 @@ export default function ImageDesignPage() {
         setSlotLayerIds((prev) => ({ ...prev, [slotIndex]: layerId }));
         setSlotStates((prev) => ({ ...prev, [slotIndex]: 'done' }));
       } catch (e: unknown) {
+        console.error('[handleSlotUpload] slot', slotIndex, e);
         const message = e instanceof Error ? e.message : 'Upload failed';
-        setProcessError(`Slot ${slotIndex === 0 ? 'Center' : `#${slotIndex}`}: ${message}`);
+        setSlotError(`Slot ${slotIndex === 0 ? 'Center' : `#${slotIndex}`}: ${message}`);
         setSlotStates((prev) => ({ ...prev, [slotIndex]: 'idle' }));
       } finally {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -2055,6 +2058,7 @@ export default function ImageDesignPage() {
                     )}
                   </div>
                 )}
+                {slotError && <p className="error">{slotError}</p>}
                 {Object.keys(slotStates).length > 0 && (
                   <button
                     type="button"
@@ -2064,6 +2068,7 @@ export default function ImageDesignPage() {
                       setSlotStates({});
                       setSlotLayerIds({});
                       setSlotFiles({});
+                      setSlotError('');
                     }}
                   >
                     Clear Slots
