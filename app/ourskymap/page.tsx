@@ -181,6 +181,41 @@ const PHOTO_ZOOM_MIN = 1;
 const PHOTO_ZOOM_MAX = 4;
 const PHOTO_ZOOM_STEP = 0.2;
 
+const POSTER_SIZE_DIMS: Record<DesignSize, [number, number]> = {
+  'us-letter': [612, 792], 'a4': [595, 842], '11x14': [792, 1008],
+  'a3': [842, 1191], '12x12': [864, 864], '12x16': [864, 1152],
+  '16x20': [1152, 1440], 'a2': [1191, 1684], '18x24': [1296, 1728],
+  '20x20': [1440, 1440], 'a1': [1701, 3024], '24x32': [1728, 2304],
+};
+
+function getCompanionLongShortInches(sizeKey: DesignSize): { wLongIn: number; hShortIn: number } {
+  const [wPx, hPx] = POSTER_SIZE_DIMS[sizeKey] ?? [0, 0];
+  const wLongPx = Math.max(wPx, hPx);
+  const hShortPx = Math.min(wPx, hPx);
+  return { wLongIn: wLongPx / INCH, hShortIn: hShortPx / INCH };
+}
+
+function buildPosterFormulaOverrides(sizeKey: DesignSize): Partial<PosterParams> {
+  const { wLongIn } = getCompanionLongShortInches(sizeKey);
+  const chartDiameter = (wLongIn / 20) * 8.8 * INCH;
+  const ringInnerWidth = (wLongIn / 20) * 6;
+  const ringOuterWidth = (wLongIn / 20) * 3;
+  const ringVisibleGap = (wLongIn / 20) * 2;
+  const ringGap = ringVisibleGap + ringInnerWidth / 2 + ringOuterWidth / 2;
+
+  return {
+    chartDiameter,
+    ringInnerWidth,
+    ringOuterWidth,
+    ringGap,
+    borderWidth: ringOuterWidth,
+    titleFontSize: (wLongIn / 20) * 40,
+    namesFontSize: (wLongIn / 20) * 55,
+    metaFontSize: (wLongIn / 20) * 20,
+    metaUppercase: true
+  };
+}
+
 type CompanionPhotoMeta = {
   sourceDataUrl: string;
   inputWidth: number;
@@ -512,13 +547,7 @@ function mapDesignSizeToPosterSize(size: DesignSize): PosterParams['size'] {
 }
 
 function getCompanionCanvasHint(sizeKey: DesignSize): string {
-  const dims: Record<DesignSize, [number, number]> = {
-    'us-letter': [612, 792], 'a4': [595, 842], '11x14': [792, 1008],
-    'a3': [842, 1191], '12x12': [864, 864], '12x16': [864, 1152],
-    '16x20': [1152, 1440], 'a2': [1191, 1684], '18x24': [1296, 1728],
-    '20x20': [1440, 1440], 'a1': [1701, 3024], '24x32': [1728, 2304],
-  };
-  const [w, h] = dims[sizeKey] ?? [0, 0];
+  const [w, h] = POSTER_SIZE_DIMS[sizeKey] ?? [0, 0];
   return h > w ? ' (landscape)' : '';
 }
 
@@ -920,13 +949,12 @@ export default function DesignPage() {
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
       const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon_gold.png';
-      const moonPhaseInnerStroke = 8;
-      const moonPhaseOuterStroke = 4;
-      const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
+      const formulaOverrides = usesCompanionCircle ? buildPosterFormulaOverrides(size) : null;
 
       const poster: PosterParams = {
         ...defaultPoster,
         ...bySize,
+        ...(formulaOverrides ?? {}),
         ...mappedFont,
         size: mapDesignSizeToPosterSize(size),
         border: frameOn,
@@ -941,15 +969,6 @@ export default function DesignPage() {
         showCoordinates: false,
         showTime: false,
         dedication: '',
-        ...(usesCompanionCircle
-          ? {
-            borderWidth: moonPhaseOuterStroke,
-            ringOuterWidth: moonPhaseOuterStroke,
-            ringInnerWidth: moonPhaseInnerStroke,
-            ringGap: moonPhaseGap,
-            metaUppercase: true
-          }
-          : {}),
         showMoonPhase: isMoonPhase,
         moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
@@ -1089,13 +1108,12 @@ export default function DesignPage() {
       const fallbackLocationLine = formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery);
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
       const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon_gold.png';
-      const moonPhaseInnerStroke = 8;
-      const moonPhaseOuterStroke = 4;
-      const moonPhaseGap = 6 + moonPhaseInnerStroke / 2 + moonPhaseOuterStroke / 2;
+      const formulaOverrides = usesCompanionCircle ? buildPosterFormulaOverrides(size) : null;
 
       const basePoster: PosterParams = {
         ...defaultPoster,
         ...bySize,
+        ...(formulaOverrides ?? {}),
         ...mappedFont,
         size: mapDesignSizeToPosterSize(size),
         border: frameOn,
@@ -1110,15 +1128,6 @@ export default function DesignPage() {
         showCoordinates: false,
         showTime: false,
         dedication: '',
-        ...(usesCompanionCircle
-          ? {
-            borderWidth: moonPhaseOuterStroke,
-            ringOuterWidth: moonPhaseOuterStroke,
-            ringInnerWidth: moonPhaseInnerStroke,
-            ringGap: moonPhaseGap,
-            metaUppercase: true
-          }
-          : {}),
         showMoonPhase: isMoonPhase,
         moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
