@@ -359,6 +359,27 @@ async function loadImageMeta(src: string): Promise<{ width: number; height: numb
   });
 }
 
+async function resizeImageToDataUrl(src: string, maxDim = 1024): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error('Could not load image.'));
+    element.src = src;
+  });
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const scale = Math.min(1, maxDim / Math.max(w, h));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(w * scale);
+  canvas.height = Math.round(h * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is not supported in this browser.');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.92);
+}
+
 async function cropSelectionToDataUrl(input: { src: string; selection: SelectionRect }): Promise<string> {
   const { src, selection } = input;
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -1163,24 +1184,12 @@ export default function ImageDesignPage() {
       let objectUrl: string | null = null;
       try {
         objectUrl = URL.createObjectURL(file);
-        const meta = await loadImageMeta(objectUrl);
-
-        // Full-image selection (entire photo = one person)
-        const selection: SelectionRect = {
-          id: createId('sel'),
-          x: 0, y: 0, w: 1, h: 1,
-          status: 'pending',
-        };
-
-        const cropped = await cropSelectionToDataUrl({
-          src: objectUrl,
-          selection,
-        });
+        const resized = await resizeImageToDataUrl(objectUrl);
 
         const res = await fetch('/api/image/remove-bg', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageDataUrl: cropped }),
+          body: JSON.stringify({ imageDataUrl: resized }),
         });
 
         if (!res.ok) {
