@@ -1963,30 +1963,23 @@ export default function ImageDesignPage() {
                   <p className="hint">
                     `done` frames are locked to prevent duplicate processing. Delete and reselect if needed.
                   </p>
+                  <div className="buttonRow">
+                    <button
+                      type="button"
+                      className="primaryBtn"
+                      disabled={processing || processableSelections === 0}
+                      onClick={() => void processSelections()}
+                    >
+                      {processing ? processingLabel || 'Processing...' : 'Extract Selected People'}
+                    </button>
+                    <span className="countBadge">{remainingPeopleSlots} slots left</span>
+                  </div>
+                  {processing ? <p className="hint">{processingLabel}</p> : null}
+                  {processError ? <p className="error">{processError}</p> : null}
                 </>
               ) : (
                 <p className="hint">Upload a photo first.</p>
               )}
-            </section>
-
-            <section className="panelBlock">
-              <div className="panelTitleRow">
-                <h3>Extract + Arrange</h3>
-                <span>{remainingPeopleSlots} slots left</span>
-              </div>
-              <div className="buttonRow">
-                <button
-                  type="button"
-                  className="primaryBtn"
-                  disabled={processing || processableSelections === 0}
-                  onClick={() => void processSelections()}
-                >
-                  {processing ? processingLabel || 'Processing...' : 'Extract Selected People'}
-                </button>
-              </div>
-              {processing ? <p className="hint">{processingLabel}</p> : null}
-              {processError ? <p className="error">{processError}</p> : null}
-              <p className="hint">Extract only pending selections. Done selections are not processed again.</p>
             </section>
 
             <section className="panelBlock">
