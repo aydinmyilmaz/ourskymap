@@ -2940,7 +2940,7 @@ export default function ImageDesignPage() {
         }
 
         .fontPresetGrid.compact {
-          grid-template-columns: repeat(5, minmax(0, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .fontPresetGrid.expanded {
