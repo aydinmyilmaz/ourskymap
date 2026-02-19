@@ -1098,8 +1098,17 @@ export default function ImageDesignPage() {
       }
 
       if (newLayers.length > 0) {
-        setLayers((prev) => [...prev, ...newLayers]);
-        setActiveLayerId(newLayers[newLayers.length - 1]?.id ?? null);
+        // If a template is active, place layers into template slots in order.
+        // Layers beyond the slot count keep their default grid positions.
+        const existingCount = layers.length; // how many layers existed before this batch
+        const positionedLayers = newLayers.map((layer, batchIndex) => {
+          const slotIndex = existingCount + batchIndex;
+          const slot = activeTemplate?.slots[slotIndex];
+          if (!slot) return layer;
+          return { ...layer, x: slot.x, y: slot.y, scale: slot.scale };
+        });
+        setLayers((prev) => [...prev, ...positionedLayers]);
+        setActiveLayerId(positionedLayers[positionedLayers.length - 1]?.id ?? null);
       }
       if (failures.length > 0) {
         setProcessError(`Some selections failed:\n${failures.join('\n')}`);
@@ -2087,7 +2096,7 @@ export default function ImageDesignPage() {
                     type="button"
                     className="ghostBtn"
                     disabled={!backgroundImageUrl}
-                    onClick={() => setBackgroundImageUrl('')}
+                    onClick={() => { setBackgroundImageUrl(''); setActiveTemplate(null); }}
                   >
                     Remove Background Image
                   </button>
