@@ -68,6 +68,59 @@ async function extractOutputUrl(output: unknown): Promise<string | null> {
   return null;
 }
 
+const RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1500;
+
+function isTransientError(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false;
+  const msg = (e as { message?: string }).message ?? '';
+  return /502|503|504|bad gateway|service unavailable|gateway timeout/i.test(msg);
+}
+
+function humanizeReplicateError(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e ?? '');
+  // Strip HTML (e.g. "502 Bad Gateway" page body)
+  const stripped = raw.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  if (/502|bad gateway/i.test(stripped)) {
+    return 'Replicate service is temporarily unavailable (502 Bad Gateway). Please try again in a moment.';
+  }
+  if (/503|service unavailable/i.test(stripped)) {
+    return 'Replicate service is temporarily unavailable (503). Please try again in a moment.';
+  }
+  if (/504|gateway timeout/i.test(stripped)) {
+    return 'Replicate request timed out (504). Please try again in a moment.';
+  }
+  if (!stripped || stripped.length > 300) {
+    return 'Background removal failed. Please try again.';
+  }
+  return stripped;
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runWithRetry(
+  replicate: Replicate,
+  model: string,
+  input: Record<string, unknown>
+): Promise<unknown> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await replicate.run(model as `${string}/${string}:${string}`, { input });
+    } catch (e) {
+      lastError = e;
+      if (attempt < RETRY_ATTEMPTS && isTransientError(e)) {
+        await sleep(RETRY_DELAY_MS);
+        continue;
+      }
+      break;
+    }
+  }
+  throw lastError;
+}
+
 export async function POST(req: Request) {
   try {
     const token = (process.env.REPLICATE_API_TOKEN ?? '').trim();
@@ -98,10 +151,8 @@ export async function POST(req: Request) {
     }
 
     const replicate = new Replicate({ auth: token });
-    const output = await replicate.run(BACKGROUND_REMOVER_MODEL, {
-      input: {
-        image: imageInput
-      }
+    const output = await runWithRetry(replicate, BACKGROUND_REMOVER_MODEL, {
+      image: imageInput
     });
 
     const outputUrl = await extractOutputUrl(output);
@@ -110,7 +161,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ imageUrl: outputUrl });
-  } catch (e: any) {
-    return new NextResponse(e?.message ?? 'Background removal failed.', { status: 500 });
+  } catch (e: unknown) {
+    return new NextResponse(humanizeReplicateError(e), { status: 500 });
   }
 }
