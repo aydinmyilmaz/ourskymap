@@ -3477,6 +3477,91 @@ export default function ImageDesignPage() {
           text-align: center;
           line-height: 1.3;
         }
+
+        /* ── Template Slots card ── */
+        .slotList {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .slotRow {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .slotLabel {
+          width: 52px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #475569;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          flex-shrink: 0;
+        }
+
+        .slotFileBtn {
+          flex: 1;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 5px 10px;
+          border-radius: 8px;
+          border: 1px solid #cbd5e1;
+          background: #f8fafc;
+          font-size: 12px;
+          font-weight: 600;
+          color: #334155;
+          cursor: pointer;
+          transition: background 0.12s, border-color 0.12s;
+          white-space: nowrap;
+          overflow: hidden;
+        }
+
+        .slotFileBtn:hover {
+          background: #f1f5f9;
+          border-color: #94a3b8;
+        }
+
+        .slotFileBtn input[type="file"] {
+          display: none;
+        }
+
+        .slotStatus {
+          width: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .slotEmpty {
+          color: #cbd5e1;
+          font-size: 14px;
+          line-height: 1;
+        }
+
+        .slotDone {
+          color: #16a34a;
+          font-size: 14px;
+          font-weight: 700;
+          line-height: 1;
+        }
+
+        .slotSpinner {
+          display: inline-block;
+          width: 14px;
+          height: 14px;
+          border: 2px solid #e2e8f0;
+          border-top-color: #3b82f6;
+          border-radius: 50%;
+          animation: slotSpin 0.7s linear infinite;
+        }
+
+        @keyframes slotSpin {
+          to { transform: rotate(360deg); }
+        }
       `}</style>
     </div>
   );
