@@ -393,7 +393,9 @@ export function renderPosterSvg(req: PosterRequest): string {
   const { latitude, longitude, timeUtcIso, locationLabel, params, poster } = req;
   const date = new Date(timeUtcIso);
   if (Number.isNaN(date.getTime())) throw new Error('Invalid timeUtcIso');
-  const showRuler = envFlagEnabled(process.env.SHOW_RULER);
+  const showRuler = typeof poster.showRuler === 'boolean'
+    ? poster.showRuler
+    : envFlagEnabled(process.env.SHOW_RULER);
 
   const size = poster.size;
   const is12x12Layout = size === '12x12';

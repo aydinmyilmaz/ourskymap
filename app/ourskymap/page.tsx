@@ -650,6 +650,7 @@ export default function DesignPage() {
   const showConstellations = true;
   const [showNames, setShowNames] = useState(true);
   const [showGraticule, setShowGraticule] = useState(false);
+  const [showRuler, setShowRuler] = useState(false);
   const [title, setTitle] = useState('We met under this sky');
   const [fontPreset, setFontPreset] = useState<FontPresetKey>('calligraphy');
   const [names, setNames] = useState('Sarah & John');
@@ -973,6 +974,7 @@ export default function DesignPage() {
         moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
+        showRuler,
       };
 
       const posterRes = await fetch('/api/skymap', {
@@ -1019,6 +1021,7 @@ export default function DesignPage() {
     showTimeLine,
     showNames,
     showGraticule,
+    showRuler,
     size,
     effectiveTheme,
     time,
@@ -1131,7 +1134,8 @@ export default function DesignPage() {
         showMoonPhase: isMoonPhase,
         moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
-        companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined
+        companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
+        showRuler
       };
 
       const renderRequest = {
@@ -1216,6 +1220,7 @@ export default function DesignPage() {
     showTimeLine,
     showNames,
     showGraticule,
+    showRuler,
     size,
     time,
     title
@@ -1530,6 +1535,7 @@ export default function DesignPage() {
           <div className="panelBlock softD">
             <Toggle checked={showGraticule} onChange={setShowGraticule} label="Grids" />
             <Toggle checked={showNames} onChange={setShowNames} label="Show Labels" />
+            <Toggle checked={showRuler} onChange={setShowRuler} label="Show Ruler" />
 
             <div className="fieldGroup">
               <label>Label Language</label>

@@ -127,6 +127,7 @@ export type PosterParams = {
   moonPhaseImageUrl?: string;
   showCompanionPhoto?: boolean;
   companionPhotoImageUrl?: string;
+  showRuler?: boolean;
 };
 
 export type PosterRequest = {
