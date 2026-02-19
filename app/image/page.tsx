@@ -1123,6 +1123,86 @@ export default function ImageDesignPage() {
     }
   }, [layers.length, photos]);
 
+  const handleSlotUpload = useCallback(
+    async (slotIndex: number, file: File) => {
+      if (!activeTemplate) return;
+      const slot = activeTemplate.slots[slotIndex];
+      if (!slot) return;
+
+      setSlotStates((prev) => ({ ...prev, [slotIndex]: 'processing' }));
+
+      // If this slot already has a layer, remove it
+      setLayers((prev) => {
+        const oldId = slotLayerIds[slotIndex];
+        return oldId ? prev.filter((l) => l.id !== oldId) : prev;
+      });
+
+      let objectUrl: string | null = null;
+      try {
+        objectUrl = URL.createObjectURL(file);
+        const meta = await loadImageMeta(objectUrl);
+
+        // Full-image selection (entire photo = one person)
+        const selection: SelectionRect = {
+          id: createId('sel'),
+          x: 0, y: 0, w: 1, h: 1,
+          status: 'pending',
+        };
+
+        const cropped = await cropSelectionToDataUrl({
+          src: objectUrl,
+          selection,
+        });
+
+        const res = await fetch('/api/image/remove-bg', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageDataUrl: cropped }),
+        });
+
+        if (!res.ok) {
+          throw new Error((await res.text()) || 'Background removal failed.');
+        }
+
+        const payload = (await res.json()) as { imageUrl?: string };
+        if (!payload?.imageUrl) throw new Error('No image output returned.');
+
+        const resultMeta = await loadImageMeta(payload.imageUrl);
+        const baseWidth = 180;
+        const baseHeight = Math.max(90, Math.round((resultMeta.height / Math.max(1, resultMeta.width)) * baseWidth));
+
+        const layerId = createId('person');
+        const newLayer: PersonLayer = {
+          id: layerId,
+          name: `Slot ${slotIndex === 0 ? 'Center' : `#${slotIndex}`}`,
+          src: payload.imageUrl,
+          x: slot.x,
+          y: slot.y,
+          width: baseWidth,
+          height: baseHeight,
+          scale: slot.scale,
+          rotationDeg: 0,
+          flipX: false,
+          cropTopPct: 0,
+          cropLeftPct: 0,
+          cropRightPct: 0,
+        };
+
+        setLayers((prev) => [...prev, newLayer]);
+        setActiveLayerId(layerId);
+        setSlotLayerIds((prev) => ({ ...prev, [slotIndex]: layerId }));
+        setSlotStates((prev) => ({ ...prev, [slotIndex]: 'done' }));
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Upload failed';
+        setProcessError(`Slot ${slotIndex === 0 ? 'Center' : `#${slotIndex}`}: ${message}`);
+        setSlotStates((prev) => ({ ...prev, [slotIndex]: 'idle' }));
+      } finally {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      }
+    },
+    [activeTemplate, slotLayerIds]
+  );
+
   const handleLayerPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>, layerId: string) => {
       const layer = layers.find((item) => item.id === layerId);
