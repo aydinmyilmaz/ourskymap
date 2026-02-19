@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import { DESIGN_TEMPLATES } from '../../lib/templates';
+import type { DesignTemplate } from '../../lib/templates';
 
 const MAX_UPLOAD_PHOTOS = 5;
 const MAX_TOTAL_PEOPLE = 8;
@@ -443,6 +445,8 @@ export default function ImageDesignPage() {
   const [healthBannerDismissed, setHealthBannerDismissed] = useState(false);
   const [healthCheckedAt, setHealthCheckedAt] = useState('');
   const [healthChecking, setHealthChecking] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState<DesignTemplate | null>(null);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
