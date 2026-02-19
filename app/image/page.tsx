@@ -1943,6 +1943,58 @@ export default function ImageDesignPage() {
               ) : null}
             </section>
 
+            {activeTemplate && (
+              <section className="panelBlock">
+                <div className="panelTitleRow">
+                  <h3>Template Slots</h3>
+                  <span>{Object.values(slotStates).filter((s) => s === 'done').length}/{activeTemplate.slots.length}</span>
+                </div>
+                <div className="slotList">
+                  {activeTemplate.slots.map((slot) => {
+                    const label = slot.index === 0 ? 'Center' : `#${slot.index}`;
+                    const state = slotStates[slot.index] ?? 'idle';
+                    return (
+                      <div key={slot.index} className="slotRow">
+                        <span className="slotLabel">{label}</span>
+                        <label className="slotFileBtn">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hiddenInput"
+                            disabled={state === 'processing'}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) void handleSlotUpload(slot.index, file);
+                              e.currentTarget.value = '';
+                            }}
+                          />
+                          {state === 'processing' ? 'Uploading…' : state === 'done' ? 'Replace' : 'Choose File'}
+                        </label>
+                        <span className="slotStatus">
+                          {state === 'processing' && <span className="slotSpinner" aria-hidden="true" />}
+                          {state === 'done' && <span className="slotDone" aria-label="Done">✓</span>}
+                          {state === 'idle' && <span className="slotEmpty" aria-hidden="true">○</span>}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {Object.keys(slotStates).length > 0 && (
+                  <button
+                    type="button"
+                    className="ghostBtn"
+                    onClick={() => {
+                      setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
+                      setSlotStates({});
+                      setSlotLayerIds({});
+                    }}
+                  >
+                    Clear Slots
+                  </button>
+                )}
+              </section>
+            )}
+
             <section className="panelBlock">
               <div className="panelTitleRow">
                 <h3>Frame People</h3>
