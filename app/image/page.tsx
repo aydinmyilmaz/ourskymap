@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { DESIGN_TEMPLATES } from '../../lib/templates';
-import type { DesignTemplate } from '../../lib/templates';
+import type { DesignTemplate, TextSlot } from '../../lib/templates';
 
 const MAX_UPLOAD_PHOTOS = 5;
 const MAX_TOTAL_PEOPLE = 8;
@@ -447,6 +447,9 @@ export default function ImageDesignPage() {
   const [healthChecking, setHealthChecking] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<DesignTemplate | null>(null);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [slotStates, setSlotStates] = useState<Record<number, 'idle' | 'processing' | 'done'>>({});
+  const [slotLayerIds, setSlotLayerIds] = useState<Record<number, string>>({});
+  const [templateTextIds, setTemplateTextIds] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
