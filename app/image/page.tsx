@@ -1829,6 +1829,11 @@ export default function ImageDesignPage() {
                     onClick={() => {
                       setActiveTemplate(null);
                       setBackgroundImageUrl('');
+                      setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
+                      setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
+                      setSlotStates({});
+                      setSlotLayerIds({});
+                      setTemplateTextIds([]);
                     }}
                   >
                     ✕
@@ -2099,7 +2104,15 @@ export default function ImageDesignPage() {
                     type="button"
                     className="ghostBtn"
                     disabled={!backgroundImageUrl}
-                    onClick={() => { setBackgroundImageUrl(''); setActiveTemplate(null); }}
+                    onClick={() => {
+                      setBackgroundImageUrl('');
+                      setActiveTemplate(null);
+                      setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
+                      setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
+                      setSlotStates({});
+                      setSlotLayerIds({});
+                      setTemplateTextIds([]);
+                    }}
                   >
                     Remove Background Image
                   </button>
@@ -2192,6 +2205,21 @@ export default function ImageDesignPage() {
                       setActiveTemplate(template);
                       setBackgroundImageUrl(template.backgroundUrl);
                       setTemplateModalOpen(false);
+                      // Pre-populate text layers from template textSlots
+                      const newTextLayers = template.textSlots.map((slot) => ({
+                        id: createId('text'),
+                        text: slot.text,
+                        x: slot.x,
+                        y: slot.y,
+                        fontSize: slot.fontSize,
+                        rotationDeg: 0,
+                        color: slot.color,
+                        styleKey: slot.styleKey as TextStyleKey,
+                      }));
+                      setTextLayers((prev) => [...prev, ...newTextLayers]);
+                      setTemplateTextIds(newTextLayers.map((l) => l.id));
+                      setSlotStates({});
+                      setSlotLayerIds({});
                     }}
                   >
                     <div className="templateThumb">
