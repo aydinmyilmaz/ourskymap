@@ -389,6 +389,191 @@ function quantizeMoonPhaseDeg(phaseDegRaw: number): { phaseIndex: number } {
   return { phaseIndex };
 }
 
+function renderGalaxyPosterSvg(req: PosterRequest, showRuler: boolean): string {
+  const { latitude, longitude, timeUtcIso, locationLabel, params, poster } = req;
+  const date = new Date(timeUtcIso);
+  if (Number.isNaN(date.getTime())) throw new Error('Invalid timeUtcIso');
+
+  const size = poster.size;
+  const layout = getPosterLayout(size);
+  const W = layout.width;
+  const H = layout.height;
+  const geom = buildChartGeometry({ latitude, longitude, date, params, layout: layout.layout });
+
+  const palette = getPalette(poster.palette);
+  const inkRgb = hexToRgb(poster.inkColor || '');
+  if (inkRgb) {
+    palette.ink = `#${poster.inkColor.trim().replace(/^#/, '').toLowerCase()}`;
+    palette.accent = palette.ink;
+    palette.mutedInk = rgba(inkRgb, 0.42);
+  }
+
+  const bgRgb = hexToRgb(palette.bg);
+  const effectiveInkRgb = hexToRgb(palette.ink) || inkRgb;
+  if (bgRgb && effectiveInkRgb && relativeLuminance(bgRgb) > 0.62 && relativeLuminance(effectiveInkRgb) < 0.45) {
+    palette.mutedInk = rgba(effectiveInkRgb, 0.58);
+  }
+
+  const layerInk = palette.ink;
+  const layerMutedInk = palette.mutedInk;
+  const layerAccent = palette.accent;
+  const mapLabelHalo = 'rgba(0,0,0,0.55)';
+  const mapLabelFont = "'Signika', 'Helvetica Neue', Arial, sans-serif";
+  const fontFamily = (k: PosterRequest['poster']['titleFont'] | PosterRequest['poster']['namesFont'] | PosterRequest['poster']['metaFont']) => {
+    switch (k) {
+      case 'prata':
+        return "'Prata', ui-serif, Georgia, 'Times New Roman', serif";
+      case 'jimmy-script':
+        return "'Allura', 'Great Vibes', cursive, ui-serif, Georgia, 'Times New Roman', serif";
+      case 'signika':
+        return "'Signika', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      case 'mono':
+        return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      case 'sans':
+        return "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      case 'cursive':
+        return "'Great Vibes', 'Allura', cursive, ui-serif, Georgia, 'Times New Roman', serif";
+      case 'serif':
+      default:
+        return "ui-serif, Georgia, 'Times New Roman', serif";
+    }
+  };
+
+  const topAreaY = Math.round(H * 0.665);
+  // Galaxy variant: slightly zoom out to expose more sky/stars in top texture area.
+  const longEdge = Math.max(W, H);
+  // Small poster sizes need extra zoom-out; large sizes stay near base ratio.
+  const smallSizeZoomOut = Math.max(0.78, Math.min(1, longEdge / 1728));
+  const mapR = longEdge * 0.45 * smallSizeZoomOut;
+  const mapCx = W / 2;
+  const mapCy = topAreaY * 0.48;
+  const boundaryBandTop = topAreaY - 18;
+  const boundaryDarkBandH = 40;
+  const boundaryPaperBandTop = topAreaY - 6;
+  const boundaryPaperBandH = 44;
+  const sx = mapR / geom.chartR;
+  const sy = mapR / geom.chartR;
+  const tx = mapCx - geom.chartCx * sx;
+  const ty = mapCy - geom.chartCy * sy;
+  const transform = `matrix(${sx.toFixed(6)} 0 0 ${sy.toFixed(6)} ${tx.toFixed(3)} ${ty.toFixed(3)})`;
+
+  const title = (poster.title || '').trim().toUpperCase();
+  const subtitle = (poster.subtitle || '').trim();
+  const coordsLine = poster.showCoordinates ? formatCoords(latitude, longitude) : '';
+  const dateLine = formatDate(date, poster.showTime, req.timeZone);
+  const metaTextLines = (poster.metaText || '').trim()
+    ? poster.metaText.split('\n').map((l) => l.trim()).filter(Boolean)
+    : [locationLabel, ...(coordsLine ? [coordsLine] : []), dateLine];
+
+  const titleFontKey = (poster.titleFont ?? 'serif') as PosterRequest['poster']['titleFont'];
+  const namesFontKey = (poster.namesFont ?? 'serif') as PosterRequest['poster']['namesFont'];
+  const metaFontKey = (poster.metaFont ?? 'sans') as PosterRequest['poster']['metaFont'];
+  const titleFont = Math.max(22, (poster.titleFontSize ?? 40) * 0.68);
+  const namesFont = Math.max(15, (poster.namesFontSize ?? 22) * 0.52);
+  const metaFont = Math.max(10, (poster.metaFontSize ?? 12) * 0.48);
+  const titleLines = title ? wrapTextToWidth(title, W * 0.78, titleFont, 1.4) : [];
+
+  const textBlock: string[] = [];
+  let textY = topAreaY + Math.max(56, (H - topAreaY) * 0.34);
+  for (const line of titleLines) {
+    textBlock.push(
+      `<text x="${(W / 2).toFixed(2)}" y="${textY.toFixed(2)}" font-size="${titleFont.toFixed(2)}" fill="#5c6068" text-anchor="middle" letter-spacing="1.4" font-family="${fontFamily(titleFontKey)}">${svgEscape(line)}</text>`
+    );
+    textY += titleFont * 1.1;
+  }
+  if (subtitle) {
+    textY += 8;
+    textBlock.push(
+      `<text x="${(W / 2).toFixed(2)}" y="${textY.toFixed(2)}" font-size="${namesFont.toFixed(2)}" fill="#6a7078" text-anchor="middle" font-family="${fontFamily(namesFontKey)}">${svgEscape(subtitle)}</text>`
+    );
+    textY += namesFont * 1.14;
+  }
+  textY += 9;
+  for (const line of metaTextLines) {
+    textBlock.push(
+      `<text x="${(W / 2).toFixed(2)}" y="${textY.toFixed(2)}" font-size="${metaFont.toFixed(2)}" fill="#7c8189" text-anchor="middle" font-family="${fontFamily(metaFontKey)}" letter-spacing="0.5">${svgEscape(line.toUpperCase())}</text>`
+    );
+    textY += metaFont * 1.38;
+  }
+
+  const bgImageUrl = poster.backgroundMode === 'image' ? (poster.backgroundImageUrl || '').trim() : '';
+  const bgImageLayer = bgImageUrl
+    ? `<image href="${svgAttrEscape(bgImageUrl)}" x="0" y="0" width="${W}" height="${topAreaY}" preserveAspectRatio="xMidYMid slice" opacity="1"/>`
+    : '';
+
+  const frame = poster.border
+    ? `<rect x="28" y="28" width="${(W - 56).toFixed(2)}" height="${(H - 56).toFixed(2)}" fill="none" stroke="#dfdfdf" stroke-width="${Math.max(1.5, poster.borderWidth || 2)}" opacity="0.9"/>`
+    : '';
+
+  const ruler = showRuler
+    ? `<g id="measurement-ruler-galaxy">
+    <line x1="${(W / 2).toFixed(2)}" y1="0" x2="${(W / 2).toFixed(2)}" y2="${H}" stroke="#00FFFF" stroke-width="2" opacity="0.8"/>
+    <line x1="0" y1="${topAreaY.toFixed(2)}" x2="${W}" y2="${topAreaY.toFixed(2)}" stroke="#00FFFF" stroke-width="2" opacity="0.8"/>
+    <text x="${(W - 16).toFixed(2)}" y="${(H - 18).toFixed(2)}" font-size="12" fill="#00FFFF" text-anchor="end" font-family="monospace" opacity="0.95" stroke="#000" stroke-width="2.2" paint-order="stroke">Galaxy Top: ${(topAreaY / 72).toFixed(3)}"</text>
+  </g>`
+    : '';
+
+  const widthInches = (W / 72).toFixed(4);
+  const heightInches = (H / 72).toFixed(4);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${widthInches}in" height="${heightInches}in" viewBox="0 0 ${W} ${H}" inkscape:export-xdpi="300" inkscape:export-ydpi="300">
+  <rect x="0" y="0" width="${W}" height="${H}" fill="${palette.bg}"/>
+  <defs>
+    <clipPath id="galaxyTopClip">
+      <rect x="0" y="0" width="${W}" height="${topAreaY}"/>
+    </clipPath>
+    <linearGradient id="galaxyBoundaryDarkFade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(4,8,15,0.34)"/>
+      <stop offset="55%" stop-color="rgba(4,8,15,0.14)"/>
+      <stop offset="100%" stop-color="rgba(4,8,15,0)"/>
+    </linearGradient>
+    <linearGradient id="galaxyBoundaryPaperFade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(243,243,241,0)"/>
+      <stop offset="58%" stop-color="rgba(243,243,241,0.48)"/>
+      <stop offset="100%" stop-color="rgba(243,243,241,0.95)"/>
+    </linearGradient>
+    <filter id="galaxyBoundaryBlur" x="-5%" y="-60%" width="110%" height="220%">
+      <feGaussianBlur stdDeviation="5.2"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#galaxyTopClip)">
+    ${bgImageLayer}
+    <rect x="0" y="0" width="${W}" height="${topAreaY}" fill="rgba(4,8,15,0.38)"/>
+    <g transform="${transform}">
+      ${geom.coordinateGridPaths.length
+      ? `<path d="${geom.coordinateGridPaths.join(' ')}" fill="none" stroke="${layerMutedInk}" stroke-width="0.9" stroke-linecap="round" opacity="0.80"/>`
+      : ''}
+      ${geom.linePaths.length ? `<path d="${geom.linePaths.join(' ')}" fill="none" stroke="${layerInk}" stroke-width="${params.constellationLineWidth}" opacity="${params.constellationLineAlpha}" stroke-linecap="round"/>` : ''}
+      <g opacity="${clamp01(params.starAlpha)}">
+        ${geom.starPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.55).toFixed(2)}" fill="${layerInk}"/>`).join('')}
+      </g>
+      <g opacity="${clamp01(params.vertexAlpha)}">
+        ${geom.vertexPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.6).toFixed(2)}" fill="${layerInk}"/>`).join('')}
+      </g>
+      <g>
+        ${geom.starLabels
+      .map((l) => `<text x="${(l.x + 5).toFixed(2)}" y="${(l.y + 2).toFixed(2)}" font-size="8" fill="${layerMutedInk}" opacity="0.8" stroke="${mapLabelHalo}" stroke-width="2.2" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
+      .join('')}
+      </g>
+      <g>
+        ${geom.constellationLabels
+      .map((l) => `<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="10" fill="${layerMutedInk}" opacity="0.84" stroke="${mapLabelHalo}" stroke-width="2.8" paint-order="stroke" text-anchor="middle" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
+      .join('')}
+      </g>
+    </g>
+  </g>
+  <rect x="0" y="${topAreaY}" width="${W}" height="${(H - topAreaY).toFixed(2)}" fill="#f3f3f1"/>
+  <g filter="url(#galaxyBoundaryBlur)" opacity="0.92">
+    <rect x="0" y="${boundaryBandTop}" width="${W}" height="${boundaryDarkBandH}" fill="url(#galaxyBoundaryDarkFade)"/>
+    <rect x="0" y="${boundaryPaperBandTop}" width="${W}" height="${boundaryPaperBandH}" fill="url(#galaxyBoundaryPaperFade)"/>
+  </g>
+  ${textBlock.join('\n  ')}
+  ${frame}
+  ${ruler}
+</svg>`;
+}
+
 export function renderPosterSvg(req: PosterRequest): string {
   const { latitude, longitude, timeUtcIso, locationLabel, params, poster } = req;
   const date = new Date(timeUtcIso);
@@ -396,6 +581,10 @@ export function renderPosterSvg(req: PosterRequest): string {
   const showRuler = typeof poster.showRuler === 'boolean'
     ? poster.showRuler
     : envFlagEnabled(process.env.SHOW_RULER);
+  const posterVariant = poster.posterVariant ?? 'classic';
+  if (posterVariant === 'galaxy') {
+    return renderGalaxyPosterSvg(req, showRuler);
+  }
 
   const size = poster.size;
   const is12x12Layout = size === '12x12';

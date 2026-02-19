@@ -128,6 +128,9 @@ export type PosterParams = {
   showCompanionPhoto?: boolean;
   companionPhotoImageUrl?: string;
   showRuler?: boolean;
+  posterVariant?: 'classic' | 'galaxy';
+  backgroundMode?: 'solid' | 'image';
+  backgroundImageUrl?: string;
 };
 
 export type PosterRequest = {

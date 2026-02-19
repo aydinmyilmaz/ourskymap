@@ -15,7 +15,8 @@ type SizePreset = {
 
 type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x20' | 'a2' | '18x24' | '20x20' | 'a1' | '24x32';
 type CompanionSubtype = 'moon-phase' | 'sky-photo';
-type PosterType = 'single' | 'companion';
+type PosterType = 'single' | 'companion' | 'galaxy';
+type BackgroundSourceMode = 'palette' | 'upload';
 type InkPresetKey = 'gold' | 'silver';
 type FontPresetKey = 'calligraphy' | 'signature' | 'serif' | 'gothic' | 'times';
 
@@ -180,6 +181,8 @@ const PHOTO_PREVIEW_SIZE = 220;
 const PHOTO_ZOOM_MIN = 1;
 const PHOTO_ZOOM_MAX = 4;
 const PHOTO_ZOOM_STEP = 0.2;
+const STYLE_BG_MAX_DIM = 2400;
+const STYLE_BG_MAX_MB = 20;
 
 const POSTER_SIZE_DIMS: Record<DesignSize, [number, number]> = {
   'us-letter': [612, 792], 'a4': [595, 842], '11x14': [792, 1008],
@@ -302,6 +305,45 @@ async function buildCompanionPhotoOutput(args: {
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, dx, dy, drawW, drawH);
   return canvas.toDataURL('image/jpeg', 0.92);
+}
+
+async function normalizeGalaxyBackgroundFile(file: File): Promise<{ dataUrl: string; width: number; height: number }> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please upload an image file (JPG, PNG, or WEBP).');
+  }
+  if (file.size > STYLE_BG_MAX_MB * 1024 * 1024) {
+    throw new Error(`Background image is too large. Please keep it under ${STYLE_BG_MAX_MB} MB.`);
+  }
+
+  const sourceDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read this image. Please try another file.'));
+    reader.readAsDataURL(file);
+  });
+  const img = await loadImageElement(sourceDataUrl);
+  const inputWidth = img.naturalWidth || img.width;
+  const inputHeight = img.naturalHeight || img.height;
+  if (Math.min(inputWidth, inputHeight) < 800) {
+    throw new Error('Image resolution is too low. Use at least 800px on the shorter edge.');
+  }
+
+  const scale = Math.min(1, STYLE_BG_MAX_DIM / Math.max(inputWidth, inputHeight));
+  if (scale >= 1) {
+    return { dataUrl: sourceDataUrl, width: inputWidth, height: inputHeight };
+  }
+
+  const outW = Math.max(1, Math.round(inputWidth * scale));
+  const outH = Math.max(1, Math.round(inputHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Image processing is not available in this browser.');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, outW, outH);
+  return { dataUrl: canvas.toDataURL('image/jpeg', 0.9), width: outW, height: outH };
 }
 
 const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
@@ -651,6 +693,11 @@ export default function DesignPage() {
   const [showNames, setShowNames] = useState(true);
   const [showGraticule, setShowGraticule] = useState(false);
   const [showRuler, setShowRuler] = useState(false);
+  const [galaxyBackgroundSource, setGalaxyBackgroundSource] = useState<BackgroundSourceMode>('palette');
+  const [galaxyBackgroundDataUrl, setGalaxyBackgroundDataUrl] = useState('');
+  const [galaxyBackgroundInfo, setGalaxyBackgroundInfo] = useState('');
+  const [galaxyBackgroundBusy, setGalaxyBackgroundBusy] = useState(false);
+  const [galaxyBackgroundError, setGalaxyBackgroundError] = useState('');
   const [title, setTitle] = useState('We met under this sky');
   const [fontPreset, setFontPreset] = useState<FontPresetKey>('calligraphy');
   const [names, setNames] = useState('Sarah & John');
@@ -681,6 +728,7 @@ export default function DesignPage() {
   const [error, setError] = useState('');
   const latestRequestRef = useRef(0);
   const companionPhotoInputRef = useRef<HTMLInputElement>(null);
+  const galaxyBackgroundInputRef = useRef<HTMLInputElement>(null);
 
   const selectedPalette = useMemo(() => findPalette(palette), [palette]);
   const selectedInk = useMemo(() => INK_PRESETS.find((item) => item.key === inkPreset) ?? INK_PRESETS[0], [inkPreset]);
@@ -690,6 +738,7 @@ export default function DesignPage() {
   const sizeOptions = STANDARD_SIZE_PRESETS;
   const isMoonPhaseUI = posterType === 'companion' && companionSubtype === 'moon-phase';
   const isSkyPhotoUI = posterType === 'companion' && companionSubtype === 'sky-photo';
+  const isGalaxyUI = posterType === 'galaxy';
   const reviewLocation = useMemo(() => normalizePlaceLabel(locationLabel || cityQuery) || 'Custom location', [cityQuery, locationLabel]);
   const reviewLocationLine = useMemo(
     () => locationLine.trim() || formatMetaLine(date, time, showTimeLine, locationLabel || cityQuery),
@@ -762,6 +811,12 @@ export default function DesignPage() {
   }, [companionSubtype]);
 
   useEffect(() => {
+    if (posterType !== 'galaxy') {
+      setGalaxyBackgroundError('');
+    }
+  }, [posterType]);
+
+  useEffect(() => {
     if (!companionPhotoMeta) {
       setCompanionPhotoDataUrl('');
       return;
@@ -831,6 +886,22 @@ export default function DesignPage() {
       setCompanionPhotoError(e?.message ?? 'Photo upload failed.');
     } finally {
       setCompanionPhotoBusy(false);
+    }
+  }, []);
+
+  const handleGalaxyBackgroundFile = useCallback(async (file: File | null | undefined) => {
+    if (!file) return;
+    setGalaxyBackgroundBusy(true);
+    setGalaxyBackgroundError('');
+    try {
+      const normalized = await normalizeGalaxyBackgroundFile(file);
+      setGalaxyBackgroundSource('upload');
+      setGalaxyBackgroundDataUrl(normalized.dataUrl);
+      setGalaxyBackgroundInfo(`Uploaded: ${normalized.width}x${normalized.height}px.`);
+    } catch (e: any) {
+      setGalaxyBackgroundError(e?.message ?? 'Background image upload failed.');
+    } finally {
+      setGalaxyBackgroundBusy(false);
     }
   }, []);
 
@@ -935,6 +1006,7 @@ export default function DesignPage() {
       };
 
 
+      const isGalaxyPoster = posterType === 'galaxy';
       const isMoonPhase = posterType === 'companion' && companionSubtype === 'moon-phase';
       const isSkyPhoto = posterType === 'companion' && companionSubtype === 'sky-photo';
       const usesCompanionCircle = posterType === 'companion';
@@ -951,6 +1023,10 @@ export default function DesignPage() {
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
       const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon_gold.png';
       const formulaOverrides = usesCompanionCircle ? buildPosterFormulaOverrides(size) : null;
+      const galaxyBackgroundMode =
+        isGalaxyPoster && galaxyBackgroundSource === 'upload' && galaxyBackgroundDataUrl
+          ? 'image'
+          : 'solid';
 
       const poster: PosterParams = {
         ...defaultPoster,
@@ -975,6 +1051,9 @@ export default function DesignPage() {
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
         showRuler,
+        posterVariant: isGalaxyPoster ? 'galaxy' : 'classic',
+        backgroundMode: galaxyBackgroundMode,
+        backgroundImageUrl: galaxyBackgroundMode === 'image' ? galaxyBackgroundDataUrl : undefined,
       };
 
       const posterRes = await fetch('/api/skymap', {
@@ -1007,6 +1086,8 @@ export default function DesignPage() {
     cityQuery,
     companionPhotoMeta,
     companionPhotoDataUrl,
+    galaxyBackgroundSource,
+    galaxyBackgroundDataUrl,
     constellationLanguage,
     date,
     fontPreset,
@@ -1018,6 +1099,8 @@ export default function DesignPage() {
     names,
     inkPreset,
     palette,
+    posterType,
+    companionSubtype,
     showTimeLine,
     showNames,
     showGraticule,
@@ -1095,6 +1178,7 @@ export default function DesignPage() {
         constellationLineAlpha: 0.7,
         mirrorHorizontal: true
       };
+      const isGalaxyPoster = posterType === 'galaxy';
       const isMoonPhase = posterType === 'companion' && companionSubtype === 'moon-phase';
       const isSkyPhoto = posterType === 'companion' && companionSubtype === 'sky-photo';
       const usesCompanionCircle = posterType === 'companion';
@@ -1112,6 +1196,10 @@ export default function DesignPage() {
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
       const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon_gold.png';
       const formulaOverrides = usesCompanionCircle ? buildPosterFormulaOverrides(size) : null;
+      const galaxyBackgroundMode =
+        isGalaxyPoster && galaxyBackgroundSource === 'upload' && galaxyBackgroundDataUrl
+          ? 'image'
+          : 'solid';
 
       const basePoster: PosterParams = {
         ...defaultPoster,
@@ -1135,7 +1223,10 @@ export default function DesignPage() {
         moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
-        showRuler
+        showRuler,
+        posterVariant: isGalaxyPoster ? 'galaxy' : 'classic',
+        backgroundMode: galaxyBackgroundMode,
+        backgroundImageUrl: galaxyBackgroundMode === 'image' ? galaxyBackgroundDataUrl : undefined
       };
 
       const renderRequest = {
@@ -1204,6 +1295,8 @@ export default function DesignPage() {
     cityQuery,
     companionPhotoMeta,
     companionPhotoDataUrl,
+    galaxyBackgroundSource,
+    galaxyBackgroundDataUrl,
     date,
     effectiveTheme,
     fontPreset,
@@ -1215,6 +1308,8 @@ export default function DesignPage() {
     names,
     inkPreset,
     palette,
+    posterType,
+    companionSubtype,
     persistCheckoutDraft,
     router,
     showTimeLine,
@@ -1258,23 +1353,38 @@ export default function DesignPage() {
           <div className="panelBlock sizeFrameBlock">
             <div className="stackField">
               <label>Poster Type</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  className={posterType === 'single' ? 'typeBtn typeBtn--active' : 'typeBtn'}
-                  onClick={() => setPosterType('single')}
-                  type="button"
-                >
-                  <img src="/poster-type-single.png" alt="" className="typeBtnImg" />
-                  <span className="typeBtnLabel">Standard<br />Star Map</span>
-                </button>
-                <button
-                  className={posterType === 'companion' ? 'typeBtn typeBtn--active' : 'typeBtn'}
-                  onClick={() => setPosterType('companion')}
-                  type="button"
-                >
-                  <img src="/poster-type-companion.png" alt="" className="typeBtnImg" />
-                  <span className="typeBtnLabel">Star Map<br />with Moon Phase</span>
-                </button>
+              <div className="posterTypeRows">
+                <div className="posterTypeRow">
+                  <button
+                    className={posterType === 'single' ? 'typeBtn typeBtn--active' : 'typeBtn'}
+                    onClick={() => setPosterType('single')}
+                    type="button"
+                  >
+                    <img src="/poster-type-single.png" alt="" className="typeBtnImg" />
+                    <span className="typeBtnLabel">Standard<br />Star Map</span>
+                  </button>
+                  <button
+                    className={posterType === 'companion' ? 'typeBtn typeBtn--active' : 'typeBtn'}
+                    onClick={() => setPosterType('companion')}
+                    type="button"
+                  >
+                    <img src="/poster-type-companion.png" alt="" className="typeBtnImg" />
+                    <span className="typeBtnLabel">Star Map<br />with Moon Phase</span>
+                  </button>
+                </div>
+                <div className="posterTypeRow posterTypeRow--single">
+                  <button
+                    className={posterType === 'galaxy' ? 'typeBtn typeBtn--active' : 'typeBtn'}
+                    onClick={() => setPosterType('galaxy')}
+                    type="button"
+                  >
+                    <span className="typeBtnImg typeBtnImg--galaxy" aria-hidden="true">
+                      <span className="typeBtnGalaxyLogo" />
+                      <span className="typeBtnGalaxyBase" />
+                    </span>
+                    <span className="typeBtnLabel">Galaxy<br />Star Map</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1452,6 +1562,70 @@ export default function DesignPage() {
                 ))}
               </div>
             </div>
+
+            {isGalaxyUI ? (
+              <div className="stackField">
+                <label>Galaxy Background</label>
+                <select
+                  value={galaxyBackgroundSource}
+                  onChange={(e) => setGalaxyBackgroundSource(e.target.value as BackgroundSourceMode)}
+                >
+                  <option value="palette">Use selected background color</option>
+                  <option value="upload">Upload custom background</option>
+                </select>
+                {galaxyBackgroundSource === 'upload' ? (
+                  <>
+                    <input
+                      ref={galaxyBackgroundInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="uploadInputHidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        void handleGalaxyBackgroundFile(file);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                    <div className="uploadActions">
+                      <button
+                        type="button"
+                        className="uploadBtn"
+                        onClick={() => galaxyBackgroundInputRef.current?.click()}
+                        disabled={galaxyBackgroundBusy}
+                      >
+                        {galaxyBackgroundBusy
+                          ? 'Processing...'
+                          : galaxyBackgroundDataUrl
+                            ? 'Replace Background'
+                            : 'Upload Background'}
+                      </button>
+                      {galaxyBackgroundDataUrl ? (
+                        <button
+                          type="button"
+                          className="uploadGhostBtn"
+                          onClick={() => {
+                            setGalaxyBackgroundDataUrl('');
+                            setGalaxyBackgroundInfo('');
+                            setGalaxyBackgroundError('');
+                          }}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                    {galaxyBackgroundDataUrl ? (
+                      <div className="galaxyBgPreview">
+                        <img src={galaxyBackgroundDataUrl} alt="Galaxy background preview" />
+                      </div>
+                    ) : null}
+                    {galaxyBackgroundInfo ? <p className="microHint">{galaxyBackgroundInfo}</p> : null}
+                    {galaxyBackgroundError ? <p className="inlineError">{galaxyBackgroundError}</p> : null}
+                  </>
+                ) : (
+                  <p className="microHint">Pick a background color above, or switch to upload mode.</p>
+                )}
+              </div>
+            ) : null}
 
           </div>
 
@@ -2063,6 +2237,19 @@ export default function DesignPage() {
           font-family: 'Signika', ui-sans-serif, system-ui;
           text-align: left;
         }
+        .posterTypeRows {
+          display: grid;
+          gap: 8px;
+        }
+        .posterTypeRow {
+          display: flex;
+          gap: 8px;
+          min-width: 0;
+        }
+        .posterTypeRow--single .typeBtn {
+          flex: 0 0 calc(50% - 4px);
+          max-width: calc(50% - 4px);
+        }
         .typeBtn--active {
           opacity: 1;
           border-style: solid;
@@ -2075,6 +2262,37 @@ export default function DesignPage() {
           object-fit: cover;
           flex-shrink: 0;
           display: block;
+        }
+        .typeBtnImg--galaxy {
+          position: relative;
+          background:
+            radial-gradient(circle at 70% 22%, rgba(255, 255, 255, 0.55) 1px, transparent 2px),
+            radial-gradient(circle at 34% 41%, rgba(255, 255, 255, 0.38) 1px, transparent 2px),
+            radial-gradient(circle at 52% 66%, rgba(255, 255, 255, 0.46) 1px, transparent 2px),
+            linear-gradient(180deg, #1f315d 0%, #192643 65%, #16213a 100%);
+          border: 1px solid #2f3d61;
+        }
+        .typeBtnGalaxyLogo {
+          position: absolute;
+          left: 12px;
+          top: 12px;
+          width: 20px;
+          height: 14px;
+          border: 1.6px solid #ffbe4c;
+          border-radius: 2px;
+          background: linear-gradient(180deg, rgba(255, 190, 76, 0.35) 0%, rgba(255, 190, 76, 0.12) 100%);
+          box-shadow: inset 0 0 0 1px rgba(255, 190, 76, 0.25);
+        }
+        .typeBtnGalaxyBase {
+          position: absolute;
+          left: 12px;
+          top: 31px;
+          width: 20px;
+          height: 3px;
+          background: #ffbe4c;
+          border-radius: 2px;
+          box-shadow: 0 5px 0 #ffbe4c;
+          opacity: 0.9;
         }
         .typeBtnLabel {
           font-size: 11px;
@@ -2096,6 +2314,22 @@ export default function DesignPage() {
           display: flex;
           align-items: center;
           gap: 8px;
+        }
+
+        .galaxyBgPreview {
+          width: 100%;
+          height: 110px;
+          border-radius: 10px;
+          border: 1px solid #bfc9d7;
+          overflow: hidden;
+          background: #0f1220;
+        }
+
+        .galaxyBgPreview img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
 
         .companionPreviewWrap {
