@@ -2000,6 +2000,7 @@ export default function ImageDesignPage() {
                     {activeTemplate.slots.map((slot) => {
                       const label = slot.index === 0 ? 'Center' : `#${slot.index}`;
                       const state = slotStates[slot.index] ?? 'idle';
+                      const queuedFile = slotFiles[slot.index];
                       return (
                         <div key={slot.index} className="slotRow">
                           <span className="slotLabel">{label}</span>
@@ -2018,7 +2019,13 @@ export default function ImageDesignPage() {
                                 e.currentTarget.value = '';
                               }}
                             />
-                            {state === 'processing' ? 'Uploading…' : state === 'done' ? 'Replace' : 'Choose File'}
+                            {state === 'processing'
+                              ? 'Uploading…'
+                              : state === 'done'
+                              ? 'Replace'
+                              : state === 'queued' && queuedFile
+                              ? queuedFile.name
+                              : 'Choose File'}
                           </label>
                           <span className="slotStatus">
                             {state === 'processing' && <span className="slotSpinner" aria-hidden="true" />}
@@ -3586,6 +3593,7 @@ export default function ImageDesignPage() {
           transition: background 0.12s, border-color 0.12s;
           white-space: nowrap;
           overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .slotFileBtn:hover {
