@@ -1670,6 +1670,25 @@ export default function ImageDesignPage() {
                   </div>
                 );
               })}
+              {designMode === 'template' && activeTemplate && activeTemplate.slots.map((slot) => {
+                const state = slotStates[slot.index] ?? 'idle';
+                if (state === 'done') return null;
+                const label = slot.index === 0 ? 'CENTER' : `#${slot.index}`;
+                return (
+                  <div
+                    key={`slot-ghost-${slot.index}`}
+                    className={`slotGhost${state === 'processing' ? ' processing' : ''}`}
+                    style={{
+                      left: `${(slot.x / DESIGN_CANVAS_W) * 100}%`,
+                      top: `${(slot.y / DESIGN_CANVAS_H) * 100}%`,
+                      zIndex: slot.zIndex,
+                      transform: `translate(-50%, -50%) scale(${slot.scale})`,
+                    }}
+                  >
+                    <span className="slotGhostLabel">{label}</span>
+                  </div>
+                );
+              })}
               {layers.length === 0 && textLayers.length === 0 ? (
                 <div className="posterEmpty">No people yet. Select and process people from uploaded photos.</div>
               ) : null}
@@ -2655,6 +2674,41 @@ export default function ImageDesignPage() {
           font-size: 14px;
           text-align: center;
           padding: 14px;
+        }
+
+        /* ── Slot ghost indicators ── */
+        .slotGhost {
+          position: absolute;
+          width: 90px;
+          height: 120px;
+          border: 2px dashed rgba(255, 255, 255, 0.55);
+          border-radius: 12px;
+          background: rgba(0, 0, 0, 0.22);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+          backdrop-filter: blur(2px);
+        }
+
+        .slotGhost.processing {
+          border-color: rgba(255, 255, 255, 0.9);
+          background: rgba(0, 0, 0, 0.35);
+          animation: slotGhostPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes slotGhostPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+
+        .slotGhostLabel {
+          font-size: 11px;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.9);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          text-shadow: 0 1px 3px rgba(0,0,0,0.6);
         }
 
         .personLayer {
