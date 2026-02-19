@@ -1430,6 +1430,37 @@ export default function ImageDesignPage() {
                       clipPath: `inset(${layer.cropTopPct}% ${layer.cropRightPct}% 0% ${layer.cropLeftPct}%)`
                     }}
                   />
+                  {activeLayerId === layer.id && (
+                    <div
+                      className="layerControls"
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="layerControlBtn"
+                        aria-label="Zoom out"
+                        onClick={(e) => { e.stopPropagation(); updateActiveLayer({ scale: Math.max(0.15, layer.scale - 0.1) }); }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="layerControlBtn"
+                        aria-label="Zoom in"
+                        onClick={(e) => { e.stopPropagation(); updateActiveLayer({ scale: Math.min(4.0, layer.scale + 0.1) }); }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="layerControlBtn"
+                        aria-label="Rotate clockwise"
+                        onClick={(e) => { e.stopPropagation(); updateActiveLayer({ rotationDeg: layer.rotationDeg + 15 }); }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11 5.5A5 5 0 1 0 10.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M11 2.5v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
               {textLayers.map((layer, index) => {
@@ -2273,6 +2304,7 @@ export default function ImageDesignPage() {
 
         .bottomTabContent {
           padding: 16px;
+          padding-bottom: 24px;
           display: flex;
           flex-direction: column;
           gap: 12px;
@@ -2334,6 +2366,43 @@ export default function ImageDesignPage() {
           object-fit: contain;
           display: block;
           pointer-events: none;
+        }
+
+        .layerControls {
+          position: absolute;
+          bottom: calc(100% + 6px);
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          gap: 4px;
+          background: rgba(15, 23, 42, 0.75);
+          backdrop-filter: blur(6px);
+          border-radius: 8px;
+          padding: 4px 5px;
+          pointer-events: all;
+          white-space: nowrap;
+        }
+
+        .layerControlBtn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          border: none;
+          background: transparent;
+          color: rgba(255,255,255,0.9);
+          cursor: pointer;
+          transition: background 0.12s;
+        }
+
+        .layerControlBtn:hover {
+          background: rgba(255,255,255,0.15);
+        }
+
+        .layerControlBtn:active {
+          background: rgba(255,255,255,0.25);
         }
 
         .textLayer {
