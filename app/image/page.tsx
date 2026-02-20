@@ -88,6 +88,7 @@ type PersonLayer = {
   cropTopPct: number;
   cropLeftPct: number;
   cropRightPct: number;
+  glowStrength: number;
 };
 
 type TextLayer = {
@@ -537,6 +538,23 @@ function moveLayerInStack(layers: PersonLayer[], id: string, action: 'front' | '
   return next;
 }
 
+function buildPersonGlowFilter(glowStrength: number): string {
+  const value = clamp(glowStrength, 0, 100);
+  if (value <= 0.5) return 'none';
+  const t = value / 100;
+  const nearBlur = 0.62 + t * 1.18;
+  const midBlur = 1.55 + t * 3.75;
+  const farBlur = 3.1 + t * 6.7;
+  const nearAlpha = 0.8 + t * 0.18;
+  const midAlpha = 0.3 + t * 0.34;
+  const farAlpha = 0.14 + t * 0.24;
+  return [
+    `drop-shadow(0 0 ${nearBlur.toFixed(2)}px rgba(255,255,255,${nearAlpha.toFixed(2)}))`,
+    `drop-shadow(0 0 ${midBlur.toFixed(2)}px rgba(255,255,255,${midAlpha.toFixed(2)}))`,
+    `drop-shadow(0 0 ${farBlur.toFixed(2)}px rgba(255,255,255,${farAlpha.toFixed(2)}))`
+  ].join(' ');
+}
+
 export default function ImageDesignPage() {
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [activePhotoId, setActivePhotoId] = useState<string | null>(null);
@@ -548,6 +566,7 @@ export default function ImageDesignPage() {
   const [activeTextId, setActiveTextId] = useState<string | null>(null);
   const [backgroundColor, setBackgroundColor] = useState('#101217');
   const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
+  const [backgroundImageScale, setBackgroundImageScale] = useState(1);
   const [uploadError, setUploadError] = useState('');
   const [processError, setProcessError] = useState('');
   const [textError, setTextError] = useState('');
@@ -892,6 +911,7 @@ export default function ImageDesignPage() {
     try {
       await loadImageMeta(objectUrl);
       setBackgroundImageUrl(objectUrl);
+      setBackgroundImageScale(1);
     } catch {
       URL.revokeObjectURL(objectUrl);
       setBackgroundError('Could not read this background image.');
@@ -906,11 +926,13 @@ export default function ImageDesignPage() {
       return BACKGROUND_COLOR_SWATCHES[(index + 1) % BACKGROUND_COLOR_SWATCHES.length];
     });
     setBackgroundImageUrl('');
+    setBackgroundImageScale(1);
     setBackgroundError('');
   }, []);
 
   const clearBackgroundImageAndTemplate = useCallback(() => {
     setBackgroundImageUrl('');
+    setBackgroundImageScale(1);
     setActiveTemplate(null);
     setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
     setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
@@ -1228,7 +1250,8 @@ export default function ImageDesignPage() {
             flipX: false,
             cropTopPct: 0,
             cropLeftPct: 0,
-            cropRightPct: 0
+            cropRightPct: 0,
+            glowStrength: 55
           });
 
           setPhotos((prev) =>
@@ -1351,6 +1374,7 @@ export default function ImageDesignPage() {
           cropTopPct: 0,
           cropLeftPct: 0,
           cropRightPct: 0,
+          glowStrength: 55,
         };
 
         setLayers((prev) => [...prev, newLayer]);
@@ -1942,6 +1966,23 @@ export default function ImageDesignPage() {
               <button type="button" className={`imageRailBtn${activeLayer?.flipX ? ' active' : ''}`} disabled={!activeLayer} onClick={() => activeLayer && updateActiveLayer({ flipX: !activeLayer.flipX })} title="Flip Horizontal">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 4.5l3 2.5-3 2.5M12 4.5l-3 2.5 3 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
+              <button
+                type="button"
+                className={`imageRailBtn${(activeLayer?.glowStrength ?? 55) > 0 ? ' active' : ''}`}
+                disabled={!activeLayer}
+                onClick={() => {
+                  if (!activeLayer) return;
+                  const currentGlow = activeLayer.glowStrength ?? 55;
+                  updateActiveLayer({ glowStrength: currentGlow > 0 ? 0 : 55 });
+                }}
+                title="Toggle Glow"
+                aria-label="Toggle Glow"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 1.8L8.2 4.8L11.2 6L8.2 7.2L7 10.2L5.8 7.2L2.8 6L5.8 4.8L7 1.8Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                  <path d="M10.5 9.4L11 10.6L12.2 11.1L11 11.6L10.5 12.8L10 11.6L8.8 11.1L10 10.6L10.5 9.4Z" fill="currentColor" />
+                </svg>
+              </button>
               <span className="imageRailDivider" aria-hidden="true" />
               <button type="button" className="imageRailBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('front')} title="Bring to Front" aria-label="Bring to Front">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -1984,7 +2025,10 @@ export default function ImageDesignPage() {
                 className="posterCanvas"
                 style={{
                   backgroundColor,
-                  backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : 'none'
+                  backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : 'none',
+                  backgroundSize: backgroundImageUrl ? `${(backgroundImageScale * 100).toFixed(1)}%` : 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat'
                 }}
               >
                 {layers.map((layer, index) => (
@@ -2010,7 +2054,8 @@ export default function ImageDesignPage() {
                       alt={layer.name}
                       draggable={false}
                       style={{
-                        clipPath: `inset(${layer.cropTopPct}% ${layer.cropRightPct}% 0% ${layer.cropLeftPct}%)`
+                        clipPath: `inset(${layer.cropTopPct}% ${layer.cropRightPct}% 0% ${layer.cropLeftPct}%)`,
+                        filter: buildPersonGlowFilter(layer.glowStrength ?? 55)
                       }}
                     />
                   </div>
@@ -2141,7 +2186,10 @@ export default function ImageDesignPage() {
                       className="posterCanvas tshirtCanvas"
                       style={{
                         backgroundColor,
-                        backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : 'none'
+                        backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : 'none',
+                        backgroundSize: backgroundImageUrl ? `${(backgroundImageScale * 100).toFixed(1)}%` : 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
                       }}
                     >
                       {layers.map((layer, index) => (
@@ -2167,7 +2215,8 @@ export default function ImageDesignPage() {
                             alt={layer.name}
                             draggable={false}
                             style={{
-                              clipPath: `inset(${layer.cropTopPct}% ${layer.cropRightPct}% 0% ${layer.cropLeftPct}%)`
+                              clipPath: `inset(${layer.cropTopPct}% ${layer.cropRightPct}% 0% ${layer.cropLeftPct}%)`,
+                              filter: buildPersonGlowFilter(layer.glowStrength ?? 55)
                             }}
                           />
                         </div>
@@ -2287,6 +2336,7 @@ export default function ImageDesignPage() {
                   onChange={(e) => {
                     setBackgroundColor(e.target.value);
                     setBackgroundImageUrl('');
+                    setBackgroundImageScale(1);
                     setBackgroundError('');
                   }}
                   aria-label="Select background color"
@@ -2317,6 +2367,36 @@ export default function ImageDesignPage() {
                   <rect x="2" y="2.5" width="10" height="9" rx="1.8" stroke="currentColor" strokeWidth="1.3" />
                   <circle cx="5" cy="5.5" r="1.1" fill="currentColor" />
                   <path d="M3.6 10.2L6.2 7.6L7.7 8.9L9.6 6.9L11.1 8.5V10.2H3.6Z" fill="currentColor" fillOpacity="0.8" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                className="imageRailBtn"
+                disabled={!backgroundImageUrl}
+                onClick={() => setBackgroundImageScale((prev) => clamp(prev - 0.1, 0.5, 2.5))}
+                title="Zoom out background"
+                aria-label="Zoom out background"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M4 6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                className="imageRailBtn"
+                disabled={!backgroundImageUrl}
+                onClick={() => setBackgroundImageScale((prev) => clamp(prev + 0.1, 0.5, 2.5))}
+                title="Zoom in background"
+                aria-label="Zoom in background"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </button>
 
@@ -2464,6 +2544,7 @@ export default function ImageDesignPage() {
                       onClick={() => {
                         setActiveTemplate(null);
                         setBackgroundImageUrl('');
+                        setBackgroundImageScale(1);
                         setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
                         setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
                         setSlotStates({});
@@ -2797,6 +2878,7 @@ export default function ImageDesignPage() {
                     onClick={() => {
                       setActiveTemplate(template);
                       setBackgroundImageUrl(template.backgroundUrl);
+                      setBackgroundImageScale(1);
                       setTemplateModalOpen(false);
                       // Pre-populate text layers from template textSlots
                       const newTextLayers = template.textSlots.map((slot) => ({
