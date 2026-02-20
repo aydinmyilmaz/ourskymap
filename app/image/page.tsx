@@ -11,8 +11,36 @@ const MAX_TEXT_LAYERS = 5;
 const DESIGN_CANVAS_W = 620;
 const DESIGN_CANVAS_H = 780;
 const MIN_SELECTION_SIZE = 0.04;
-const BACKGROUND_SWATCH_COLLAPSED = 5;
 const FONT_SWATCH_COLLAPSED = 5;
+
+type PreviewMode = 'canvas' | 'tshirt';
+
+type TshirtVariant = {
+  id: string;
+  label: string;
+  imageUrl: string;
+  printArea: {
+    leftPct: number;
+    topPct: number;
+    widthPct: number;
+    heightPct: number;
+  };
+};
+
+// Add more t-shirt colors/styles here later. Each variant controls image + print area placement.
+const TSHIRT_VARIANTS: TshirtVariant[] = [
+  {
+    id: 'black-classic',
+    label: 'Black',
+    imageUrl: '/tshirt_image.png',
+    printArea: {
+      leftPct: 36,
+      topPct: 29.4,
+      widthPct: 29,
+      heightPct: 36.6
+    }
+  }
+];
 
 type SelectionStatus = 'pending' | 'processing' | 'done' | 'error';
 type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
@@ -60,6 +88,7 @@ type PersonLayer = {
   cropTopPct: number;
   cropLeftPct: number;
   cropRightPct: number;
+  glowStrength: number;
 };
 
 type TextLayer = {
@@ -71,6 +100,8 @@ type TextLayer = {
   rotationDeg: number;
   color: string;
   styleKey: TextStyleKey;
+  italic?: boolean;
+  curve: number;
 };
 
 type SelectionDraft = {
@@ -323,26 +354,97 @@ const BACKGROUND_COLOR_SWATCHES = [
   '#1e293b'
 ];
 
-const TEXT_COLOR_SWATCHES = [
-  '#ffffff',
-  '#f8fafc',
-  '#111827',
-  '#fde68a',
-  '#fca5a5',
-  '#93c5fd',
-  '#86efac',
-  '#c4b5fd',
-  '#67e8f9',
-  '#fb7185',
-  '#22d3ee',
-  '#38bdf8',
-  '#e2e8f0',
-  '#eab308',
-  '#cbd5e1'
-];
-
 function findTextStylePreset(key: TextStyleKey): TextStylePreset {
   return TEXT_STYLE_PRESETS.find((preset) => preset.key === key) ?? TEXT_STYLE_PRESETS[0];
+}
+
+type CurvedGlyph = {
+  char: string;
+  x: number;
+  y: number;
+  angleDeg: number;
+};
+
+type CurvedTextLayout = {
+  glyphs: CurvedGlyph[];
+  width: number;
+  height: number;
+};
+
+type CurvedTextLayoutInput = {
+  text: string;
+  fontSizePx: number;
+  curveAmount: number;
+  fontFamily: string;
+  fontWeight: number;
+  fontStyle?: 'normal' | 'italic';
+  letterSpacingPx: number;
+};
+
+function buildCurvedTextLayout(input: CurvedTextLayoutInput): CurvedTextLayout {
+  const {
+    text,
+    fontSizePx,
+    curveAmount,
+    fontFamily,
+    fontWeight,
+    fontStyle = 'normal',
+    letterSpacingPx
+  } = input;
+  const preparedText = (text.length > 0 ? text : 'Text').replace(/\r\n?/g, '\n').replace(/\n/g, ' ');
+  const safeChars = Array.from(preparedText.length > 0 ? preparedText : 'Text');
+  const count = safeChars.length;
+  const safeCurve = clamp(curveAmount, -100, 100);
+  const curvePx = (safeCurve / 100) * fontSizePx * 1.4;
+
+  let measureCtx: CanvasRenderingContext2D | null = null;
+  if (typeof document !== 'undefined') {
+    const measureCanvas = document.createElement('canvas');
+    measureCtx = measureCanvas.getContext('2d');
+    if (measureCtx) {
+      measureCtx.font = `${fontStyle} ${fontWeight} ${fontSizePx}px ${fontFamily}`;
+    }
+  }
+
+  const advances = safeChars.map((char, index) => {
+    const measured = measureCtx ? measureCtx.measureText(char).width : 0;
+    const fallback = char === ' ' ? fontSizePx * 0.34 : fontSizePx * 0.56;
+    const minWidth = char === ' ' ? fontSizePx * 0.28 : fontSizePx * 0.16;
+    const baseAdvance = Math.max(minWidth, measured || fallback);
+    const spacing = index < safeChars.length - 1 ? Math.max(-1.5, letterSpacingPx) : 0;
+    return Math.max(2, baseAdvance + spacing);
+  });
+
+  const centers: number[] = [];
+  let cursor = 0;
+  for (const advance of advances) {
+    centers.push(cursor + advance / 2);
+    cursor += advance;
+  }
+
+  const span = count > 1 ? Math.max(fontSizePx * 0.68, cursor) : Math.max(fontSizePx * 0.72, cursor);
+  const halfSpan = span / 2;
+  const width = Math.max(fontSizePx * 1.6, span + fontSizePx * 0.6);
+  const baseY = Math.abs(curvePx) + fontSizePx * 0.84;
+  const height = Math.max(fontSizePx * 1.8, baseY + Math.abs(curvePx) + fontSizePx * 0.34);
+  const startX = (width - span) / 2;
+  const denom = halfSpan === 0 ? 1 : halfSpan * halfSpan;
+
+  const glyphs = safeChars.map((char, index) => {
+    const centerX = count === 1 ? span / 2 : centers[index];
+    const xFromCenter = centerX - halfSpan;
+    const curveFactor = count === 1 ? 1 : 1 - (xFromCenter * xFromCenter) / denom;
+    const yOffset = -curvePx * curveFactor;
+    const derivative = count === 1 ? 0 : (2 * curvePx * xFromCenter) / denom;
+    return {
+      char,
+      x: startX + centerX,
+      y: baseY + yOffset,
+      angleDeg: (Math.atan(derivative) * 180) / Math.PI
+    };
+  });
+
+  return { glyphs, width, height };
 }
 
 async function loadImageMeta(src: string): Promise<{ width: number; height: number }> {
@@ -436,6 +538,23 @@ function moveLayerInStack(layers: PersonLayer[], id: string, action: 'front' | '
   return next;
 }
 
+function buildPersonGlowFilter(glowStrength: number): string {
+  const value = clamp(glowStrength, 0, 100);
+  if (value <= 0.5) return 'none';
+  const t = value / 100;
+  const nearBlur = 0.62 + t * 1.18;
+  const midBlur = 1.55 + t * 3.75;
+  const farBlur = 3.1 + t * 6.7;
+  const nearAlpha = 0.8 + t * 0.18;
+  const midAlpha = 0.3 + t * 0.34;
+  const farAlpha = 0.14 + t * 0.24;
+  return [
+    `drop-shadow(0 0 ${nearBlur.toFixed(2)}px rgba(255,255,255,${nearAlpha.toFixed(2)}))`,
+    `drop-shadow(0 0 ${midBlur.toFixed(2)}px rgba(255,255,255,${midAlpha.toFixed(2)}))`,
+    `drop-shadow(0 0 ${farBlur.toFixed(2)}px rgba(255,255,255,${farAlpha.toFixed(2)}))`
+  ].join(' ');
+}
+
 export default function ImageDesignPage() {
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [activePhotoId, setActivePhotoId] = useState<string | null>(null);
@@ -445,19 +564,13 @@ export default function ImageDesignPage() {
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [textLayers, setTextLayers] = useState<TextLayer[]>([]);
   const [activeTextId, setActiveTextId] = useState<string | null>(null);
-  const [bottomTab, setBottomTab] = useState<'person' | 'text'>('person');
   const [backgroundColor, setBackgroundColor] = useState('#101217');
-  const [backgroundHexInput, setBackgroundHexInput] = useState('#101217');
   const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
-  const [backgroundExplore, setBackgroundExplore] = useState(false);
-  const [textColorExplore, setTextColorExplore] = useState(false);
-  const [fontExplore, setFontExplore] = useState(false);
+  const [backgroundImageScale, setBackgroundImageScale] = useState(1);
   const [uploadError, setUploadError] = useState('');
   const [processError, setProcessError] = useState('');
   const [textError, setTextError] = useState('');
   const [backgroundError, setBackgroundError] = useState('');
-  const [textColorHexInput, setTextColorHexInput] = useState('#f8fafc');
-  const [textColorError, setTextColorError] = useState('');
   const [processing, setProcessing] = useState(false);
   const [processingLabel, setProcessingLabel] = useState('');
   type ReplicateHealth = 'operational' | 'degraded' | 'outage' | 'unknown';
@@ -472,11 +585,20 @@ export default function ImageDesignPage() {
   const [slotLayerIds, setSlotLayerIds] = useState<Record<number, string>>({});
   const [templateTextIds, setTemplateTextIds] = useState<string[]>([]);
   const [designMode, setDesignMode] = useState<'custom' | 'template'>('custom');
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
+  const [canvasRenderScale, setCanvasRenderScale] = useState(1);
+  const [tshirtPrintScale, setTshirtPrintScale] = useState(1);
+  const [activeTshirtId, setActiveTshirtId] = useState<string>(TSHIRT_VARIANTS[0]?.id ?? '');
   const [slotFiles, setSlotFiles] = useState<Record<number, File>>({});
   const [slotError, setSlotError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
+  const previewPanelRef = useRef<HTMLElement>(null);
+  const previewTextToolbarRef = useRef<HTMLDivElement>(null);
+  const previewImageToolbarRef = useRef<HTMLDivElement>(null);
+  const previewBackgroundToolbarRef = useRef<HTMLDivElement>(null);
+  const toolbarColorInputRef = useRef<HTMLInputElement>(null);
   const selectionBoardRef = useRef<HTMLDivElement>(null);
   const posterCanvasRef = useRef<HTMLDivElement>(null);
   const layerDragRef = useRef<LayerDragState | null>(null);
@@ -506,10 +628,6 @@ export default function ImageDesignPage() {
       }
     };
   }, []);
-
-  useEffect(() => {
-    setBackgroundHexInput(backgroundColor);
-  }, [backgroundColor]);
 
   useEffect(() => {
     const previous = backgroundImageUrlRef.current;
@@ -551,16 +669,6 @@ export default function ImageDesignPage() {
     if (!exists) setActiveTextId(textLayers[textLayers.length - 1]?.id ?? null);
   }, [activeTextId, textLayers]);
 
-  // Auto-switch bottom tab when user selects a person layer
-  useEffect(() => {
-    if (activeLayerId) setBottomTab('person');
-  }, [activeLayerId]);
-
-  // Auto-switch bottom tab when user selects a text layer
-  useEffect(() => {
-    if (activeTextId) setBottomTab('text');
-  }, [activeTextId]);
-
   const activePhoto = useMemo(() => photos.find((photo) => photo.id === activePhotoId) ?? null, [activePhotoId, photos]);
   const activeSelections = activePhoto?.selections ?? [];
   const pendingSelections = useMemo(
@@ -586,25 +694,29 @@ export default function ImageDesignPage() {
     () => Object.values(slotStates).filter((s) => s === 'done').length,
     [slotStates]
   );
+  const activeTshirt = useMemo(
+    () => TSHIRT_VARIANTS.find((variant) => variant.id === activeTshirtId) ?? TSHIRT_VARIANTS[0] ?? null,
+    [activeTshirtId]
+  );
+  const tshirtPrintAreaStyle = useMemo(() => {
+    if (!activeTshirt) return null;
+    const base = activeTshirt.printArea;
+    const safeScale = clamp(tshirtPrintScale, 0.7, 1.7);
+    const widthPct = base.widthPct * safeScale;
+    const heightPct = base.heightPct * safeScale;
+    const centerXPct = base.leftPct + base.widthPct / 2;
+    const centerYPct = base.topPct + base.heightPct / 2;
+    return {
+      left: `${centerXPct - widthPct / 2}%`,
+      top: `${centerYPct - heightPct / 2}%`,
+      width: `${widthPct}%`,
+      height: `${heightPct}%`
+    };
+  }, [activeTshirt, tshirtPrintScale]);
   const activeLayer = useMemo(() => layers.find((layer) => layer.id === activeLayerId) ?? null, [activeLayerId, layers]);
   const activeTextLayer = useMemo(
     () => textLayers.find((layer) => layer.id === activeTextId) ?? null,
     [activeTextId, textLayers]
-  );
-  const visibleBackgroundColors = useMemo(
-    () =>
-      backgroundExplore
-        ? BACKGROUND_COLOR_SWATCHES
-        : BACKGROUND_COLOR_SWATCHES.slice(0, BACKGROUND_SWATCH_COLLAPSED),
-    [backgroundExplore]
-  );
-  const visibleTextColors = useMemo(
-    () => (textColorExplore ? TEXT_COLOR_SWATCHES : TEXT_COLOR_SWATCHES.slice(0, BACKGROUND_SWATCH_COLLAPSED)),
-    [textColorExplore]
-  );
-  const visibleTextStyles = useMemo(
-    () => (fontExplore ? TEXT_STYLE_PRESETS : TEXT_STYLE_PRESETS.slice(0, FONT_SWATCH_COLLAPSED)),
-    [fontExplore]
   );
   const activeSelection = useMemo(
     () => (activePhoto && activeSelectionId ? findSelectionById(activePhoto, activeSelectionId) : null),
@@ -622,9 +734,29 @@ export default function ImageDesignPage() {
   const draftRect = draftToRect(draft);
 
   useEffect(() => {
-    if (!activeTextLayer) return;
-    setTextColorHexInput(activeTextLayer.color);
-  }, [activeTextLayer?.id, activeTextLayer?.color]);
+    const canvas = posterCanvasRef.current;
+    if (!canvas) return;
+
+    const updateScale = () => {
+      const bounds = canvas.getBoundingClientRect();
+      if (bounds.width > 0) {
+        setCanvasRenderScale(bounds.width / DESIGN_CANVAS_W);
+      }
+    };
+
+    updateScale();
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => updateScale());
+      observer.observe(canvas);
+    }
+    window.addEventListener('resize', updateScale);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [previewMode]);
 
   useEffect(() => {
     if (!activePhoto) {
@@ -635,6 +767,30 @@ export default function ImageDesignPage() {
     const exists = activePhoto.selections.some((selection) => selection.id === activeSelectionId);
     if (!exists) setActiveSelectionId(null);
   }, [activePhoto, activeSelectionId]);
+
+  // Clear active canvas selections only when clicking inside preview area but outside canvas.
+  useEffect(() => {
+    const handleWindowPointerDown = (event: PointerEvent) => {
+      const canvas = posterCanvasRef.current;
+      const previewPanel = previewPanelRef.current;
+      const toolbar = previewTextToolbarRef.current;
+      const imageToolbar = previewImageToolbarRef.current;
+      const backgroundToolbar = previewBackgroundToolbarRef.current;
+      if (!canvas || !previewPanel) return;
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (!previewPanel.contains(target)) return;
+      if (canvas.contains(target)) return;
+      if (toolbar?.contains(target)) return;
+      if (imageToolbar?.contains(target)) return;
+      if (backgroundToolbar?.contains(target)) return;
+      setActiveLayerId(null);
+      setActiveTextId(null);
+    };
+
+    window.addEventListener('pointerdown', handleWindowPointerDown);
+    return () => window.removeEventListener('pointerdown', handleWindowPointerDown);
+  }, []);
 
   const runHealthCheck = useCallback(async () => {
     setHealthChecking(true);
@@ -744,33 +900,6 @@ export default function ImageDesignPage() {
     setProcessError('');
   }, []);
 
-  const applyBackgroundHex = useCallback((raw: string) => {
-    const value = raw.trim();
-    if (!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(value)) {
-      setBackgroundError('Enter a valid HEX color, e.g. #0f172a');
-      return;
-    }
-    setBackgroundColor(value);
-    setBackgroundImageUrl('');
-    setBackgroundError('');
-  }, []);
-
-  const applyTextHex = useCallback(
-    (raw: string) => {
-      if (!activeTextId) return;
-      const value = raw.trim();
-      if (!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(value)) {
-        setTextColorError('Enter a valid HEX color, e.g. #f8fafc');
-        return;
-      }
-      setTextLayers((prev) =>
-        prev.map((layer) => (layer.id === activeTextId ? { ...layer, color: value } : layer))
-      );
-      setTextColorError('');
-    },
-    [activeTextId]
-  );
-
   const handleBackgroundImageFile = useCallback(async (file: File | null | undefined) => {
     if (!file) return;
     setBackgroundError('');
@@ -782,11 +911,37 @@ export default function ImageDesignPage() {
     try {
       await loadImageMeta(objectUrl);
       setBackgroundImageUrl(objectUrl);
+      setBackgroundImageScale(1);
     } catch {
       URL.revokeObjectURL(objectUrl);
       setBackgroundError('Could not read this background image.');
     }
   }, []);
+
+  const cycleBackgroundColor = useCallback(() => {
+    setBackgroundColor((prev) => {
+      const current = prev.toLowerCase();
+      const index = BACKGROUND_COLOR_SWATCHES.findIndex((color) => color.toLowerCase() === current);
+      if (index === -1) return BACKGROUND_COLOR_SWATCHES[0];
+      return BACKGROUND_COLOR_SWATCHES[(index + 1) % BACKGROUND_COLOR_SWATCHES.length];
+    });
+    setBackgroundImageUrl('');
+    setBackgroundImageScale(1);
+    setBackgroundError('');
+  }, []);
+
+  const clearBackgroundImageAndTemplate = useCallback(() => {
+    setBackgroundImageUrl('');
+    setBackgroundImageScale(1);
+    setActiveTemplate(null);
+    setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
+    setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
+    setSlotStates({});
+    setSlotLayerIds({});
+    setSlotFiles({});
+    setTemplateTextIds([]);
+    setBackgroundError('');
+  }, [slotLayerIds, templateTextIds]);
 
   const handleSelectionPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -1095,7 +1250,8 @@ export default function ImageDesignPage() {
             flipX: false,
             cropTopPct: 0,
             cropLeftPct: 0,
-            cropRightPct: 0
+            cropRightPct: 0,
+            glowStrength: 55
           });
 
           setPhotos((prev) =>
@@ -1218,6 +1374,7 @@ export default function ImageDesignPage() {
           cropTopPct: 0,
           cropLeftPct: 0,
           cropRightPct: 0,
+          glowStrength: 55,
         };
 
         setLayers((prev) => [...prev, newLayer]);
@@ -1391,7 +1548,8 @@ export default function ImageDesignPage() {
       fontSize: 64,
       rotationDeg: 0,
       color: '#f8fafc',
-      styleKey: textLayers.length % 2 === 0 ? 'varsity' : 'script'
+      styleKey: textLayers.length % 2 === 0 ? 'varsity' : 'script',
+      curve: 0
     };
     setTextLayers((prev) => [...prev, next]);
     setActiveTextId(next.id);
@@ -1529,398 +1687,765 @@ export default function ImageDesignPage() {
             </button>
           </div>
         )}
-        <section className="previewPanel">
+        <section ref={previewPanelRef} className="previewPanel">
           <div className="previewHeader">
-            <h2>Poster Area</h2>
-            <p>Drag extracted people. Use layer controls from the right panel.</p>
-          </div>
-          <div className="posterWrap">
-            <div
-              ref={posterCanvasRef}
-              className="posterCanvas"
-              style={{
-                backgroundColor,
-                backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : 'none'
-              }}
-            >
-              {layers.map((layer, index) => (
-                <div
-                  key={layer.id}
-                  className={`personLayer ${activeLayerId === layer.id ? 'active' : ''}`}
-                  style={{
-                    left: `${(layer.x / DESIGN_CANVAS_W) * 100}%`,
-                    top: `${(layer.y / DESIGN_CANVAS_H) * 100}%`,
-                    width: `${layer.width}px`,
-                    height: `${layer.height}px`,
-                    zIndex: index + 1,
-                    transform: `translate(-50%, -50%) scale(${layer.scale}) rotate(${layer.rotationDeg}deg) scaleX(${layer.flipX ? -1 : 1})`,
-                    touchAction: 'none' as const
-                  }}
-                  onPointerDown={(e) => handleLayerPointerDown(e, layer.id)}
-                  onPointerMove={(e) => handleLayerPointerMove(e, layer.id)}
-                  onPointerUp={(e) => handleLayerPointerUp(e, layer.id)}
-                  onPointerCancel={(e) => handleLayerPointerUp(e, layer.id)}
+            <h2>{previewMode === 'canvas' ? 'Poster Area' : 'T-Shirt Mockup'}</h2>
+            <p>
+              {previewMode === 'canvas'
+                ? 'Drag extracted people. Use top text toolbar, left image tools, and right background tools.'
+                : 'Design directly on shirt print area with text, image, and background toolbars.'}
+            </p>
+            <div className="previewModeSwitcher">
+              <button
+                type="button"
+                className={`previewModeTab${previewMode === 'canvas' ? ' active' : ''}`}
+                onClick={() => setPreviewMode('canvas')}
+              >
+                Canvas
+              </button>
+              <button
+                type="button"
+                className={`previewModeTab${previewMode === 'tshirt' ? ' active' : ''}`}
+                onClick={() => setPreviewMode('tshirt')}
+              >
+                T-Shirt
+              </button>
+            </div>
+            {previewMode === 'tshirt' && TSHIRT_VARIANTS.length > 1 && (
+              <div className="tshirtVariantRow">
+                <label htmlFor="tshirt-variant">T-Shirt</label>
+                <select
+                  id="tshirt-variant"
+                  className="tshirtVariantSelect"
+                  value={activeTshirtId}
+                  onChange={(e) => setActiveTshirtId(e.target.value)}
                 >
-                  <img
-                    src={layer.src}
-                    alt={layer.name}
-                    draggable={false}
-                    style={{
-                      clipPath: `inset(${layer.cropTopPct}% ${layer.cropRightPct}% 0% ${layer.cropLeftPct}%)`
-                    }}
-                  />
-                  {activeLayerId === layer.id && (
-                    <div
-                      className="layerControls"
-                      onPointerDown={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        className="layerControlBtn"
-                        aria-label="Rotate counter-clockwise"
-                        onClick={(e) => { e.stopPropagation(); updateActiveLayer({ rotationDeg: layer.rotationDeg - 15 }); }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5.5A5 5 0 1 1 3.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M3 2.5v3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="layerControlBtn"
-                        aria-label="Zoom out"
-                        onClick={(e) => { e.stopPropagation(); updateActiveLayer({ scale: Math.max(0.15, layer.scale - 0.1) }); }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="layerControlBtn"
-                        aria-label="Zoom in"
-                        onClick={(e) => { e.stopPropagation(); updateActiveLayer({ scale: Math.min(4.0, layer.scale + 0.1) }); }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                      </button>
-                      <button
-                        type="button"
-                        className={`layerControlBtn${layer.flipX ? ' layerControlBtnActive' : ''}`}
-                        aria-label="Mirror horizontal"
-                        onClick={(e) => { e.stopPropagation(); updateActiveLayer({ flipX: !layer.flipX }); }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 4.5l3 2.5-3 2.5M12 4.5l-3 2.5 3 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="layerControlBtn"
-                        aria-label="Rotate clockwise"
-                        onClick={(e) => { e.stopPropagation(); updateActiveLayer({ rotationDeg: layer.rotationDeg + 15 }); }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11 5.5A5 5 0 1 0 10.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M11 2.5v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  {TSHIRT_VARIANTS.map((variant) => (
+                    <option key={variant.id} value={variant.id}>
+                      {variant.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <div ref={previewTextToolbarRef} className="previewTextToolbar">
+            <button
+              type="button"
+              className="toolbarBtn toolbarTextAddBtn"
+              onClick={addTextLayer}
+              disabled={textLayers.length >= MAX_TEXT_LAYERS}
+              title="Add text layer"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+              <span>Text</span>
+            </button>
+
+            <span className="toolbarDivider" aria-hidden="true" />
+
+            <textarea
+              className="toolbarTextInput"
+              rows={1}
+              disabled={!activeTextLayer}
+              value={activeTextLayer?.text ?? ''}
+              onChange={(e) => updateActiveTextLayer({ text: e.target.value })}
+              placeholder="Text content"
+            />
+
+            <select
+              className="toolbarSelect"
+              disabled={!activeTextLayer}
+              value={activeTextLayer?.styleKey ?? ''}
+              onChange={(e) => updateActiveTextLayer({ styleKey: e.target.value as TextStyleKey })}
+              aria-label="Text style"
+            >
+              <option value="" disabled>Normal text</option>
+              {TEXT_STYLE_PRESETS.map((preset) => (
+                <option key={preset.key} value={preset.key}>
+                  {preset.label}
+                </option>
               ))}
-              {textLayers.map((layer, index) => {
-                const stylePreset = findTextStylePreset(layer.styleKey);
-                return (
+            </select>
+
+            <div className="toolbarSizeGroup">
+              <button
+                type="button"
+                className="toolbarBtn"
+                disabled={!activeTextLayer}
+                onClick={() => {
+                  if (!activeTextLayer) return;
+                  updateActiveTextLayer({ fontSize: Math.max(20, activeTextLayer.fontSize - 4) });
+                }}
+                title="Decrease size"
+              >
+                -
+              </button>
+              <input
+                type="number"
+                min={20}
+                max={190}
+                className="toolbarSizeInput"
+                disabled={!activeTextLayer}
+                value={activeTextLayer?.fontSize ?? 60}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  if (Number.isFinite(next)) updateActiveTextLayer({ fontSize: clamp(next, 20, 190) });
+                }}
+                aria-label="Font size"
+              />
+              <button
+                type="button"
+                className="toolbarBtn"
+                disabled={!activeTextLayer}
+                onClick={() => {
+                  if (!activeTextLayer) return;
+                  updateActiveTextLayer({ fontSize: Math.min(190, activeTextLayer.fontSize + 4) });
+                }}
+                title="Increase size"
+              >
+                +
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className={`toolbarBtn toolbarGlyphBtn${activeTextLayer?.italic ? ' active' : ''}`}
+              disabled={!activeTextLayer}
+              onClick={() => updateActiveTextLayer({ italic: !activeTextLayer?.italic })}
+              title="Italic"
+            >
+              <em>I</em>
+            </button>
+
+            <div className="toolbarColorWrap">
+              <button
+                type="button"
+                className="toolbarBtn toolbarColorPreviewBtn"
+                disabled={!activeTextLayer}
+                title="Text color"
+                onClick={() => toolbarColorInputRef.current?.click()}
+              >
+                <span className="toolbarColorIcon" aria-hidden="true">
+                  <span className="toolbarColorLetter">A</span>
+                  <span
+                    className="toolbarColorUnderline"
+                    style={{ background: activeTextLayer?.color ?? '#0f172a' }}
+                  />
+                </span>
+              </button>
+              <input
+                ref={toolbarColorInputRef}
+                type="color"
+                className="toolbarColorInput"
+                disabled={!activeTextLayer}
+                value={activeTextLayer?.color ?? '#f8fafc'}
+                onChange={(e) => {
+                  updateActiveTextLayer({ color: e.target.value });
+                }}
+                aria-label="Select text color"
+              />
+            </div>
+
+            <div className="toolbarCurveGroup">
+              <button
+                type="button"
+                className="toolbarBtn toolbarCurveStepBtn"
+                disabled={!activeTextLayer}
+                onClick={() => {
+                  if (!activeTextLayer) return;
+                  updateActiveTextLayer({ curve: clamp(activeTextLayer.curve - 8, -100, 100) });
+                }}
+                title="Curve down"
+                aria-label="Curve down"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M2.1 4.8C3.2 7.4 4.9 8.7 7 8.7C9.1 8.7 10.8 7.4 11.9 4.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="toolbarBtn toolbarCurveStepBtn"
+                disabled={!activeTextLayer}
+                onClick={() => {
+                  if (!activeTextLayer) return;
+                  updateActiveTextLayer({ curve: clamp(activeTextLayer.curve + 8, -100, 100) });
+                }}
+                title="Curve up"
+                aria-label="Curve up"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M2.1 9.5C3.2 6.9 4.9 5.6 7 5.6C9.1 5.6 10.8 6.9 11.9 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="toolbarBtn toolbarCurveResetBtn"
+                disabled={!activeTextLayer}
+                onClick={() => updateActiveTextLayer({ curve: 0 })}
+                title="Reset text curve"
+                aria-label="Reset text curve"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M3 6A4 4 0 1 1 3.4 8.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M3 3.8v2.5h2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            <span className="toolbarDivider" aria-hidden="true" />
+
+            <button
+              type="button"
+              className="toolbarBtn toolbarIconBtn"
+              disabled={!activeTextLayer}
+              onClick={() => {
+                if (!activeTextLayer) return;
+                updateActiveTextLayer({ rotationDeg: activeTextLayer.rotationDeg - 15 });
+              }}
+              title="Rotate left"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M3 5.5A5 5 0 1 1 3.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M3 2.5v3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="toolbarBtn toolbarIconBtn"
+              disabled={!activeTextLayer}
+              onClick={() => {
+                if (!activeTextLayer) return;
+                updateActiveTextLayer({ rotationDeg: activeTextLayer.rotationDeg + 15 });
+              }}
+              title="Rotate right"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M11 5.5A5 5 0 1 0 10.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M11 2.5v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <span className="toolbarDivider" aria-hidden="true" />
+            <button
+              type="button"
+              className="toolbarBtn toolbarDeleteBtn"
+              disabled={!activeTextId}
+              onClick={removeActiveTextLayer}
+              title="Delete selected text"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2.5 3.5h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M5.2 3.5V2.6c0-.3.2-.6.6-.6h2.4c.4 0 .6.3.6.6v.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M4.1 5.1v5.1c0 .6.5 1.1 1.1 1.1h3.6c.6 0 1.1-.5 1.1-1.1V5.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M6 6.4v3.8M8 6.4v3.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div className="canvasShell">
+            <div ref={previewImageToolbarRef} className="imageControlRail">
+              <div className="imageRailHeader" title="Image tools" aria-label="Image tools">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" />
+                  <circle cx="6" cy="7" r="1.2" fill="currentColor" />
+                  <path d="M4.2 11.1L7.1 8.4L9 10L11.8 7.7L13.2 9.2V11.8H3.5V11.1H4.2Z" fill="currentColor" fillOpacity="0.75" />
+                </svg>
+              </div>
+              <button type="button" className="imageRailBtn" disabled={!activeLayer} onClick={() => activeLayer && updateActiveLayer({ scale: Math.max(0.15, activeLayer.scale - 0.1) })} title="Zoom Out">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </button>
+              <button type="button" className="imageRailBtn" disabled={!activeLayer} onClick={() => activeLayer && updateActiveLayer({ scale: Math.min(4.0, activeLayer.scale + 0.1) })} title="Zoom In">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </button>
+              <button type="button" className="imageRailBtn" disabled={!activeLayer} onClick={() => activeLayer && updateActiveLayer({ rotationDeg: activeLayer.rotationDeg - 15 })} title="Rotate Left">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5.5A5 5 0 1 1 3.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M3 2.5v3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button type="button" className="imageRailBtn" disabled={!activeLayer} onClick={() => activeLayer && updateActiveLayer({ rotationDeg: activeLayer.rotationDeg + 15 })} title="Rotate Right">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11 5.5A5 5 0 1 0 10.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M11 2.5v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button type="button" className={`imageRailBtn${activeLayer?.flipX ? ' active' : ''}`} disabled={!activeLayer} onClick={() => activeLayer && updateActiveLayer({ flipX: !activeLayer.flipX })} title="Flip Horizontal">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 4.5l3 2.5-3 2.5M12 4.5l-3 2.5 3 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button
+                type="button"
+                className={`imageRailBtn${(activeLayer?.glowStrength ?? 55) > 0 ? ' active' : ''}`}
+                disabled={!activeLayer}
+                onClick={() => {
+                  if (!activeLayer) return;
+                  const currentGlow = activeLayer.glowStrength ?? 55;
+                  updateActiveLayer({ glowStrength: currentGlow > 0 ? 0 : 55 });
+                }}
+                title="Toggle Glow"
+                aria-label="Toggle Glow"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 1.8L8.2 4.8L11.2 6L8.2 7.2L7 10.2L5.8 7.2L2.8 6L5.8 4.8L7 1.8Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                  <path d="M10.5 9.4L11 10.6L12.2 11.1L11 11.6L10.5 12.8L10 11.6L8.8 11.1L10 10.6L10.5 9.4Z" fill="currentColor" />
+                </svg>
+              </button>
+              <span className="imageRailDivider" aria-hidden="true" />
+              <button type="button" className="imageRailBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('front')} title="Bring to Front" aria-label="Bring to Front">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 10V3.5M7 3.5L4.8 5.7M7 3.5L9.2 5.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3 11.5H11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button type="button" className="imageRailBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('back')} title="Send to Back" aria-label="Send to Back">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 4V10.5M7 10.5L4.8 8.3M7 10.5L9.2 8.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3 2.5H11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button type="button" className="imageRailBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('forward')} title="Move Forward" aria-label="Move Forward">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 10V4.3M7 4.3L5.1 6.2M7 4.3L8.9 6.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <rect x="3" y="9.2" width="8" height="2.2" rx="1" stroke="currentColor" strokeWidth="1.1" />
+                </svg>
+              </button>
+              <button type="button" className="imageRailBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('backward')} title="Move Backward" aria-label="Move Backward">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 4V9.7M7 9.7L5.1 7.8M7 9.7L8.9 7.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <rect x="3" y="2.6" width="8" height="2.2" rx="1" stroke="currentColor" strokeWidth="1.1" />
+                </svg>
+              </button>
+              <button type="button" className="imageRailBtn imageRailDeleteBtn" disabled={!activeLayerId} onClick={removeActiveLayer} title="Delete Image" aria-label="Delete Image">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M2.5 3.5h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M5.2 3.5V2.6c0-.3.2-.6.6-.6h2.4c.4 0 .6.3.6.6v.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M4.1 5.1v5.1c0 .6.5 1.1 1.1 1.1h3.6c.6 0 1.1-.5 1.1-1.1V5.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M6 6.4v3.8M8 6.4v3.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div className={`posterWrap${previewMode === 'tshirt' ? ' tshirtPosterWrap' : ''}`}>
+            {previewMode === 'canvas' && (
+              <div
+                ref={posterCanvasRef}
+                className="posterCanvas"
+                style={{
+                  backgroundColor,
+                  backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : 'none',
+                  backgroundSize: backgroundImageUrl ? `${(backgroundImageScale * 100).toFixed(1)}%` : 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat'
+                }}
+              >
+                {layers.map((layer, index) => (
                   <div
                     key={layer.id}
-                    className={`textLayer ${activeTextId === layer.id ? 'active' : ''}`}
+                    className={`personLayer ${activeLayerId === layer.id ? 'active' : ''}`}
                     style={{
                       left: `${(layer.x / DESIGN_CANVAS_W) * 100}%`,
                       top: `${(layer.y / DESIGN_CANVAS_H) * 100}%`,
-                      zIndex: layers.length + index + 20,
-                      color: layer.color,
-                      fontSize: `${layer.fontSize}px`,
-                      fontFamily: stylePreset.fontFamily,
-                      fontWeight: stylePreset.fontWeight,
-                      fontStyle: stylePreset.fontStyle ?? 'normal',
-                      letterSpacing: `${stylePreset.letterSpacing}px`,
-                      textTransform: stylePreset.textTransform ?? 'none',
-                      textShadow: stylePreset.textShadow,
-                      transform: `translate(-50%, -50%) rotate(${layer.rotationDeg}deg)`
+                      width: `${layer.width * canvasRenderScale}px`,
+                      height: `${layer.height * canvasRenderScale}px`,
+                      zIndex: index + 1,
+                      transform: `translate(-50%, -50%) scale(${layer.scale}) rotate(${layer.rotationDeg}deg) scaleX(${layer.flipX ? -1 : 1})`,
+                      touchAction: 'none' as const
                     }}
-                    onPointerDown={(e) => handleTextPointerDown(e, layer.id)}
-                    onPointerMove={(e) => handleTextPointerMove(e, layer.id)}
-                    onPointerUp={(e) => handleTextPointerUp(e, layer.id)}
-                    onPointerCancel={(e) => handleTextPointerUp(e, layer.id)}
+                    onPointerDown={(e) => handleLayerPointerDown(e, layer.id)}
+                    onPointerMove={(e) => handleLayerPointerMove(e, layer.id)}
+                    onPointerUp={(e) => handleLayerPointerUp(e, layer.id)}
+                    onPointerCancel={(e) => handleLayerPointerUp(e, layer.id)}
                   >
-                    {layer.text || 'Text'}
-                    {activeTextId === layer.id && (
-                      <div
-                        className="layerControls"
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        <button type="button" className="layerControlBtn" aria-label="Rotate counter-clockwise"
-                          onClick={(e) => { e.stopPropagation(); updateActiveTextLayer({ rotationDeg: layer.rotationDeg - 15 }); }}>
-                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5.5A5 5 0 1 1 3.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M3 2.5v3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </button>
-                        <button type="button" className="layerControlBtn" aria-label="Decrease size"
-                          onClick={(e) => { e.stopPropagation(); updateActiveTextLayer({ fontSize: Math.max(20, layer.fontSize - 8) }); }}>
-                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                        </button>
-                        <button type="button" className="layerControlBtn" aria-label="Increase size"
-                          onClick={(e) => { e.stopPropagation(); updateActiveTextLayer({ fontSize: Math.min(190, layer.fontSize + 8) }); }}>
-                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                        </button>
-                        <button type="button" className="layerControlBtn" aria-label="Rotate clockwise"
-                          onClick={(e) => { e.stopPropagation(); updateActiveTextLayer({ rotationDeg: layer.rotationDeg + 15 }); }}>
-                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11 5.5A5 5 0 1 0 10.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M11 2.5v3h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </button>
-                      </div>
-                    )}
+                    <img
+                      src={layer.src}
+                      alt={layer.name}
+                      draggable={false}
+                      style={{
+                        clipPath: `inset(${layer.cropTopPct}% ${layer.cropRightPct}% 0% ${layer.cropLeftPct}%)`,
+                        filter: buildPersonGlowFilter(layer.glowStrength ?? 55)
+                      }}
+                    />
                   </div>
-                );
-              })}
-              {designMode === 'template' && activeTemplate && activeTemplate.slots.map((slot) => {
-                const state = slotStates[slot.index] ?? 'idle';
-                if (state === 'done') return null;
-                const label = slot.index === 0 ? 'CENTER' : `#${slot.index}`;
-                return (
-                  <div
-                    key={`slot-ghost-${slot.index}`}
-                    className={`slotGhost${state === 'processing' ? ' processing' : ''}`}
-                    style={{
-                      left: `${(slot.x / DESIGN_CANVAS_W) * 100}%`,
-                      top: `${(slot.y / DESIGN_CANVAS_H) * 100}%`,
-                      zIndex: slot.zIndex,
-                      transform: `translate(-50%, -50%) scale(${slot.scale})`,
-                    }}
-                  >
-                    <span className="slotGhostLabel">{label}</span>
-                  </div>
-                );
-              })}
-              {layers.length === 0 && textLayers.length === 0 ? (
-                <div className="posterEmpty">No people yet. Select and process people from uploaded photos.</div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <div className="bottomPanel">
-            <div className="bottomTabStrip">
-              <button
-                type="button"
-                className={`bottomTab ${bottomTab === 'person' ? 'active' : ''}`}
-                onClick={() => setBottomTab('person')}
-              >
-                Person Layer
-              </button>
-              <button
-                type="button"
-                className={`bottomTab ${bottomTab === 'text' ? 'active' : ''}`}
-                onClick={() => setBottomTab('text')}
-              >
-                Text Designer
-              </button>
-            </div>
-
-            {bottomTab === 'person' && (
-              <div className="bottomTabContent">
-                {!activeLayer && (
-                  <p className="hint">Select a person layer on the canvas to edit. Pinch to zoom · Two-finger rotate.</p>
-                )}
-
-                <div className="buttonGrid">
-                  <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('front')}>
-                    To Front
-                  </button>
-                  <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('back')}>
-                    To Back
-                  </button>
-                  <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('forward')}>
-                    Forward
-                  </button>
-                  <button type="button" className="ghostBtn" disabled={!activeLayerId} onClick={() => moveActiveLayer('backward')}>
-                    Backward
-                  </button>
-                </div>
-
-                <div className="buttonRow">
-                  <button type="button" className="dangerBtn" disabled={!activeLayerId} onClick={removeActiveLayer}>
-                    Delete Image
-                  </button>
-                </div>
-
-                {layers.length > 0 ? (
-                  <div className="layerList">
-                    {layers.map((layer, index) => (
-                      <button
-                        key={layer.id}
-                        type="button"
-                        className={`layerItem ${layer.id === activeLayerId ? 'active' : ''}`}
-                        onClick={() => setActiveLayerId(layer.id)}
-                      >
-                        <span>#{index + 1}</span>
-                        <span>{layer.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {bottomTab === 'text' && (
-              <div className="bottomTabContent">
-                <div className="buttonRow">
-                  <button
-                    type="button"
-                    className="primaryBtn"
-                    onClick={addTextLayer}
-                    disabled={textLayers.length >= MAX_TEXT_LAYERS}
-                  >
-                    Add Text Layer
-                  </button>
-                  <button
-                    type="button"
-                    className="dangerBtn"
-                    onClick={removeActiveTextLayer}
-                    disabled={!activeTextId}
-                  >
-                    Remove
-                  </button>
-                  <span className="countBadge">
-                    {textLayers.length}/{MAX_TEXT_LAYERS}
-                  </span>
-                </div>
-                {textError ? <p className="error">{textError}</p> : null}
-
-                {activeTextLayer ? (
-                  <>
-                    <div className="field">
-                      <label>Text Content</label>
-                      <textarea
-                        className="textInput"
-                        rows={2}
-                        value={activeTextLayer.text}
-                        onChange={(e) => updateActiveTextLayer({ text: e.target.value })}
-                        placeholder="Enter your text"
-                      />
-                    </div>
-
-                    <div className="field">
-                      <div className="fieldLabelRow">
-                        <label>Choose Font</label>
-                        <button
-                          type="button"
-                          className="exploreBtn"
-                          onClick={() => setFontExplore((prev) => !prev)}
+                ))}
+                {textLayers.map((layer, index) => {
+                  const stylePreset = findTextStylePreset(layer.styleKey);
+                  const safeCurve = clamp(layer.curve ?? 0, -100, 100);
+                  const rawText = layer.text.length > 0 ? layer.text : 'Text';
+                  const singleLineCurveText = rawText.replace(/\r\n?/g, '\n').replace(/\n/g, ' ');
+                  const displayCurveText =
+                    stylePreset.textTransform === 'uppercase'
+                      ? singleLineCurveText.toUpperCase()
+                      : singleLineCurveText;
+                  const curveLayout =
+                    Math.abs(safeCurve) > 0
+                      ? buildCurvedTextLayout({
+                          text: displayCurveText,
+                          fontSizePx: layer.fontSize * canvasRenderScale,
+                          curveAmount: safeCurve,
+                          fontFamily: stylePreset.fontFamily,
+                          fontWeight: stylePreset.fontWeight,
+                          fontStyle: layer.italic ? 'italic' : (stylePreset.fontStyle ?? 'normal'),
+                          letterSpacingPx: stylePreset.letterSpacing
+                        })
+                      : null;
+                  return (
+                    <div
+                      key={layer.id}
+                      className={`textLayer ${activeTextId === layer.id ? 'active' : ''}`}
+                      style={{
+                        left: `${(layer.x / DESIGN_CANVAS_W) * 100}%`,
+                        top: `${(layer.y / DESIGN_CANVAS_H) * 100}%`,
+                        zIndex: layers.length + index + 20,
+                        color: layer.color,
+                        fontSize: `${layer.fontSize * canvasRenderScale}px`,
+                        fontFamily: stylePreset.fontFamily,
+                        fontWeight: stylePreset.fontWeight,
+                        fontStyle: layer.italic ? 'italic' : (stylePreset.fontStyle ?? 'normal'),
+                        textDecoration: 'none',
+                        letterSpacing: `${stylePreset.letterSpacing}px`,
+                        textTransform: stylePreset.textTransform ?? 'none',
+                        textShadow: stylePreset.textShadow,
+                        transform: `translate(-50%, -50%) rotate(${layer.rotationDeg}deg)`,
+                        ...(curveLayout
+                          ? {
+                              width: `${curveLayout.width}px`,
+                              height: `${curveLayout.height}px`,
+                              maxWidth: 'none',
+                              padding: '0'
+                            }
+                          : {})
+                      }}
+                      onPointerDown={(e) => handleTextPointerDown(e, layer.id)}
+                      onPointerMove={(e) => handleTextPointerMove(e, layer.id)}
+                      onPointerUp={(e) => handleTextPointerUp(e, layer.id)}
+                      onPointerCancel={(e) => handleTextPointerUp(e, layer.id)}
+                    >
+                      {curveLayout ? (
+                        <span
+                          className="textCurveLayer"
+                          style={{ width: `${curveLayout.width}px`, height: `${curveLayout.height}px` }}
                         >
-                          <span className={`expandGlyph ${fontExplore ? 'open' : ''}`} aria-hidden="true">
-                            <span />
-                            <span />
-                            <span />
-                            <span />
-                          </span>
-                          <span>{fontExplore ? 'Compact' : 'Explore'}</span>
-                        </button>
-                      </div>
-                      <div className={`fontPresetGrid ${fontExplore ? 'expanded' : 'compact'}`}>
-                        {visibleTextStyles.map((preset) => (
-                          <button
-                            key={preset.key}
-                            type="button"
-                            className={`fontPresetCard ${activeTextLayer.styleKey === preset.key ? 'active' : ''}`}
-                            onClick={() => updateActiveTextLayer({ styleKey: preset.key })}
-                          >
+                          {curveLayout.glyphs.map((glyph, glyphIndex) => (
                             <span
-                              className="fontPreview"
+                              key={`${layer.id}-curve-glyph-${glyphIndex}`}
+                              className="textCurveGlyph"
                               style={{
-                                fontFamily: preset.fontFamily,
-                                fontWeight: preset.fontWeight,
-                                fontStyle: preset.fontStyle ?? 'normal',
-                                letterSpacing: `${preset.letterSpacing}px`,
-                                textTransform: preset.textTransform ?? 'none',
-                                textShadow: preset.textShadow
+                                left: `${glyph.x}px`,
+                                top: `${glyph.y}px`,
+                                transform: `translate(-50%, -50%) rotate(${glyph.angleDeg}deg)`
                               }}
                             >
-                              {preset.sample}
+                              {glyph.char === ' ' ? '\u00A0' : glyph.char}
                             </span>
-                            <span className="fontLabel">{preset.label}</span>
-                          </button>
-                        ))}
-                      </div>
+                          ))}
+                        </span>
+                      ) : (
+                        layer.text || 'Text'
+                      )}
                     </div>
-
-                    <div className="field">
-                      <div className="fieldLabelRow">
-                        <label>Text Color</label>
-                        <button
-                          type="button"
-                          className="exploreBtn"
-                          onClick={() => setTextColorExplore((prev) => !prev)}
-                        >
-                          <span className={`expandGlyph ${textColorExplore ? 'open' : ''}`} aria-hidden="true">
-                            <span />
-                            <span />
-                            <span />
-                            <span />
-                          </span>
-                          <span>{textColorExplore ? 'Compact' : 'Explore'}</span>
-                        </button>
-                      </div>
-                      <div className={`swatchGrid ${textColorExplore ? 'expanded' : 'compact'}`}>
-                        {visibleTextColors.map((color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            className={`colorSwatchBtn ${activeTextLayer.color.toLowerCase() === color.toLowerCase() ? 'active' : ''}`}
-                            onClick={() => {
-                              updateActiveTextLayer({ color });
-                              setTextColorError('');
-                            }}
-                            title={color}
-                          >
-                            <span className="colorSwatchDot" style={{ background: color }} />
-                          </button>
-                        ))}
-                      </div>
-                      <div className="hexRow">
-                        <input
-                          type="color"
-                          value={activeTextLayer.color}
-                          onChange={(e) => {
-                            updateActiveTextLayer({ color: e.target.value });
-                            setTextColorError('');
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={textColorHexInput}
-                          onChange={(e) => setTextColorHexInput(e.target.value)}
-                          onBlur={() => applyTextHex(textColorHexInput)}
-                          className="hexInput"
-                          placeholder="#f8fafc"
-                        />
-                        <button type="button" className="ghostBtn" onClick={() => applyTextHex(textColorHexInput)}>
-                          Apply
-                        </button>
-                      </div>
-                      {textColorError ? <p className="error">{textColorError}</p> : null}
+                  );
+                })}
+                {designMode === 'template' && activeTemplate && activeTemplate.slots.map((slot) => {
+                  const state = slotStates[slot.index] ?? 'idle';
+                  if (state === 'done') return null;
+                  const label = slot.index === 0 ? 'CENTER' : `#${slot.index}`;
+                  return (
+                    <div
+                      key={`slot-ghost-${slot.index}`}
+                      className={`slotGhost${state === 'processing' ? ' processing' : ''}`}
+                      style={{
+                        left: `${(slot.x / DESIGN_CANVAS_W) * 100}%`,
+                        top: `${(slot.y / DESIGN_CANVAS_H) * 100}%`,
+                        zIndex: slot.zIndex,
+                        transform: `translate(-50%, -50%) scale(${slot.scale})`,
+                      }}
+                    >
+                      <span className="slotGhostLabel">{label}</span>
                     </div>
-
-                  </>
-                ) : (
-                  <p className="hint">Add a text layer, then drag it onto the canvas.</p>
-                )}
-
-                {textLayers.length > 0 ? (
-                  <div className="layerList">
-                    {textLayers.map((layer, index) => (
-                      <button
-                        key={layer.id}
-                        type="button"
-                        className={`layerItem ${layer.id === activeTextId ? 'active' : ''}`}
-                        onClick={() => setActiveTextId(layer.id)}
-                      >
-                        <span>T{index + 1}</span>
-                        <span>{layer.text.trim() || `Text ${index + 1}`}</span>
-                      </button>
-                    ))}
-                  </div>
+                  );
+                })}
+                {layers.length === 0 && textLayers.length === 0 ? (
+                  <div className="posterEmpty">No people yet. Select and process people from uploaded photos.</div>
                 ) : null}
               </div>
             )}
+
+            {previewMode === 'tshirt' && activeTshirt && (
+              <div className="tshirtMockupCard">
+                <div className="tshirtMockupStage">
+                  <img
+                    src={activeTshirt.imageUrl}
+                    alt={`${activeTshirt.label} t-shirt mockup`}
+                    className="tshirtMockupImage"
+                    draggable={false}
+                  />
+                  <div
+                    className="tshirtPrintArea"
+                    style={tshirtPrintAreaStyle ?? {
+                      left: `${activeTshirt.printArea.leftPct}%`,
+                      top: `${activeTshirt.printArea.topPct}%`,
+                      width: `${activeTshirt.printArea.widthPct}%`,
+                      height: `${activeTshirt.printArea.heightPct}%`
+                    }}
+                  >
+                    <div
+                      ref={posterCanvasRef}
+                      className="posterCanvas tshirtCanvas"
+                      style={{
+                        backgroundColor,
+                        backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : 'none',
+                        backgroundSize: backgroundImageUrl ? `${(backgroundImageScale * 100).toFixed(1)}%` : 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
+                      }}
+                    >
+                      {layers.map((layer, index) => (
+                        <div
+                          key={layer.id}
+                          className={`personLayer ${activeLayerId === layer.id ? 'active' : ''}`}
+                          style={{
+                            left: `${(layer.x / DESIGN_CANVAS_W) * 100}%`,
+                            top: `${(layer.y / DESIGN_CANVAS_H) * 100}%`,
+                            width: `${layer.width * canvasRenderScale}px`,
+                            height: `${layer.height * canvasRenderScale}px`,
+                            zIndex: index + 1,
+                            transform: `translate(-50%, -50%) scale(${layer.scale}) rotate(${layer.rotationDeg}deg) scaleX(${layer.flipX ? -1 : 1})`,
+                            touchAction: 'none' as const
+                          }}
+                          onPointerDown={(e) => handleLayerPointerDown(e, layer.id)}
+                          onPointerMove={(e) => handleLayerPointerMove(e, layer.id)}
+                          onPointerUp={(e) => handleLayerPointerUp(e, layer.id)}
+                          onPointerCancel={(e) => handleLayerPointerUp(e, layer.id)}
+                        >
+                          <img
+                            src={layer.src}
+                            alt={layer.name}
+                            draggable={false}
+                            style={{
+                              clipPath: `inset(${layer.cropTopPct}% ${layer.cropRightPct}% 0% ${layer.cropLeftPct}%)`,
+                              filter: buildPersonGlowFilter(layer.glowStrength ?? 55)
+                            }}
+                          />
+                        </div>
+                      ))}
+                      {textLayers.map((layer, index) => {
+                        const stylePreset = findTextStylePreset(layer.styleKey);
+                        const safeCurve = clamp(layer.curve ?? 0, -100, 100);
+                        const rawText = layer.text.length > 0 ? layer.text : 'Text';
+                        const singleLineCurveText = rawText.replace(/\r\n?/g, '\n').replace(/\n/g, ' ');
+                        const displayCurveText =
+                          stylePreset.textTransform === 'uppercase'
+                            ? singleLineCurveText.toUpperCase()
+                            : singleLineCurveText;
+                        const curveLayout =
+                          Math.abs(safeCurve) > 0
+                            ? buildCurvedTextLayout({
+                                text: displayCurveText,
+                                fontSizePx: layer.fontSize * canvasRenderScale,
+                                curveAmount: safeCurve,
+                                fontFamily: stylePreset.fontFamily,
+                                fontWeight: stylePreset.fontWeight,
+                                fontStyle: layer.italic ? 'italic' : (stylePreset.fontStyle ?? 'normal'),
+                                letterSpacingPx: stylePreset.letterSpacing
+                              })
+                            : null;
+                        return (
+                          <div
+                            key={layer.id}
+                            className={`textLayer ${activeTextId === layer.id ? 'active' : ''}`}
+                            style={{
+                              left: `${(layer.x / DESIGN_CANVAS_W) * 100}%`,
+                              top: `${(layer.y / DESIGN_CANVAS_H) * 100}%`,
+                              zIndex: layers.length + index + 20,
+                              color: layer.color,
+                              fontSize: `${layer.fontSize * canvasRenderScale}px`,
+                              fontFamily: stylePreset.fontFamily,
+                              fontWeight: stylePreset.fontWeight,
+                              fontStyle: layer.italic ? 'italic' : (stylePreset.fontStyle ?? 'normal'),
+                              textDecoration: 'none',
+                              letterSpacing: `${stylePreset.letterSpacing}px`,
+                              textTransform: stylePreset.textTransform ?? 'none',
+                              textShadow: stylePreset.textShadow,
+                              transform: `translate(-50%, -50%) rotate(${layer.rotationDeg}deg)`,
+                              ...(curveLayout
+                                ? {
+                                    width: `${curveLayout.width}px`,
+                                    height: `${curveLayout.height}px`,
+                                    maxWidth: 'none',
+                                    padding: '0'
+                                  }
+                                : {})
+                            }}
+                            onPointerDown={(e) => handleTextPointerDown(e, layer.id)}
+                            onPointerMove={(e) => handleTextPointerMove(e, layer.id)}
+                            onPointerUp={(e) => handleTextPointerUp(e, layer.id)}
+                            onPointerCancel={(e) => handleTextPointerUp(e, layer.id)}
+                          >
+                            {curveLayout ? (
+                              <span
+                                className="textCurveLayer"
+                                style={{ width: `${curveLayout.width}px`, height: `${curveLayout.height}px` }}
+                              >
+                                {curveLayout.glyphs.map((glyph, glyphIndex) => (
+                                  <span
+                                    key={`${layer.id}-curve-glyph-${glyphIndex}`}
+                                    className="textCurveGlyph"
+                                    style={{
+                                      left: `${glyph.x}px`,
+                                      top: `${glyph.y}px`,
+                                      transform: `translate(-50%, -50%) rotate(${glyph.angleDeg}deg)`
+                                    }}
+                                  >
+                                    {glyph.char === ' ' ? '\u00A0' : glyph.char}
+                                  </span>
+                                ))}
+                              </span>
+                            ) : (
+                              layer.text || 'Text'
+                            )}
+                          </div>
+                        );
+                      })}
+                      {layers.length === 0 && textLayers.length === 0 ? (
+                        <div className="posterEmpty">No people yet. Select and process people from uploaded photos.</div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            </div>
+
+            <div ref={previewBackgroundToolbarRef} className="imageControlRail backgroundControlRail">
+              <div className="imageRailHeader" title="Background tools" aria-label="Background tools">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="5.5" cy="6" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+                  <path d="M2.3 12.6C3.2 10.9 4.8 9.9 6.6 9.9C8.4 9.9 10 10.9 10.9 12.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M10.5 3.3H13.7M12.1 1.7V4.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </div>
+
+              <button
+                type="button"
+                className="imageRailBtn backgroundRailBtn"
+                title="Background color"
+                aria-label="Background color"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M2.1 9.1L8.9 2.3C9.3 1.9 9.9 1.9 10.3 2.3L11.7 3.7C12.1 4.1 12.1 4.7 11.7 5.1L4.9 11.9L2 12L2.1 9.1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                  <path d="M8 3.2L10.8 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                </svg>
+                <span className="backgroundRailSwatch" style={{ background: backgroundColor }} aria-hidden="true" />
+                <input
+                  type="color"
+                  className="backgroundRailColorInputOverlay"
+                  value={backgroundColor}
+                  onChange={(e) => {
+                    setBackgroundColor(e.target.value);
+                    setBackgroundImageUrl('');
+                    setBackgroundImageScale(1);
+                    setBackgroundError('');
+                  }}
+                  aria-label="Select background color"
+                />
+              </button>
+
+              <button
+                type="button"
+                className="imageRailBtn"
+                onClick={cycleBackgroundColor}
+                title="Next background color"
+                aria-label="Next background color"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M3 7a4 4 0 1 1 1.2 2.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M3 3.8v2.5h2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                className={`imageRailBtn${backgroundImageUrl ? ' active' : ''}`}
+                onClick={() => backgroundInputRef.current?.click()}
+                title="Upload background image"
+                aria-label="Upload background image"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <rect x="2" y="2.5" width="10" height="9" rx="1.8" stroke="currentColor" strokeWidth="1.3" />
+                  <circle cx="5" cy="5.5" r="1.1" fill="currentColor" />
+                  <path d="M3.6 10.2L6.2 7.6L7.7 8.9L9.6 6.9L11.1 8.5V10.2H3.6Z" fill="currentColor" fillOpacity="0.8" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                className="imageRailBtn"
+                disabled={!backgroundImageUrl}
+                onClick={() => setBackgroundImageScale((prev) => clamp(prev - 0.1, 0.5, 2.5))}
+                title="Zoom out background"
+                aria-label="Zoom out background"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M4 6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                className="imageRailBtn"
+                disabled={!backgroundImageUrl}
+                onClick={() => setBackgroundImageScale((prev) => clamp(prev + 0.1, 0.5, 2.5))}
+                title="Zoom in background"
+                aria-label="Zoom in background"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                className="imageRailBtn imageRailDeleteBtn"
+                disabled={!backgroundImageUrl}
+                onClick={clearBackgroundImageAndTemplate}
+                title="Remove background image"
+                aria-label="Remove background image"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M2.5 3.5h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M5.2 3.5V2.6c0-.3.2-.6.6-.6h2.4c.4 0 .6.3.6.6v.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M4.1 5.1v5.1c0 .6.5 1.1 1.1 1.1h3.6c.6 0 1.1-.5 1.1-1.1V5.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M6 6.4v3.8M8 6.4v3.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+
+              <input
+                ref={backgroundInputRef}
+                type="file"
+                accept="image/*"
+                className="hiddenInput"
+                onChange={(e) => {
+                  void handleBackgroundImageFile(e.target.files?.[0]);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </div>
           </div>
+          {previewMode === 'tshirt' && (
+            <div className="tshirtScaleControl">
+              <div className="tshirtScaleRow">
+                <label htmlFor="tshirt-print-scale">Print Area Size</label>
+                <span>{Math.round(tshirtPrintScale * 100)}%</span>
+              </div>
+              <input
+                id="tshirt-print-scale"
+                type="range"
+                min={70}
+                max={170}
+                step={1}
+                value={Math.round(tshirtPrintScale * 100)}
+                onChange={(e) => setTshirtPrintScale(Number(e.target.value) / 100)}
+              />
+            </div>
+          )}
+        </section>
 
         <aside className="rightPanel">
           <div className="rightPanelScroll">
@@ -2019,6 +2544,7 @@ export default function ImageDesignPage() {
                       onClick={() => {
                         setActiveTemplate(null);
                         setBackgroundImageUrl('');
+                        setBackgroundImageScale(1);
                         setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
                         setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
                         setSlotStates({});
@@ -2270,103 +2796,6 @@ export default function ImageDesignPage() {
             </section>
             )}
 
-            <section className="panelBlock">
-              <div className="panelTitleRow">
-                <h3>Background Settings</h3>
-              </div>
-              <div className="field">
-                <div className="fieldLabelRow">
-                  <label>Background Color</label>
-                  <button
-                    type="button"
-                    className="exploreBtn"
-                    onClick={() => setBackgroundExplore((prev) => !prev)}
-                  >
-                    <span className={`expandGlyph ${backgroundExplore ? 'open' : ''}`} aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                    <span>{backgroundExplore ? 'Compact' : 'Explore'}</span>
-                  </button>
-                </div>
-                <div className={`swatchGrid ${backgroundExplore ? 'expanded' : 'compact'}`}>
-                  {visibleBackgroundColors.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`colorSwatchBtn ${backgroundColor.toLowerCase() === color.toLowerCase() ? 'active' : ''}`}
-                      onClick={() => {
-                        setBackgroundColor(color);
-                        setBackgroundImageUrl('');
-                        setBackgroundError('');
-                      }}
-                      title={color}
-                    >
-                      <span className="colorSwatchDot" style={{ background: color }} />
-                    </button>
-                  ))}
-                </div>
-                <div className="hexRow">
-                  <input
-                    type="color"
-                    value={backgroundColor}
-                    onChange={(e) => {
-                      setBackgroundColor(e.target.value);
-                      setBackgroundImageUrl('');
-                      setBackgroundError('');
-                    }}
-                  />
-                  <input
-                    type="text"
-                    value={backgroundHexInput}
-                    onChange={(e) => setBackgroundHexInput(e.target.value)}
-                    onBlur={() => applyBackgroundHex(backgroundHexInput)}
-                    className="hexInput"
-                    placeholder="#0f172a"
-                  />
-                  <button type="button" className="ghostBtn" onClick={() => applyBackgroundHex(backgroundHexInput)}>
-                    Apply
-                  </button>
-                </div>
-                <input
-                  ref={backgroundInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hiddenInput"
-                  onChange={(e) => {
-                    void handleBackgroundImageFile(e.target.files?.[0]);
-                    e.currentTarget.value = '';
-                  }}
-                />
-                <div className="buttonRow">
-                  <button type="button" className="ghostBtn" onClick={() => backgroundInputRef.current?.click()}>
-                    Upload Background Image
-                  </button>
-                  <button
-                    type="button"
-                    className="ghostBtn"
-                    disabled={!backgroundImageUrl}
-                    onClick={() => {
-                      setBackgroundImageUrl('');
-                      setActiveTemplate(null);
-                      setLayers((prev) => prev.filter((l) => !Object.values(slotLayerIds).includes(l.id)));
-                      setTextLayers((prev) => prev.filter((l) => !templateTextIds.includes(l.id)));
-                      setSlotStates({});
-                      setSlotLayerIds({});
-                      setSlotFiles({});
-                      setTemplateTextIds([]);
-                    }}
-                  >
-                    Remove Background Image
-                  </button>
-                </div>
-                {backgroundImageUrl ? <p className="hint">Background image is active.</p> : null}
-                {backgroundError ? <p className="error">{backgroundError}</p> : null}
-              </div>
-            </section>
-
             {process.env.NODE_ENV === 'development' && (
               <section className="panelBlock devHealthBlock">
                 <div className="panelTitleRow">
@@ -2449,6 +2878,7 @@ export default function ImageDesignPage() {
                     onClick={() => {
                       setActiveTemplate(template);
                       setBackgroundImageUrl(template.backgroundUrl);
+                      setBackgroundImageScale(1);
                       setTemplateModalOpen(false);
                       // Pre-populate text layers from template textSlots
                       const newTextLayers = template.textSlots.map((slot) => ({
@@ -2460,6 +2890,7 @@ export default function ImageDesignPage() {
                         rotationDeg: 0,
                         color: slot.color,
                         styleKey: slot.styleKey as TextStyleKey,
+                        curve: 0
                       }));
                       setTextLayers((prev) => [...prev, ...newTextLayers]);
                       setTemplateTextIds(newTextLayers.map((l) => l.id));
@@ -2560,7 +2991,7 @@ export default function ImageDesignPage() {
           height: calc(100vh - 84px);
           margin-top: 84px;
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 360px 360px;
+          grid-template-columns: minmax(0, 1fr) 360px;
           grid-template-rows: 1fr;
         }
 
@@ -2573,6 +3004,12 @@ export default function ImageDesignPage() {
           background: radial-gradient(1300px 740px at 45% 12%, #f6f9ff 0%, #dbe3f2 52%, #c8d2e5 100%);
           border-right: 1px solid #c3ccdd;
           overflow-y: auto;
+        }
+
+        .previewHeader {
+          width: min(100%, 760px);
+          display: grid;
+          gap: 8px;
         }
 
         .previewHeader h2 {
@@ -2588,62 +3025,542 @@ export default function ImageDesignPage() {
           font-size: 13px;
         }
 
+        .previewModeSwitcher {
+          width: fit-content;
+          display: flex;
+          align-items: center;
+          border: 1px solid #b8c4d8;
+          border-radius: 999px;
+          background: #e6ebf4;
+          padding: 2px;
+        }
+
+        .previewModeTab {
+          min-width: 84px;
+          height: 34px;
+          border: 0;
+          border-radius: 999px;
+          padding: 0 14px;
+          background: transparent;
+          color: #334155;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .previewModeTab.active {
+          background: #0f172a;
+          color: #fff;
+          box-shadow: 0 6px 14px rgba(15, 23, 42, 0.35);
+        }
+
+        .previewModeTab:hover:not(.active) {
+          background: rgba(148, 163, 184, 0.35);
+        }
+
+        .tshirtVariantRow {
+          width: fit-content;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .tshirtVariantRow label {
+          font-size: 12px;
+          font-weight: 700;
+          color: #334155;
+        }
+
+        .tshirtVariantSelect {
+          height: 34px;
+          border-radius: 9px;
+          border: 1px solid #b8c4d8;
+          background: #fff;
+          color: #0f172a;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 0 10px;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+
+        .previewTextToolbar {
+          width: min(100%, 760px);
+          min-height: 52px;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          flex-wrap: nowrap;
+          overflow-x: hidden;
+          overflow-y: hidden;
+          white-space: nowrap;
+          border: 1px solid #c8d2e4;
+          border-radius: 12px;
+          background: linear-gradient(180deg, #f9fbff 0%, #f2f6fd 100%);
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+          padding: 8px 9px;
+        }
+
+        .previewTextToolbar > * {
+          flex: 0 1 auto;
+          min-width: 0;
+        }
+
+        .toolbarTextInput {
+          width: 136px;
+          min-width: 104px;
+          max-width: 136px;
+          min-height: 30px;
+          max-height: 30px;
+          border-radius: 8px;
+          border: 1px solid #c6d1e1;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          color: #0f172a;
+          font-size: 12px;
+          line-height: 1.2;
+          padding: 6px 8px;
+          resize: none;
+          overflow: hidden;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+
+        .toolbarTextInput:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .toolbarDivider {
+          width: 1px;
+          height: 22px;
+          background: #d4dbe7;
+        }
+
+        .toolbarSelect {
+          width: 112px;
+          min-width: 104px;
+          max-width: 112px;
+          height: 30px;
+          border-radius: 8px;
+          border: 1px solid #c6d1e1;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          color: #0f172a;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 0 7px;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+
+        .toolbarBtn {
+          height: 30px;
+          min-width: 30px;
+          border-radius: 8px;
+          border: 1px solid #c6d1e1;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          color: #0f172a;
+          font-size: 13px;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          cursor: pointer;
+          padding: 0 6px;
+          transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .toolbarBtn:hover:not(:disabled) {
+          background: #eef4ff;
+          border-color: #90a8d2;
+          box-shadow: 0 3px 8px rgba(37, 99, 235, 0.18);
+        }
+
+        .toolbarBtn:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+
+        .toolbarTextAddBtn {
+          padding: 0 7px;
+          min-width: auto;
+          font-size: 11px;
+        }
+
+        .toolbarTextAddBtn span {
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .toolbarSizeGroup {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .toolbarSizeInput {
+          width: 44px;
+          height: 30px;
+          border-radius: 8px;
+          border: 1px solid #c6d1e1;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          color: #0f172a;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+
+        .toolbarGlyphBtn {
+          min-width: 30px;
+          padding: 0 6px;
+        }
+
+        .toolbarGlyphBtn.active {
+          background: linear-gradient(180deg, #e6eeff 0%, #dbe7ff 100%);
+          border-color: #6f94ea;
+          color: #1e3a8a;
+          box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.18);
+        }
+
+        .toolbarColorWrap {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+        }
+
+        .toolbarColorPreviewBtn {
+          min-width: 30px;
+          padding: 0;
+        }
+
+        .toolbarColorIcon {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 3px;
+          line-height: 1;
+        }
+
+        .toolbarColorLetter {
+          font-size: 14px;
+          font-weight: 700;
+          color: #0f172a;
+          transform: translateY(1px);
+        }
+
+        .toolbarColorUnderline {
+          width: 14px;
+          height: 4px;
+          border-radius: 999px;
+        }
+
+        .toolbarColorInput {
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          border: 1px solid #c6d1e1;
+          background: #fff;
+          padding: 0;
+          cursor: pointer;
+          box-shadow: inset 0 0 0 2px #ffffff;
+        }
+
+        .toolbarColorInput::-webkit-color-swatch-wrapper {
+          padding: 0;
+          border-radius: 999px;
+        }
+
+        .toolbarColorInput::-webkit-color-swatch {
+          border: none;
+          border-radius: 999px;
+        }
+
+        .toolbarColorInput::-moz-color-swatch {
+          border: none;
+          border-radius: 999px;
+        }
+
+        .toolbarCurveGroup {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          min-width: 94px;
+        }
+
+        .toolbarCurveStepBtn {
+          min-width: 30px;
+          padding: 0;
+        }
+
+        .toolbarCurveResetBtn {
+          min-width: 30px;
+          padding: 0;
+        }
+
+        .toolbarDeleteBtn {
+          color: #b4233c;
+          border-color: #efc2cb;
+          background: linear-gradient(180deg, #fff7f8 0%, #ffeef0 100%);
+        }
+
+        .toolbarDeleteBtn:hover:not(:disabled) {
+          background: linear-gradient(180deg, #ffeef1 0%, #ffe3e8 100%);
+          border-color: #de8799;
+          box-shadow: 0 3px 8px rgba(185, 28, 80, 0.2);
+        }
+
+        .canvasShell {
+          width: min(100%, 760px);
+          display: grid;
+          grid-template-columns: 56px minmax(0, 1fr) 56px;
+          align-items: start;
+          gap: 10px;
+        }
+
+        .imageControlRail {
+          position: sticky;
+          top: 24px;
+          align-self: start;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          border: 1px solid #c8d2e4;
+          border-radius: 12px;
+          background: linear-gradient(180deg, #f9fbff 0%, #f2f6fd 100%);
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+          padding: 8px;
+          margin-top: 18px;
+        }
+
+        .imageRailHeader {
+          width: 38px;
+          height: 30px;
+          border-radius: 8px;
+          border: 1px solid #c6d1e1;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          color: #334155;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+        }
+
+        .imageRailBtn {
+          min-height: 34px;
+          min-width: 38px;
+          border-radius: 8px;
+          border: 1px solid #c6d1e1;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          color: #0f172a;
+          font-size: 12px;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          padding: 0 8px;
+          transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .imageRailBtn svg {
+          display: block;
+        }
+
+        .imageRailBtn:hover:not(:disabled) {
+          background: #eef4ff;
+          border-color: #90a8d2;
+          box-shadow: 0 3px 8px rgba(37, 99, 235, 0.18);
+        }
+
+        .imageRailBtn:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+
+        .imageRailBtn.active {
+          background: linear-gradient(180deg, #e6eeff 0%, #dbe7ff 100%);
+          border-color: #6f94ea;
+          color: #1e3a8a;
+          box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.18);
+        }
+
+        .imageRailDivider {
+          width: 100%;
+          height: 1px;
+          background: #d4dbe7;
+          margin: 2px 0;
+        }
+
+        .imageRailDeleteBtn {
+          color: #b4233c;
+          border-color: #efc2cb;
+          background: linear-gradient(180deg, #fff7f8 0%, #ffeef0 100%);
+        }
+
+        .imageRailDeleteBtn:hover:not(:disabled) {
+          background: linear-gradient(180deg, #ffeef1 0%, #ffe3e8 100%);
+          border-color: #de8799;
+          box-shadow: 0 3px 8px rgba(185, 28, 80, 0.2);
+        }
+
+        .backgroundControlRail {
+          justify-self: end;
+        }
+
+        .backgroundRailBtn {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .backgroundRailSwatch {
+          position: absolute;
+          right: 4px;
+          bottom: 4px;
+          width: 9px;
+          height: 9px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.95);
+          box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.45);
+          pointer-events: none;
+        }
+
+        .backgroundRailColorInputOverlay {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 0;
+          border: 0;
+          padding: 0;
+          margin: 0;
+          cursor: pointer;
+          background: transparent;
+        }
+
+        .backgroundRailColorInputOverlay::-webkit-color-swatch-wrapper {
+          padding: 0;
+          border: 0;
+        }
+
+        .backgroundRailColorInputOverlay::-webkit-color-swatch {
+          border: none;
+          border-radius: 0;
+        }
+
+        .backgroundRailColorInputOverlay::-moz-color-swatch {
+          border: none;
+          border-radius: 0;
+        }
+
         .posterWrap {
           width: min(100%, calc(620px * 1.2));
           display: grid;
           place-items: center;
         }
 
-        .bottomPanel {
-          display: flex;
-          flex-direction: column;
-          background: #fff;
-          border-left: 1px solid #c3ccdd;
-          border-right: 1px solid #c3ccdd;
+        .tshirtPosterWrap {
+          width: min(100%, 760px);
+        }
+
+        .tshirtMockupCard {
+          width: 100%;
+          border-radius: 12px;
+          background: #ececec;
+          border: 1px solid #c9d1df;
+          box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+          padding: clamp(14px, 2vw, 22px);
+        }
+
+        .tshirtMockupStage {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1 / 1;
+        }
+
+        .tshirtMockupImage {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
+          user-select: none;
+          pointer-events: none;
+        }
+
+        .tshirtPrintArea {
+          position: absolute;
           overflow: hidden;
+          border-radius: 12px;
         }
 
-        .bottomTabStrip {
+        .tshirtScaleControl {
+          width: min(50%, 360px);
+          max-width: 100%;
+          border: 1px solid #d5dceb;
+          border-radius: 12px;
+          background: linear-gradient(180deg, #f8fbff 0%, #f1f5fc 100%);
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+          padding: 8px 10px;
+          display: grid;
+          gap: 4px;
+        }
+
+        .tshirtScaleRow {
           display: flex;
-          border-bottom: 1px solid #dde3ee;
-          background: #f0f3f9;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
         }
 
-        .bottomTab {
-          flex: 1;
-          padding: 10px 16px;
+        .tshirtScaleRow label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #475569;
+        }
+
+        .tshirtScaleRow span {
+          font-size: 11px;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .tshirtScaleControl input[type='range'] {
+          width: 100%;
+          height: 18px;
           background: transparent;
-          border: none;
-          border-bottom: 2px solid transparent;
-          color: #6b7280;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          letter-spacing: 0.3px;
-          transition: color 0.15s, background 0.15s, border-color 0.15s;
+          -webkit-appearance: none;
+          appearance: none;
         }
 
-        .bottomTab:hover {
-          color: #374151;
-          background: rgba(99,102,241,0.05);
+        .tshirtScaleControl input[type='range']::-webkit-slider-runnable-track {
+          height: 4px;
+          border-radius: 999px;
+          background: #cdd7e8;
         }
 
-        .bottomTab.active {
-          color: #4f46e5;
-          background: #fff;
-          border-bottom: 2px solid #4f46e5;
+        .tshirtScaleControl input[type='range']::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          margin-top: -5px;
+          border-radius: 999px;
+          border: 1px solid #1d4ed8;
+          background: #2563eb;
+          box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
         }
 
-        .bottomTabContent {
-          padding: 14px 16px;
-          padding-bottom: 24px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          flex: 1;
-          min-height: 0;
-          overflow-y: auto;
-          background: #fff;
+        .tshirtScaleControl input[type='range']::-moz-range-track {
+          height: 4px;
+          border-radius: 999px;
+          background: #cdd7e8;
+        }
+
+        .tshirtScaleControl input[type='range']::-moz-range-thumb {
+          width: 14px;
+          height: 14px;
+          border-radius: 999px;
+          border: 1px solid #1d4ed8;
+          background: #2563eb;
+          box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
         }
 
         .countBadge {
@@ -2663,6 +3580,14 @@ export default function ImageDesignPage() {
           overflow: hidden;
           background-size: cover;
           background-position: center;
+        }
+
+        .posterCanvas.tshirtCanvas {
+          width: 100%;
+          height: 100%;
+          border-radius: 10px;
+          border: none;
+          box-shadow: none;
         }
 
         .posterEmpty {
@@ -2724,6 +3649,10 @@ export default function ImageDesignPage() {
           outline-offset: 2px;
         }
 
+        .posterCanvas.tshirtCanvas .personLayer.active {
+          outline: none;
+        }
+
         .personLayer:active {
           cursor: grabbing;
         }
@@ -2734,48 +3663,6 @@ export default function ImageDesignPage() {
           object-fit: contain;
           display: block;
           pointer-events: none;
-        }
-
-        .layerControls {
-          position: absolute;
-          bottom: calc(100% + 6px);
-          left: 50%;
-          transform: translateX(-50%);
-          display: flex;
-          gap: 4px;
-          background: rgba(15, 23, 42, 0.75);
-          backdrop-filter: blur(6px);
-          border-radius: 8px;
-          padding: 4px 5px;
-          pointer-events: all;
-          white-space: nowrap;
-        }
-
-        .layerControlBtn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          border-radius: 6px;
-          border: none;
-          background: transparent;
-          color: rgba(255,255,255,0.9);
-          cursor: pointer;
-          transition: background 0.12s;
-        }
-
-        .layerControlBtn:hover {
-          background: rgba(255,255,255,0.15);
-        }
-
-        .layerControlBtn:active {
-          background: rgba(255,255,255,0.25);
-        }
-
-        .layerControlBtnActive {
-          background: rgba(255,255,255,0.2);
-          color: #fff;
         }
 
         .textLayer {
@@ -2796,8 +3683,26 @@ export default function ImageDesignPage() {
           outline-offset: 2px;
         }
 
+        .posterCanvas.tshirtCanvas .textLayer.active {
+          outline: none;
+        }
+
         .textLayer:active {
           cursor: grabbing;
+        }
+
+        .textCurveLayer {
+          position: relative;
+          display: block;
+          pointer-events: none;
+        }
+
+        .textCurveGlyph {
+          position: absolute;
+          display: inline-block;
+          white-space: pre;
+          line-height: 1;
+          transform-origin: center;
         }
 
         .rightPanel {
@@ -3432,20 +4337,12 @@ export default function ImageDesignPage() {
         @media (max-width: 1200px) {
           .layout {
             grid-template-columns: 1fr;
-            grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
           }
 
           .previewPanel {
             border-right: 0;
             border-bottom: 1px solid #c3ccdd;
-          }
-
-          .bottomPanel {
-            border-left: 0;
-            border-right: 0;
-            border-top: 0;
-            border-bottom: 1px solid #c3ccdd;
-            max-height: 300px;
           }
 
           .rightPanel {
@@ -3465,6 +4362,57 @@ export default function ImageDesignPage() {
 
           .previewPanel {
             padding: 12px;
+          }
+
+          .previewTextToolbar {
+            gap: 4px;
+          }
+
+          .toolbarTextInput {
+            width: 106px;
+            min-width: 88px;
+            max-width: 106px;
+          }
+
+          .toolbarSelect {
+            width: 98px;
+            min-width: 90px;
+            max-width: 98px;
+          }
+
+          .toolbarSizeInput {
+            width: 38px;
+          }
+
+          .toolbarCurveGroup {
+            min-width: 86px;
+          }
+
+          .canvasShell {
+            grid-template-columns: 1fr;
+          }
+
+          .imageControlRail {
+            position: static;
+            flex-direction: row;
+            flex-wrap: wrap;
+            width: 100%;
+            margin-top: 0;
+          }
+
+          .imageRailDivider {
+            width: 1px;
+            height: 24px;
+            margin: 0 2px;
+          }
+
+          .imageRailHeader {
+            width: 34px;
+            height: 34px;
+          }
+
+          .tshirtScaleControl {
+            width: min(100%, 320px);
           }
 
           .rightPanel {
