@@ -5,6 +5,7 @@ import { DateTime } from 'luxon';
 import { AstroTime, MoonPhase } from 'astronomy-engine';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { getFixedVerticalSpacingPx } from './ourskymap-fixed-sizes';
 
 function svgEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -270,6 +271,9 @@ function getVerticalSpacing(size: PosterRequest['poster']['size'], heightPx: num
   topMargin: number;
   bottomMargin: number;
 } {
+  const fixed = getFixedVerticalSpacingPx(size, 'single');
+  if (fixed) return fixed;
+
   const heightInches = heightPx / 72;
 
   // Special cases for square formats
@@ -291,6 +295,9 @@ function getCompanionVerticalSpacing(size: PosterRequest['poster']['size'], shor
   topMargin: number;
   bottomMargin: number;
 } {
+  const fixed = getFixedVerticalSpacingPx(size, 'companion');
+  if (fixed) return fixed;
+
   const shortHeightInches = shortHeightPx / 72;
   const marginInches =
     size === '12x12' || size === '20x20'
@@ -629,11 +636,15 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   // Poster layout regions
   const margin =
-    showCompanionCircle
-      ? ((layout.width > layout.height ? layout.width : layout.height) / 72 / 20) * 1.1 * 72
-      : typeof poster.pageMargin === 'number' && poster.pageMargin > 0
-        ? poster.pageMargin
+    typeof poster.pageMargin === 'number' && poster.pageMargin > 0
+      ? poster.pageMargin
+      : showCompanionCircle
+        ? ((layout.width > layout.height ? layout.width : layout.height) / 72 / 20) * 1.1 * 72
         : getDefaultMargin(size);
+  const marginRight =
+    typeof poster.pageMarginRight === 'number' && poster.pageMarginRight > 0
+      ? poster.pageMarginRight
+      : margin;
   const frameInset = poster.borderInset;
   const borderW = poster.borderWidth;
 
@@ -644,10 +655,13 @@ export function renderPosterSvg(req: PosterRequest): string {
   const H = showCompanionCircle && originalH > originalW ? originalW : originalH;
   const defaultChartDiameter = layout.defaultChartDiameter;
   const chartDiameter = poster.chartDiameter > 0 ? poster.chartDiameter : defaultChartDiameter;
-  let chartR = chartDiameter / 2;
-  // outerR = dış çember (iç çember + ring gap) — margin bu çemberden ölçülür
   const ringGapEarly = Math.max(0, poster.ringGap ?? 18);
-  let outerR = chartR + ringGapEarly;
+  const explicitOuterDiameter = typeof poster.chartOuterDiameter === 'number' && poster.chartOuterDiameter > 0
+    ? poster.chartOuterDiameter
+    : 0;
+  // chartDiameter legacy behavior keeps inner diameter; chartOuterDiameter fixes outer diameter directly.
+  let outerR = explicitOuterDiameter > 0 ? explicitOuterDiameter / 2 : chartDiameter / 2 + ringGapEarly;
+  let chartR = Math.max(1, outerR - ringGapEarly);
 
   const isSquareTextLayout = size === '12x12' || size === '20x20' || size === 'square';
 
@@ -667,27 +681,39 @@ export function renderPosterSvg(req: PosterRequest): string {
   let moonPhaseBucketIndex = 0;
 
   if (showCompanionCircle) {
-    const gap = 54;
     const { topMargin: compTopMargin, bottomMargin: compBottomMargin } = verticalSpacing;
-    const availableHeight = H - compTopMargin - compBottomMargin;
-    const topBandHeight = availableHeight * 0.72;
-    const maxRByHeight = Math.max(80, (topBandHeight - 18) / 2);
-    // Gap ortası = W/2, chart sağ dış kenarı = W-margin kısıtı:
-    // chartCx + compOuterR = W-margin → W/2 + compOuterR + gap/2 + compOuterR = W-margin
-    // → chartR <= (W/2 - margin - gap/2) / 2 - ringGap
-    const maxRByWidthOuter = Math.max(80, (W / 2 - margin - gap / 2) / 2 - ringGapEarly);
-    const baseR = Math.max(120, Math.min(chartR, maxRByWidthOuter, maxRByHeight));
-    chartR = baseR;
-    outerR = chartR + ringGapEarly;
-    moonR = chartR;
-    const compOuterR = outerR;
-    // gap ortası = W/2
-    moonCx = W / 2 - moonR - gap / 2;
-    chartCx = W / 2 + compOuterR + gap / 2;
-    // dikey: her ikisi aynı cy → chart dış çember üstü = topMargin
-    const sharedCy = compTopMargin + compOuterR;
-    chartCy = sharedCy;
-    moonCy = sharedCy;
+    const fixedCompanionLayout = explicitOuterDiameter > 0;
+    if (fixedCompanionLayout) {
+      const explicitMoonDiameter = typeof poster.companionMoonDiameter === 'number' && poster.companionMoonDiameter > 0
+        ? poster.companionMoonDiameter
+        : chartR * 2;
+      moonR = explicitMoonDiameter / 2;
+      moonCx = margin + moonR;
+      chartCx = W - marginRight - outerR;
+      moonCy = compTopMargin + moonR;
+      chartCy = compTopMargin + outerR;
+    } else {
+      const gap = 54;
+      const availableHeight = H - compTopMargin - compBottomMargin;
+      const topBandHeight = availableHeight * 0.72;
+      const maxRByHeight = Math.max(80, (topBandHeight - 18) / 2);
+      // Gap ortası = W/2, chart sağ dış kenarı = W-margin kısıtı:
+      // chartCx + compOuterR = W-margin → W/2 + compOuterR + gap/2 + compOuterR = W-margin
+      // → chartR <= (W/2 - margin - gap/2) / 2 - ringGap
+      const maxRByWidthOuter = Math.max(80, (W / 2 - margin - gap / 2) / 2 - ringGapEarly);
+      const baseR = Math.max(120, Math.min(chartR, maxRByWidthOuter, maxRByHeight));
+      chartR = baseR;
+      outerR = chartR + ringGapEarly;
+      moonR = chartR;
+      const compOuterR = outerR;
+      // gap ortası = W/2
+      moonCx = W / 2 - moonR - gap / 2;
+      chartCx = W / 2 + compOuterR + gap / 2;
+      // dikey: her ikisi aynı cy → chart dış çember üstü = topMargin
+      const sharedCy = compTopMargin + compOuterR;
+      chartCy = sharedCy;
+      moonCy = sharedCy;
+    }
     if (showMoonPhase) {
       const moonPhaseDegRaw = MoonPhase(new AstroTime(date));
       const q = quantizeMoonPhaseDeg(moonPhaseDegRaw);
@@ -804,9 +830,12 @@ export function renderPosterSvg(req: PosterRequest): string {
   const titleFontKey = (poster.titleFont ?? 'serif') as PosterRequest['poster']['titleFont'];
   const namesFontKey = (poster.namesFont ?? 'serif') as PosterRequest['poster']['namesFont'];
   const metaFontKey = (poster.metaFont ?? 'sans') as PosterRequest['poster']['metaFont'];
-  let titleFont = Math.max(10, (poster.titleFontSize ?? 40) * scale);
-  let namesFont = Math.max(10, (poster.namesFontSize ?? 22) * scale);
-  let metaFont = Math.max(10, (poster.metaFontSize ?? 12) * scale);
+  const requestedTitleFont = Math.max(10, (poster.titleFontSize ?? 40) * scale);
+  const requestedNamesFont = Math.max(10, (poster.namesFontSize ?? 22) * scale);
+  const requestedMetaFont = Math.max(10, (poster.metaFontSize ?? 12) * scale);
+  let titleFont = requestedTitleFont;
+  let namesFont = requestedNamesFont;
+  let metaFont = requestedMetaFont;
   const metaFontWeight = poster.metaFontWeight ?? 500;
   const metaLetterSpacing = poster.metaLetterSpacing ?? 0;
   const metaLineSpacing = poster.metaLineSpacing ?? 1.35;
@@ -1113,6 +1142,8 @@ export function renderPosterSvg(req: PosterRequest): string {
     const chartTopIn   = (chartCy - visTopR) / 72;           // page top → görsel üst kenar
     const chartBotIn   = (chartCy + visTopR) / 72;           // page top → görsel alt kenar
     const chartDiamIn  = (2 * visTopR) / 72;                 // visible chart diameter
+    const requestedChartDiamIn = (explicitOuterDiameter > 0 ? explicitOuterDiameter : chartDiameter + 2 * ringGapEarly) / 72;
+    const hasDiaDiff = Math.abs(chartDiamIn - requestedChartDiamIn) > 0.001;
     const diaLeftX = chartCx - visTopR;
     const diaRightX = chartCx + visTopR;
     const diaRulerColor = '#00FFFF';
@@ -1128,12 +1159,16 @@ export function renderPosterSvg(req: PosterRequest): string {
     <line x1="${x.toFixed(2)}" y1="${(chartCy - tickLen).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(chartCy + tickLen).toFixed(2)}" stroke="${diaRulerColor}" stroke-width="${isWholeInch ? 2 : 1.4}" opacity="0.95"/>
     ${label ? `<text x="${x.toFixed(2)}" y="${(chartCy - tickLen - 6).toFixed(2)}" font-size="11" fill="${diaRulerColor}" font-family="monospace" text-anchor="middle" opacity="0.95" stroke="#000" stroke-width="2" paint-order="stroke">${label}</text>` : ''}`;
     }).join('');
-    const fontDebugX = W - 18;
-    const fontDebugLineH = 18;
-    const fontDebugY = H - (fontDebugLineH * 3 + 14);
-    const diaDebugY = fontDebugY - fontDebugLineH;
-    const textBottomPx = textBlockStartY + neededH;           // actual last text line
-    const textBotFromPageBotIn = (H - textBottomPx) / 72;    // text bottom → page bottom
+  const fontDebugX = W - 18;
+  const fontDebugLineH = 18;
+  const hasFontShrink =
+    Math.abs(titleFont - requestedTitleFont) > 0.001 ||
+    Math.abs(namesFont - requestedNamesFont) > 0.001 ||
+    Math.abs(metaFont - requestedMetaFont) > 0.001;
+  const fontDebugY = H - (fontDebugLineH * 5 + 14);
+  const diaDebugY = fontDebugY - fontDebugLineH;
+  const textBottomPx = textBlockStartY + neededH;           // actual last text line
+  const textBotFromPageBotIn = (H - textBottomPx) / 72;    // text bottom → page bottom
 
     return `<!-- Measurement Ruler Overlay (SHOW_RULER=true) -->
   <g id="measurement-ruler">
@@ -1155,11 +1190,12 @@ export function renderPosterSvg(req: PosterRequest): string {
       <line x1="${diaRightX.toFixed(2)}" y1="${(chartCy - 16).toFixed(2)}" x2="${diaRightX.toFixed(2)}" y2="${(chartCy + 16).toFixed(2)}" stroke="${diaRulerColor}" stroke-width="2.2" opacity="1"/>
     </g>
     <!-- Font sizes -->
-    <text x="${fontDebugX}" y="${diaDebugY}" font-size="12" fill="${diaRulerColor}" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">DIA: ${chartDiamIn.toFixed(3)}"</text>
+    <text x="${fontDebugX}" y="${diaDebugY}" font-size="12" fill="${hasDiaDiff ? '#FFAA00' : diaRulerColor}" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">${hasDiaDiff ? `DIA req/app: ${requestedChartDiamIn.toFixed(3)}" -> ${chartDiamIn.toFixed(3)}"` : `DIA: ${chartDiamIn.toFixed(3)}"`}</text>
     <text x="${fontDebugX}" y="${fontDebugY}" font-size="13" fill="#FFFFFF" font-family="monospace" font-weight="700" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="3" paint-order="stroke">FONT SIZES</text>
-    <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Title: ${titleFont.toFixed(2)}px</text>
-    <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 2).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Names: ${namesFont.toFixed(2)}px</text>
-    <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 3).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Location/Date: ${metaFont.toFixed(2)}px</text>
+    <text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH).toFixed(2)}" font-size="12" fill="${hasFontShrink ? '#FFAA00' : '#8CFF9F'}" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Shrink: ${hasFontShrink ? 'YES' : 'NO'}</text>
+    ${hasFontShrink ? `<text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 2).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Title req/app: ${requestedTitleFont.toFixed(2)} -> ${titleFont.toFixed(2)}px</text>` : `<text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 2).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Title: ${titleFont.toFixed(2)}px</text>`}
+    ${hasFontShrink ? `<text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 3).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Names req/app: ${requestedNamesFont.toFixed(2)} -> ${namesFont.toFixed(2)}px</text>` : `<text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 3).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Names: ${namesFont.toFixed(2)}px</text>`}
+    ${hasFontShrink ? `<text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 4).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Meta req/app: ${requestedMetaFont.toFixed(2)} -> ${metaFont.toFixed(2)}px</text>` : `<text x="${fontDebugX}" y="${(fontDebugY + fontDebugLineH * 4).toFixed(2)}" font-size="12" fill="#FFFFFF" font-family="monospace" text-anchor="end" opacity="0.95" stroke="#000" stroke-width="2.4" paint-order="stroke">Meta: ${metaFont.toFixed(2)}px</text>`}
     <!-- Text bottom: text son satiri → page alti -->
     <line x1="${(cx - 60).toFixed(2)}" y1="${textBottomPx.toFixed(2)}" x2="${(cx + 60).toFixed(2)}" y2="${textBottomPx.toFixed(2)}" stroke="#FF44FF" stroke-width="3" opacity="1"/>
     <text x="${(cx + 66).toFixed(2)}" y="${(textBottomPx + 6).toFixed(2)}" font-size="16" fill="#FF44FF" font-family="monospace" font-weight="bold" opacity="1" stroke="#000" stroke-width="3" paint-order="stroke">BOT: ${textBotFromPageBotIn.toFixed(3)}"</text>

@@ -100,7 +100,10 @@ export type PosterParams = {
   borderWidth: number;
   borderInset: number;
   pageMargin?: number;
+  pageMarginRight?: number;
   chartDiameter: number;
+  chartOuterDiameter?: number;
+  companionMoonDiameter?: number;
   title: string;
   subtitle: string;
   dedication: string;

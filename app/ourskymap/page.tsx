@@ -5,6 +5,10 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PosterParams, RenderParams, ConstellationLanguage } from '../../lib/types';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
+import {
+  ONLY_CHART_FIXED_POSTER_PRESETS,
+  STAR_CHART_MOON_FIXED_POSTER_PRESETS,
+} from '../../lib/ourskymap-fixed-sizes';
 
 type SizePreset = {
   key: DesignSize;
@@ -172,8 +176,6 @@ const defaultParams: RenderParams = {
   azimuthRingOuterWidth: 0.0
 };
 
-const INCH = 72;
-const CM = INCH / 2.54;
 const PHOTO_MIN_DIM = 1200;
 const PHOTO_TARGET_DIM = 1400;
 const PHOTO_MAX_MB = 20;
@@ -191,32 +193,8 @@ const POSTER_SIZE_DIMS: Record<DesignSize, [number, number]> = {
   '20x20': [1440, 1440], 'a1': [1701, 3024], '24x32': [1728, 2304],
 };
 
-function getCompanionLongShortInches(sizeKey: DesignSize): { wLongIn: number; hShortIn: number } {
-  const [wPx, hPx] = POSTER_SIZE_DIMS[sizeKey] ?? [0, 0];
-  const wLongPx = Math.max(wPx, hPx);
-  const hShortPx = Math.min(wPx, hPx);
-  return { wLongIn: wLongPx / INCH, hShortIn: hShortPx / INCH };
-}
-
 function buildPosterFormulaOverrides(sizeKey: DesignSize): Partial<PosterParams> {
-  const { wLongIn } = getCompanionLongShortInches(sizeKey);
-  const chartDiameter = (wLongIn / 20) * 8.8 * INCH;
-  const ringInnerWidth = (wLongIn / 20) * 6;
-  const ringOuterWidth = (wLongIn / 20) * 3;
-  const ringVisibleGap = (wLongIn / 20) * 2;
-  const ringGap = ringVisibleGap + ringInnerWidth / 2 + ringOuterWidth / 2;
-
-  return {
-    chartDiameter,
-    ringInnerWidth,
-    ringOuterWidth,
-    ringGap,
-    borderWidth: ringOuterWidth,
-    titleFontSize: (wLongIn / 20) * 40,
-    namesFontSize: (wLongIn / 20) * 55,
-    metaFontSize: (wLongIn / 20) * 20,
-    metaUppercase: true
-  };
+  return STAR_CHART_MOON_FIXED_POSTER_PRESETS[sizeKey];
 }
 
 type CompanionPhotoMeta = {
@@ -346,193 +324,34 @@ async function normalizeGalaxyBackgroundFile(file: File): Promise<{ dataUrl: str
   return { dataUrl: canvas.toDataURL('image/jpeg', 0.9), width: outW, height: outH };
 }
 
+const metaTypographyBySize: Record<DesignSize, Pick<PosterParams, 'metaLetterSpacing' | 'metaLineSpacing' | 'metaUppercase'>> = {
+  'us-letter': { metaLetterSpacing: 1.8, metaLineSpacing: 1.5, metaUppercase: true },
+  a4: { metaLetterSpacing: 1.8, metaLineSpacing: 1.5, metaUppercase: true },
+  '11x14': { metaLetterSpacing: 2.2, metaLineSpacing: 1.5, metaUppercase: true },
+  a3: { metaLetterSpacing: 2.8, metaLineSpacing: 1.5, metaUppercase: true },
+  '12x12': { metaLetterSpacing: 2, metaLineSpacing: 1.5, metaUppercase: true },
+  '12x16': { metaLetterSpacing: 3, metaLineSpacing: 1.5, metaUppercase: true },
+  '16x20': { metaLetterSpacing: 3.8, metaLineSpacing: 1.5, metaUppercase: true },
+  a2: { metaLetterSpacing: 4.2, metaLineSpacing: 1.5, metaUppercase: true },
+  '18x24': { metaLetterSpacing: 4.8, metaLineSpacing: 1.5, metaUppercase: true },
+  '20x20': { metaLetterSpacing: 3.6, metaLineSpacing: 1.5, metaUppercase: true },
+  a1: { metaLetterSpacing: 5.8, metaLineSpacing: 1.5, metaUppercase: true },
+  '24x32': { metaLetterSpacing: 6, metaLineSpacing: 1.5, metaUppercase: true },
+};
+
 const defaultPosterBySize: Record<DesignSize, Partial<PosterParams>> = {
-  // Font formula:  H_px/1440 × ref  (ref: title=40, names=48, meta=20 @ 16x20 H=1440px)
-  // Chart formula: W_inches/16 × 12.8"           (ref: 16x20 W=16")
-  // Ring formula:  inner=round(W/1152×12), outer=round(W/1152×6)
-  // ringGap = visGap + inner/2 + outer/2  where visGap=round(W/1152×4)
-  //   ↳ ringGap is RADIUS difference (not visual gap). Visual gap = ringGap - inner/2 - outer/2
-  //   ↳ 16x20 reference: visGap=4, inner=12, outer=6 → ringGap=4+6+3=13
-  'us-letter': {
-    // H=792px → title=22.0, names=26.4, meta=11.0 | W=612px=8.5" → chart=6.8"
-    // ring: inner=6, outer=3, visGap=2 → ringGap=2+3+2=7
-    chartDiameter: 6.8 * INCH,
-    titleFontSize: 22.0,
-    namesFontSize: 26.4,
-    metaFontSize: 11.0,
-    pageMargin: 0.8 * INCH,
-    ringInnerWidth: 6,
-    ringGap: 7,
-    ringOuterWidth: 3,
-    metaLetterSpacing: 1.8,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  a4: {
-    // H=842px → title=23.4, names=28.1, meta=11.7 | W=595px=8.26" → chart≈6.6"
-    // ring: inner=6, outer=3, visGap=2 → ringGap=2+3+2=7
-    chartDiameter: 6.6 * INCH,
-    titleFontSize: 23.4,
-    namesFontSize: 28.1,
-    metaFontSize: 11.7,
-    pageMargin: 1.4 * INCH,
-    ringInnerWidth: 6,
-    ringGap: 7,
-    ringOuterWidth: 3,
-    metaLetterSpacing: 1.8,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  '11x14': {
-    // H=1008px → title=28.0, names=33.6, meta=14.0 | W=792px=11" → chart=8.8"
-    // ring: inner=8, outer=4, visGap=3 → ringGap=3+4+2=9
-    chartDiameter: 8.8 * INCH,
-    titleFontSize: 28.0,
-    namesFontSize: 33.6,
-    metaFontSize: 14.0,
-    pageMargin: 1.1 * INCH,
-    ringInnerWidth: 8,
-    ringGap: 9,
-    ringOuterWidth: 4,
-    metaLetterSpacing: 2.2,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  a3: {
-    // H=1191px → title=33.1, names=39.7, meta=16.5 | W=842px=11.69" → chart≈9.35"
-    // ring: inner=9, outer=4, visGap=3 → ringGap=3+5+2=10
-    chartDiameter: 23.7 * CM,
-    titleFontSize: 33.1,
-    namesFontSize: 39.7,
-    metaFontSize: 16.5,
-    pageMargin: 4.6 * CM,
-    ringInnerWidth: 9,
-    ringGap: 10,
-    ringOuterWidth: 4,
-    metaLetterSpacing: 2.8,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  '12x12': {
-    // Special case (geometric constraint): fixed spec values, shrink loop handles fit
-    // W=864px → ring: inner=9, outer=5, visGap=3 → ringGap=3+5+3=11
-    chartDiameter: 8.6 * INCH,
-    titleFontSize: 22,
-    namesFontSize: 35,
-    metaFontSize: 16,
-    pageMargin: 0.8 * INCH,
-    ringInnerWidth: 9,
-    ringGap: 11,
-    ringOuterWidth: 5,
-    metaLetterSpacing: 2,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  '12x16': {
-    // H=1152px → title=32.0, names=38.4, meta=16.0 | W=864px=12" → chart=9.6"
-    // ring: inner=9, outer=5, visGap=3 → ringGap=3+5+3=11
-    chartDiameter: 9.6 * INCH,
-    titleFontSize: 32.0,
-    namesFontSize: 38.4,
-    metaFontSize: 16.0,
-    pageMargin: 1.2 * INCH,
-    ringInnerWidth: 9,
-    ringGap: 11,
-    ringOuterWidth: 5,
-    metaLetterSpacing: 3,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  '16x20': {
-    // Reference: H=1440px → title=40, names=48, meta=20 | W=1152px=16" → chart=12.8"
-    // ring: inner=12, outer=6, visGap=4 → ringGap=4+6+3=13
-    chartDiameter: 12.8 * INCH,
-    titleFontSize: 40,
-    namesFontSize: 48,
-    metaFontSize: 20,
-    pageMargin: 1.6 * INCH,
-    ringInnerWidth: 12,
-    ringGap: 13,
-    ringOuterWidth: 6,
-    metaLetterSpacing: 3.8,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  a2: {
-    // H=1684px → title=46.8, names=56.1, meta=23.4 | W=1191px=16.54" → chart≈13.2"
-    // ring: inner=12, outer=6, visGap=4 → ringGap=4+6+3=13
-    chartDiameter: 33.6 * CM,
-    titleFontSize: 46.8,
-    namesFontSize: 56.1,
-    metaFontSize: 23.4,
-    pageMargin: 6.6 * CM,
-    ringInnerWidth: 12,
-    ringGap: 13,
-    ringOuterWidth: 6,
-    metaLetterSpacing: 4.2,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  '18x24': {
-    // H=1728px → title=48.0, names=57.6, meta=24.0 | W=1296px=18" → chart=14.4"
-    // ring: inner=14, outer=7, visGap=5 → ringGap=5+7+4=16
-    chartDiameter: 14.4 * INCH,
-    titleFontSize: 48.0,
-    namesFontSize: 57.6,
-    metaFontSize: 24.0,
-    pageMargin: 1.7 * INCH,
-    ringInnerWidth: 14,
-    ringGap: 16,
-    ringOuterWidth: 7,
-    metaLetterSpacing: 4.8,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  '20x20': {
-    // Special case (geometric constraint): fixed spec values, shrink loop handles fit
-    // W=1440px → ring: inner=15, outer=8, visGap=5 → ringGap=5+8+4=17
-    chartDiameter: 14.3 * INCH,
-    titleFontSize: 36,
-    namesFontSize: 47,
-    metaFontSize: 20,
-    pageMargin: 1.3 * INCH,
-    ringInnerWidth: 15,
-    ringGap: 17,
-    ringOuterWidth: 8,
-    metaLetterSpacing: 3.6,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  a1: {
-    // H=3024px → title=84.0, names=100.8, meta=42.0 | W=1701px=23.625" → chart≈18.9"
-    // ring: inner=18, outer=9, visGap=6 → ringGap=6+9+5=20
-    chartDiameter: 47.5 * CM,
-    titleFontSize: 84.0,
-    namesFontSize: 100.8,
-    metaFontSize: 42.0,
-    pageMargin: 10 * CM,
-    ringInnerWidth: 18,
-    ringGap: 20,
-    ringOuterWidth: 9,
-    metaLetterSpacing: 5.8,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
-  '24x32': {
-    // H=2304px → title=64.0, names=76.8, meta=32.0 | W=1728px=24" → chart=19.2"
-    // ring: inner=18, outer=9, visGap=6 → ringGap=6+9+5=20
-    chartDiameter: 19.2 * INCH,
-    titleFontSize: 64.0,
-    namesFontSize: 76.8,
-    metaFontSize: 32.0,
-    pageMargin: 2.4 * INCH,
-    ringInnerWidth: 18,
-    ringGap: 20,
-    ringOuterWidth: 9,
-    metaLetterSpacing: 6,
-    metaLineSpacing: 1.5,
-    metaUppercase: true
-  },
+  'us-letter': { ...ONLY_CHART_FIXED_POSTER_PRESETS['us-letter'], ...metaTypographyBySize['us-letter'] },
+  a4: { ...ONLY_CHART_FIXED_POSTER_PRESETS.a4, ...metaTypographyBySize.a4 },
+  '11x14': { ...ONLY_CHART_FIXED_POSTER_PRESETS['11x14'], ...metaTypographyBySize['11x14'] },
+  a3: { ...ONLY_CHART_FIXED_POSTER_PRESETS.a3, ...metaTypographyBySize.a3 },
+  '12x12': { ...ONLY_CHART_FIXED_POSTER_PRESETS['12x12'], ...metaTypographyBySize['12x12'] },
+  '12x16': { ...ONLY_CHART_FIXED_POSTER_PRESETS['12x16'], ...metaTypographyBySize['12x16'] },
+  '16x20': { ...ONLY_CHART_FIXED_POSTER_PRESETS['16x20'], ...metaTypographyBySize['16x20'] },
+  a2: { ...ONLY_CHART_FIXED_POSTER_PRESETS.a2, ...metaTypographyBySize.a2 },
+  '18x24': { ...ONLY_CHART_FIXED_POSTER_PRESETS['18x24'], ...metaTypographyBySize['18x24'] },
+  '20x20': { ...ONLY_CHART_FIXED_POSTER_PRESETS['20x20'], ...metaTypographyBySize['20x20'] },
+  a1: { ...ONLY_CHART_FIXED_POSTER_PRESETS.a1, ...metaTypographyBySize.a1 },
+  '24x32': { ...ONLY_CHART_FIXED_POSTER_PRESETS['24x32'], ...metaTypographyBySize['24x32'] },
 };
 
 const defaultPoster: PosterParams = {
