@@ -380,8 +380,30 @@ export function renderSoundwavePosterSvg(req: SoundwaveRequest): string {
     maxWidth: textMaxWidth,
     letterSpacingEm: subtitleTrack
   });
-  const titleY = waveCenterY + waveHeight * 0.75 + clamp(H * 0.06, 16, 80);
-  const subtitleY = titleY + Math.max(subtitleFont * 1.15, clamp(H * 0.028, 10, 44));
+  const footerPad = clamp(Math.min(W, H) * 0.02, 6, 18);
+  const mediaSize = clamp(H * (size.w / size.h > 1.8 ? 0.11 : 0.09), 40, 126);
+  const mediaYBottom = H - outerMargin - footerPad - mediaSize;
+
+  // Keep typography in a dedicated lower field, independent from waveform height controls.
+  const innerHeight = H - outerMargin * 2;
+  const textAreaTop = outerMargin + innerHeight * (size.w / size.h > 1.8 ? 0.66 : 0.6);
+  const textAreaBottom = mediaYBottom - clamp(H * 0.02, 6, 24);
+  const textAreaHeight = Math.max(48, textAreaBottom - textAreaTop);
+  const textCenterY = textAreaTop + textAreaHeight * 0.54;
+  const subtitleLineGap = Math.max(subtitleFont * 1.15, clamp(H * 0.028, 10, 44));
+  const titleY = subtitle ? textCenterY - subtitleLineGap * 0.52 : textCenterY;
+  const subtitleY = subtitle ? titleY + subtitleLineGap : titleY + subtitleLineGap;
+  const captionY = clamp(
+    titleY - Math.max(titleFont * 0.92, clamp(H * 0.03, 10, 34)),
+    textAreaTop + captionFont,
+    titleY - 6
+  );
+
+  // Clip waveform to the upper field so it never overlaps the bottom text field.
+  const waveClipTop = outerMargin + 1;
+  const waveClipBottom = Math.max(waveClipTop + 20, textAreaTop - clamp(H * 0.02, 8, 24));
+  const waveClipHeight = Math.max(20, waveClipBottom - waveClipTop);
+
   const frameStroke = s.showFrame !== false ? textColor : 'transparent';
   const waveOpacity = clamp(s.waveformOpacity || 0.95, 0.2, 1);
   const waveThickness = clamp(s.waveThickness || 2.2, 0.6, 8);
@@ -664,9 +686,6 @@ export function renderSoundwavePosterSvg(req: SoundwaveRequest): string {
   const spotifyCodeImageDataUrl = sanitizeDataImageUri(s.spotifyCodeImageDataUrl);
   const pictureImageDataUrl = sanitizeDataImageUri(s.pictureImageDataUrl);
 
-  const mediaSize = clamp(H * (size.w / size.h > 1.8 ? 0.11 : 0.09), 40, 126);
-  const footerPad = clamp(Math.min(W, H) * 0.02, 6, 18);
-  const mediaYBottom = H - outerMargin - footerPad - mediaSize;
   const mediaY = mediaYBottom;
   const mediaGap = clamp(mediaSize * 0.22, 8, 22);
   const pictureW = Math.round(mediaSize * 1.25);
@@ -726,16 +745,21 @@ export function renderSoundwavePosterSvg(req: SoundwaveRequest): string {
         0 0 0 0.20 0"/>
       <feBlend in="SourceGraphic" mode="normal"/>
     </filter>
+    <clipPath id="waveClip">
+      <rect x="${(outerMargin + 1).toFixed(2)}" y="${waveClipTop.toFixed(2)}" width="${(W - 2 * outerMargin - 2).toFixed(2)}" height="${waveClipHeight.toFixed(2)}"/>
+    </clipPath>
   </defs>
 
   <rect x="0" y="0" width="${W}" height="${H}" fill="${bg}"/>
   <rect x="${outerMargin}" y="${outerMargin}" width="${W - 2 * outerMargin}" height="${H - 2 * outerMargin}" fill="none" stroke="${frameStroke}" stroke-width="${clamp(Math.min(W, H) * 0.0023, 1, 3).toFixed(2)}"/>
 
-  ${waveMarkup}
+  <g clip-path="url(#waveClip)">
+    ${waveMarkup}
+  </g>
 
   ${
     caption
-      ? `<text x="${(W / 2).toFixed(2)}" y="${(waveCenterY + waveHeight * 0.58).toFixed(2)}" text-anchor="middle" fill="${textColor}" fill-opacity="0.78" font-family="${font.family}" font-size="${captionFont.toFixed(2)}" letter-spacing="${captionTrack}em" font-weight="500">${svgEscape(caption)}</text>`
+      ? `<text x="${(W / 2).toFixed(2)}" y="${captionY.toFixed(2)}" text-anchor="middle" fill="${textColor}" fill-opacity="0.78" font-family="${font.family}" font-size="${captionFont.toFixed(2)}" letter-spacing="${captionTrack}em" font-weight="500">${svgEscape(caption)}</text>`
       : ''
   }
 
