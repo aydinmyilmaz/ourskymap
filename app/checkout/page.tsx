@@ -185,6 +185,9 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const isCity = draft?.productType === 'city';
+  const isVinyl = draft?.productType === 'vinyl';
+  const productLabel = isCity ? 'city map' : isVinyl ? 'vinyl poster' : 'sky map';
+  const filePrefix = isCity ? 'citymap' : isVinyl ? 'vinylstudio' : 'ourskymap';
 
   useEffect(() => {
     try {
@@ -197,7 +200,13 @@ export default function CheckoutPage() {
       }
       const parsed = JSON.parse(raw) as CheckoutDraft;
       if (!parsed?.previewSvg || !parsed?.renderRequest || !parsed?.mapData) {
-        router.replace(parsed?.productType === 'city' ? '/citymap' : '/ourskymap');
+        if (parsed?.productType === 'city') {
+          router.replace('/citymap');
+        } else if (parsed?.productType === 'vinyl') {
+          router.replace('/vinyl');
+        } else {
+          router.replace('/ourskymap');
+        }
         return;
       }
       setDraft(parsed);
@@ -224,7 +233,6 @@ export default function CheckoutPage() {
       if (paymentMethod === 'coupon' && exportEngine === 'browser') {
         const startedAt = performance.now();
         const safeCode = (couponCode.trim() || `browser-${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
-        const filePrefix = isCity ? 'citymap' : 'ourskymap';
         await downloadFlatBrowserZip({
           svg: draft.previewSvg,
           filePrefix,
@@ -267,17 +275,25 @@ export default function CheckoutPage() {
       <div className="starsLayer" />
       <main className="container">
         <section className="left">
-          <h1>{isCity ? 'Your Custom City Map' : 'Your Custom Sky Map'}</h1>
+          <h1>{isCity ? 'Your Custom City Map' : isVinyl ? 'Your Custom Vinyl Poster' : 'Your Custom Sky Map'}</h1>
           <p>
             {isCity
               ? 'Create your personalized city map and receive print-ready files instantly.'
-              : 'Capture your special moment under the stars with our personalized sky maps.'}
+              : isVinyl
+                ? 'Design your personalized vinyl poster and download print-ready files instantly.'
+                : 'Capture your special moment under the stars with our personalized sky maps.'}
           </p>
           <div className="previewCard">
             <div className="previewMount" dangerouslySetInnerHTML={{ __html: draft.previewSvg }} />
           </div>
           <ul className="benefits">
-            <li>{isCity ? 'High-quality digital city map design' : 'High-quality digital sky map design'}</li>
+            <li>
+              {isCity
+                ? 'High-quality digital city map design'
+                : isVinyl
+                  ? 'High-quality digital vinyl poster design'
+                  : 'High-quality digital sky map design'}
+            </li>
             <li>Instant download after purchase</li>
             <li>Customized to your special location and style</li>
           </ul>
@@ -285,7 +301,7 @@ export default function CheckoutPage() {
 
         <section className="right">
           <h2>Complete Your Order</h2>
-          <p className="sub">Enter your details to receive your custom {isCity ? 'city map' : 'sky map'}</p>
+          <p className="sub">Enter your details to receive your custom {productLabel}</p>
 
           <form onSubmit={handleCouponSubmit} className="form">
             <label>
@@ -297,7 +313,7 @@ export default function CheckoutPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required={exportEngine !== 'browser'}
               />
-              <small>We'll send your {isCity ? 'city map' : 'sky map'} to this email</small>
+              <small>We'll send your {productLabel} to this email</small>
             </label>
 
             <div className="field">

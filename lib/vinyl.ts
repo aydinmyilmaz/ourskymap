@@ -40,25 +40,50 @@ function getPalette(name: VinylParams['palette']): Palette {
   switch (name) {
     case 'classic-black':
       return { bg: '#0b0b0d', ink: '#f6f6f7', mutedInk: 'rgba(246,246,247,0.55)', accent: '#f6f6f7' };
-    case 'navy-gold':
-      return { bg: '#151c2d', ink: '#f4c25b', mutedInk: 'rgba(244,194,91,0.35)', accent: '#f4c25b' };
+    case 'navy-blue':
+      return { bg: '#0f1c42', ink: '#f1f3f8', mutedInk: 'rgba(241,243,248,0.42)', accent: '#f1f3f8' };
+    case 'classic-burgundy':
+      return { bg: '#4d1f2a', ink: '#f7f4f3', mutedInk: 'rgba(247,244,243,0.42)', accent: '#f7f4f3' };
+    case 'midnight':
+      return { bg: '#0b1020', ink: '#ffffff', mutedInk: 'rgba(255,255,255,0.40)', accent: '#ffffff' };
+    case 'deep-navy':
+      return { bg: '#121b34', ink: '#f0f4ff', mutedInk: 'rgba(240,244,255,0.42)', accent: '#f0f4ff' };
+    case 'royal-blue':
+      return { bg: '#1f3f86', ink: '#f3f6ff', mutedInk: 'rgba(243,246,255,0.43)', accent: '#f3f6ff' };
+    case 'ocean-teal':
+      return { bg: '#125f67', ink: '#eef8f8', mutedInk: 'rgba(238,248,248,0.42)', accent: '#eef8f8' };
+    case 'deep-teal':
+      return { bg: '#0f4f5a', ink: '#e8f5f6', mutedInk: 'rgba(232,245,246,0.42)', accent: '#e8f5f6' };
+    case 'emerald':
+      return { bg: '#0b3d2e', ink: '#e6f4ee', mutedInk: 'rgba(230,244,238,0.42)', accent: '#e6f4ee' };
+    case 'dark-green':
+      return { bg: '#132a1f', ink: '#ecf2ee', mutedInk: 'rgba(236,242,238,0.42)', accent: '#ecf2ee' };
+    case 'forest':
+      return { bg: '#0e1f16', ink: '#e7eee9', mutedInk: 'rgba(231,238,233,0.42)', accent: '#e7eee9' };
+    case 'mustard-gold':
+      return { bg: '#886820', ink: '#fbf2dd', mutedInk: 'rgba(251,242,221,0.42)', accent: '#fbf2dd' };
     case 'night-gold':
       return { bg: '#24283a', ink: '#fbab29', mutedInk: 'rgba(251,171,41,0.35)', accent: '#fbab29' };
+    case 'burnt-orange':
+      return { bg: '#8d4f1f', ink: '#fff0de', mutedInk: 'rgba(255,240,222,0.42)', accent: '#fff0de' };
+    case 'terracotta-red':
+      return { bg: '#8f3c34', ink: '#fff0ed', mutedInk: 'rgba(255,240,237,0.42)', accent: '#fff0ed' };
+    case 'plum':
+      return { bg: '#1c1230', ink: '#efe9fb', mutedInk: 'rgba(239,233,251,0.42)', accent: '#efe9fb' };
+    case 'storm-gray':
+      return { bg: '#2c3341', ink: '#edf1f7', mutedInk: 'rgba(237,241,247,0.42)', accent: '#edf1f7' };
+    case 'sand':
+      return { bg: '#efe3cb', ink: '#1f1b16', mutedInk: 'rgba(31,27,22,0.35)', accent: '#1f1b16' };
+    case 'pearl':
+      return { bg: '#ececed', ink: '#16171c', mutedInk: 'rgba(22,23,28,0.35)', accent: '#16171c' };
+    case 'navy-gold':
+      return { bg: '#151c2d', ink: '#f4c25b', mutedInk: 'rgba(244,194,91,0.35)', accent: '#f4c25b' };
     case 'cream-ink':
       return { bg: '#fbf5ea', ink: '#1b1b1b', mutedInk: 'rgba(27,27,27,0.35)', accent: '#1b1b1b' };
     case 'slate':
       return { bg: '#111827', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
-    case 'forest':
-      return { bg: '#0e1f16', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
-    case 'emerald':
-      return { bg: '#0b3d2e', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
-    case 'plum':
-      return { bg: '#1c1230', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
     case 'burgundy':
       return { bg: '#2a0f1a', ink: '#d9d9d9', mutedInk: 'rgba(217,217,217,0.40)', accent: '#d9d9d9' };
-    case 'sand':
-      return { bg: '#f7f3e8', ink: '#1b1b1b', mutedInk: 'rgba(27,27,27,0.35)', accent: '#1b1b1b' };
-    case 'midnight':
     default:
       return { bg: '#0b1020', ink: '#ffffff', mutedInk: 'rgba(255,255,255,0.40)', accent: '#ffffff' };
   }
@@ -76,66 +101,105 @@ function circlePathD(cx: number, cy: number, r: number): string {
   return `M ${x} ${y} a ${rr} ${rr} 0 1 1 0 ${(2 * r).toFixed(2)} a ${rr} ${rr} 0 1 1 0 ${(-2 * r).toFixed(2)}`;
 }
 
-function buildFlowingRingText(input: { text: string; targetChars: number; start: number }): { chunk: string; next: number } {
+function arcPathD(input: {
+  cx: number;
+  cy: number;
+  r: number;
+  startDeg: number;
+  endDeg: number;
+  clockwise?: boolean;
+}): string {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const clockwise = input.clockwise !== false;
+  const s = toRad(input.startDeg);
+  const e = toRad(input.endDeg);
+  const x1 = input.cx + input.r * Math.cos(s);
+  const y1 = input.cy + input.r * Math.sin(s);
+  const x2 = input.cx + input.r * Math.cos(e);
+  const y2 = input.cy + input.r * Math.sin(e);
+  let delta = input.endDeg - input.startDeg;
+  if (clockwise) {
+    while (delta < 0) delta += 360;
+  } else {
+    while (delta > 0) delta -= 360;
+  }
+  const largeArcFlag = Math.abs(delta) > 180 ? 1 : 0;
+  const sweepFlag = clockwise ? 1 : 0;
+  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${input.r.toFixed(2)} ${input.r.toFixed(2)} 0 ${largeArcFlag} ${sweepFlag} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+
+function buildSpiralPath(input: {
+  cx: number;
+  cy: number;
+  startRadius: number;
+  endRadius: number;
+  turns: number;
+}): { d: string; length: number } {
+  const turns = Math.max(0.5, input.turns);
+  const pointCount = Math.max(240, Math.ceil(turns * 220));
+  const pts: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i <= pointCount; i++) {
+    const t = i / pointCount;
+    const r = input.startRadius + (input.endRadius - input.startRadius) * t;
+    const theta = -Math.PI / 2 + 2 * Math.PI * turns * t; // start at top, go clockwise in SVG coords
+    const x = input.cx + r * Math.cos(theta);
+    const y = input.cy + r * Math.sin(theta);
+    pts.push({ x, y });
+  }
+  let length = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i - 1].x;
+    const dy = pts[i].y - pts[i - 1].y;
+    length += Math.hypot(dx, dy);
+  }
+  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
+  return { d, length };
+}
+
+function buildFlowingRingText(input: {
+  text: string;
+  targetChars: number;
+  minChars: number;
+  start: number;
+}): { chunk: string; next: number } {
   const raw = (input.text || '').replace(/\s+/g, ' ').trim();
   if (!raw) return { chunk: '', next: 0 };
   const words = raw.split(' ').filter((w) => w.length > 0);
   const n = words.length;
   if (!n) return { chunk: '', next: 0 };
 
-  const targetChars = Math.max(40, input.targetChars);
+  const targetChars = Math.max(24, input.targetChars);
+  const minChars = clamp(Math.floor(input.minChars), 0, targetChars);
   let idx = ((Math.round(input.start) % n) + n) % n;
-  const startIdx = idx;
   const out: string[] = [];
   let len = 0;
 
-  for (let guard = 0; guard < n * 3; guard++) {
+  // Build with full words only; never cut a word at the end.
+  for (let guard = 0; guard < n * 60; guard++) {
     const w = words[idx];
     const add = out.length === 0 ? w.length : w.length + 1;
-    const isLongEnough = len >= Math.floor(targetChars * 0.82) && out.length >= 6;
-    if (len + add > targetChars && isLongEnough) break;
+
+    if (len + add > targetChars) {
+      // If no word has been added yet, allow one full word (even if long).
+      if (!out.length) {
+        out.push(w);
+        len = w.length;
+        idx = (idx + 1) % n;
+      }
+      break;
+    }
+
     out.push(w);
     len += add;
     idx = (idx + 1) % n;
-    if (idx === startIdx && out.length >= 8) break;
+    if (len >= minChars && out.length >= 4) {
+      const nextWord = words[idx];
+      const nextAdd = (nextWord?.length || 0) + 1;
+      if (len + nextAdd > targetChars) break;
+    }
   }
 
   return { chunk: out.join(' ').trim(), next: idx };
-}
-
-function wrapTextToLines(text: string, maxChars: number): string[] {
-  const t = (text || '').trim();
-  if (!t) return [];
-  if (t.includes('\n')) {
-    return t
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-  }
-
-  const words = t.split(/\s+/g);
-  const lines: string[] = [];
-  let cur = '';
-  for (const w of words) {
-    const next = cur ? `${cur} ${w}` : w;
-    if (next.length > maxChars && cur) {
-      lines.push(cur);
-      cur = w;
-    } else {
-      cur = next;
-    }
-  }
-  if (cur) lines.push(cur);
-  return lines;
-}
-
-function repeatToMinLength(s: string, minLen: number): string {
-  const base = s.trim();
-  if (!base) return '';
-  let out = base;
-  const sep = ' • ';
-  while (out.length < minLen) out = `${out}${sep}${base}`;
-  return out;
 }
 
 function splitMultiline(text: string): string[] {
@@ -143,6 +207,23 @@ function splitMultiline(text: string): string[] {
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
+}
+
+function normalizeLyricsInput(text: string): string {
+  const raw = (text || '')
+    .replace(/\\n/gi, '\n')
+    .replace(/\/n/gi, '\n')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+  const sectionHeader = /^(verse(\s+\d+)?|chorus|outro|intro|bridge|pre-chorus|refrain)$/i;
+  const lines = raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => !sectionHeader.test(line.replace(/[:\-–]+$/, '').trim()));
+
+  return lines.join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function centeredMultilineText(input: {
@@ -168,6 +249,64 @@ function centeredMultilineText(input: {
   return `<text x="${input.x}" y="${input.y.toFixed(2)}" font-size="${input.fontSize.toFixed(2)}" fill="${input.fill}" text-anchor="middle" font-family="${input.fontFamily}" letter-spacing="${input.letterSpacing.toFixed(2)}"${fw}>${tspans}</text>`;
 }
 
+function estimateTitleGlyphUnits(text: string, fontKey: VinylParams['titleFont']): number {
+  const baseUnit =
+    fontKey === 'mono'
+      ? 0.62
+      : fontKey === 'sans'
+        ? 0.58
+        : fontKey === 'prata'
+          ? 0.66
+          : 0.64;
+  let units = 0;
+  for (const ch of text) {
+    if (ch === ' ') {
+      units += 0.34;
+      continue;
+    }
+    if (/[MW@#&%]/.test(ch)) {
+      units += baseUnit + 0.24;
+      continue;
+    }
+    if (/[IJ1\|']/i.test(ch)) {
+      units += Math.max(0.3, baseUnit - 0.22);
+      continue;
+    }
+    if (/[.,:;!]/.test(ch)) {
+      units += 0.24;
+      continue;
+    }
+    units += baseUnit;
+  }
+  return units;
+}
+
+function fitTitleSizeToArc(input: {
+  text: string;
+  fontKey: VinylParams['titleFont'];
+  preferredSize: number;
+  minSize: number;
+  maxSize: number;
+  arcRadius: number;
+  arcSpanDeg: number;
+  letterSpacing: number;
+}): number {
+  const preferred = clamp(input.preferredSize, input.minSize, input.maxSize);
+  const raw = (input.text || '').trim();
+  if (!raw) return preferred;
+
+  const title = raw.toUpperCase();
+  const arcLength = (Math.PI * 2 * input.arcRadius * input.arcSpanDeg) / 360;
+  const usableLength = Math.max(0, arcLength * 0.92);
+  const spacingTotal = Math.max(0, title.length - 1) * input.letterSpacing;
+  const glyphUnits = estimateTitleGlyphUnits(title, input.fontKey);
+  if (glyphUnits <= 0) return preferred;
+
+  const fitted = (usableLength - spacingTotal) / glyphUnits;
+  if (!Number.isFinite(fitted)) return preferred;
+  return clamp(Math.min(preferred, fitted), input.minSize, input.maxSize);
+}
+
 function fontFamily(k: VinylParams['titleFont'] | VinylParams['namesFont'] | VinylParams['metaFont']): string {
   switch (k) {
     case 'prata':
@@ -188,11 +327,74 @@ function fontFamily(k: VinylParams['titleFont'] | VinylParams['namesFont'] | Vin
   }
 }
 
+type LyricsFontSpec = {
+  family: string;
+  weight: 300 | 400 | 500 | 600 | 700 | 800;
+  style?: 'normal' | 'italic';
+  uppercase?: boolean;
+};
+
+function lyricsFontSpec(preset: VinylParams['lyricsFontPreset']): LyricsFontSpec {
+  // Keep mappings aligned with available runtime fonts (public/fonts) so
+  // changing preset always changes the rendered lyric text.
+  switch (preset) {
+    case 'font-1':
+      return { family: "Prata, Georgia, 'Times New Roman', serif", weight: 400 };
+    case 'font-2':
+      return { family: "Georgia, 'Times New Roman', serif", weight: 400 };
+    case 'font-3':
+      return { family: "Allura, 'Great Vibes', cursive, ui-serif, Georgia, 'Times New Roman', serif", weight: 400 };
+    case 'font-4':
+      return { family: "Georgia, 'Times New Roman', serif", weight: 400, style: 'italic' };
+    case 'font-5':
+      return { family: "'Great Vibes', Allura, cursive, ui-serif, Georgia, 'Times New Roman', serif", weight: 400 };
+    case 'font-6':
+      return { family: "Prata, Georgia, 'Times New Roman', serif", weight: 400, style: 'italic' };
+    case 'font-7':
+      return { family: 'Signika, ui-sans-serif, system-ui, Arial, sans-serif', weight: 700 };
+    case 'font-8':
+      return { family: "Allura, 'Great Vibes', cursive, ui-serif, Georgia, 'Times New Roman', serif", weight: 400 };
+    case 'font-9':
+      return { family: 'Signika, ui-sans-serif, system-ui, Arial, sans-serif', weight: 500 };
+    case 'font-10':
+      return { family: "Prata, Georgia, 'Times New Roman', serif", weight: 500, uppercase: true };
+    case 'font-11':
+      return { family: 'Signika, ui-sans-serif, system-ui, Arial, sans-serif', weight: 800, uppercase: true };
+    case 'font-12':
+      return { family: "Prata, Georgia, 'Times New Roman', serif", weight: 700, uppercase: true };
+    case 'font-13':
+      return { family: "Georgia, 'Times New Roman', serif", weight: 300 };
+    case 'font-14':
+      return { family: "Georgia, 'Times New Roman', serif", weight: 400 };
+    case 'font-15':
+    default:
+      return { family: 'Signika, ui-sans-serif, system-ui, Arial, sans-serif', weight: 600 };
+  }
+}
+
+const VINYL_CANVAS_BY_SIZE: Record<VinylParams['size'], { W: number; H: number; margin: number; diskCyRatio: number }> = {
+  'us-letter': { W: 612, H: 792, margin: 46, diskCyRatio: 0.34 },
+  a4: { W: 595, H: 842, margin: 48, diskCyRatio: 0.33 },
+  '11x14': { W: 792, H: 1008, margin: 56, diskCyRatio: 0.35 },
+  a3: { W: 842, H: 1191, margin: 62, diskCyRatio: 0.35 },
+  '12x12': { W: 864, H: 864, margin: 58, diskCyRatio: 0.42 },
+  '12x16': { W: 864, H: 1152, margin: 60, diskCyRatio: 0.36 },
+  '16x20': { W: 1152, H: 1440, margin: 72, diskCyRatio: 0.36 },
+  a2: { W: 1191, H: 1684, margin: 86, diskCyRatio: 0.35 },
+  '18x24': { W: 1296, H: 1728, margin: 80, diskCyRatio: 0.36 },
+  '20x20': { W: 1440, H: 1440, margin: 72, diskCyRatio: 0.42 },
+  a1: { W: 1701, H: 3024, margin: 110, diskCyRatio: 0.34 },
+  '24x32': { W: 1728, H: 2304, margin: 96, diskCyRatio: 0.36 },
+  square: { W: 1024, H: 1024, margin: 70, diskCyRatio: 0.42 }
+};
+
 export function renderVinylPosterSvg(req: VinylRequest): string {
   const v = req.vinyl;
+  const showDisk = v.showDisk !== false;
+  const showCenterLabel = v.showCenterLabel !== false;
   const size = v.size;
-  const W = size === '16x20' ? 16 * 72 : size === '20x20' ? 20 * 72 : size === 'square' ? 1024 : 595;
-  const H = size === '16x20' ? 20 * 72 : size === '20x20' ? 20 * 72 : size === 'square' ? 1024 : 842;
+  const dims = VINYL_CANVAS_BY_SIZE[size] ?? VINYL_CANVAS_BY_SIZE['16x20'];
+  const { W, H, margin, diskCyRatio } = dims;
 
   const palette = getPalette(v.palette);
   const inkRgb = hexToRgb(v.inkColor || '');
@@ -214,20 +416,25 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     }
   }
 
-  const margin = size === '16x20' || size === '20x20' ? 72 : size === 'square' ? 70 : 48;
-  const diskDiameter = clamp(v.diskDiameter, 260, Math.min(W, H) - 2 * margin);
-  const diskR = diskDiameter / 2;
   const diskCx = W / 2;
-  const diskCy = size === 'square' ? H * 0.42 : size === 'a4' ? H * 0.33 : H * 0.36;
+  const diskCy = H * diskCyRatio;
+  // Keep the disk fully inside poster bounds for every size.
+  const maxDiskRByX = Math.min(diskCx - margin, W - margin - diskCx);
+  const maxDiskRByY = Math.min(diskCy - margin, H - margin - diskCy);
+  const maxDiskR = Math.max(1, Math.min(maxDiskRByX, maxDiskRByY));
+  const minDiskR = Math.min(130, maxDiskR);
+  const diskR = clamp(v.diskDiameter / 2, minDiskR, maxDiskR);
+  const diskDiameter = diskR * 2;
 
   const innerGrooveR = diskR * 0.62;
   const labelR = diskR * 0.26;
   const holeR = Math.max(6, diskR * 0.03);
 
-  const ringCountMax = clamp(Math.round(v.ringCountMax), 1, 16);
-  const ringFontSize = clamp(v.ringFontSize, 8, 28);
+  const ringCountMax = Math.max(1, Math.round(v.ringCountMax));
+  const ringFontSize = clamp(v.ringFontSize, 10, 34);
   const ringLineGap = clamp(v.ringLineGap, 0, 16);
   const ringLetterSpacing = clamp(v.ringLetterSpacing, -2, 20);
+  const backgroundImage = (v.backgroundImageDataUrl || '').trim();
   const diskImage = (v.recordImageDataUrl || '').trim();
   const labelImage = (v.labelImageDataUrl || '').trim();
   // Many uploaded record photos include a thin gray studio/background margin.
@@ -235,90 +442,142 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const recordImageScale = diskImage ? 1.12 : 1;
   const recordImageR = diskR * recordImageScale;
 
-  const flowText = (v.outerText || '').trim();
-  const hasManualLines = flowText.includes('\n');
-  const rawLines = hasManualLines ? wrapTextToLines(flowText, 120) : [];
-  const ringLines = hasManualLines ? rawLines.slice(0, ringCountMax) : [];
+  const flowText = normalizeLyricsInput(v.outerText || '');
 
-  const lineHeight = ringFontSize + ringLineGap;
-  // Keep lyric rings visibly on the dark vinyl surface, not on the outer paper/background.
-  const ringOuterInset = clamp(ringFontSize * 2.4 + Math.max(0, ringLetterSpacing) * 1.1 + (diskImage ? 14 : 10), 34, 96);
-  const ringStartR = diskR - ringOuterInset;
+  // Keep lyric rings on the vinyl surface and build from inner to outer.
+  const ringOuterInset = clamp(ringFontSize * 1.8 + Math.max(0, ringLetterSpacing) * 1.0 + (diskImage ? 12 : 10), 24, 82);
+  // Start as close to center label as possible without overlap.
+  const ringInnerInset = clamp(ringFontSize * 0.72 + Math.max(0, ringLetterSpacing) * 0.25 + 3, 7, 28);
+  const baseCenterR = showCenterLabel ? labelR : Math.max(holeR * 2, diskR * 0.02);
+  const ringMinR = baseCenterR + ringInnerInset;
+  const ringMaxR = diskR - ringOuterInset;
+  const ringSpan = Math.max(0, ringMaxR - ringMinR);
 
   const defs: string[] = [];
-  const ringText: string[] = [];
+  let spiralLyricsText = '';
 
-  // Vinyl disk colors (disc is always dark; text/lines adapt for contrast).
-  const diskFill = '#0b0b0d';
-  const diskInk = effectiveInkRgb && relativeLuminance(effectiveInkRgb) < 0.42 ? '#f6f6f7' : palette.ink;
-  const diskMutedInk = diskInk === palette.ink ? palette.mutedInk : 'rgba(246,246,247,0.40)';
-  const ringFill = relativeLuminance(hexToRgb(diskInk) || { r: 246, g: 246, b: 247 }) < 0.5 ? '#f2f2f4' : diskInk;
-  const ringStroke = diskImage ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.30)';
-  const ringStrokeWidth = diskImage ? 0.95 : 0.75;
+  // Placeholder record: plain black disk until real vinyl image files are provided.
+  const diskFill = '#060607';
+  const customLyricsRgb = hexToRgb(v.lyricsTextColor || '');
+  const ringFill = customLyricsRgb
+    ? `#${(v.lyricsTextColor || '').trim().replace(/^#/, '').toLowerCase()}`
+    : showDisk
+      ? '#f2f2f4'
+      : palette.ink;
+  const ringFillLum = (() => {
+    const rgb = hexToRgb(ringFill);
+    return rgb ? relativeLuminance(rgb) : 0.5;
+  })();
+  const ringStroke = showDisk ? 'rgba(0,0,0,0.44)' : ringFillLum > 0.55 ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.18)';
+  const ringStrokeWidth = showDisk ? 0.95 : 0.45;
+  const lyricsSpec = lyricsFontSpec(v.lyricsFontPreset);
 
-  const grooves: string[] = [];
-  const grooveStart = labelR * 1.2;
-  const grooveEnd = diskR - 24;
-  const grooveStep = 6.0;
-  for (let rr = grooveStart; rr <= grooveEnd; rr += grooveStep) {
-    const a = 0.02 + 0.015 * (Math.sin(rr * 0.06) * 0.5 + 0.5);
-    grooves.push(
-      `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${rr.toFixed(2)}" fill="none" stroke="rgba(255,255,255,${a.toFixed(3)})" stroke-width="1"/>`
-    );
-  }
+  // Keep font size, letter spacing and line gap visually stable.
+  // Ring count only adds more turns outward with fixed radial pitch.
+  // Do not cap by disk radius; overflow is allowed so user can tune manually.
+  const radialPitch = Math.max(1, ringFontSize * 0.62 + ringLineGap * 0.9);
+  const spiralTurns = ringCountMax;
+  const spiralEndR = ringMinR + spiralTurns * radialPitch;
+  if (flowText && ringSpan > 2 && spiralTurns > 0.2) {
+    const spiralPathId = 'lyricsSpiralPath';
+    const spiral = buildSpiralPath({
+      cx: diskCx,
+      cy: diskCy,
+      startRadius: ringMinR,
+      endRadius: spiralEndR,
+      turns: spiralTurns
+    });
+    defs.push(`<path id="${spiralPathId}" d="${spiral.d}"/>`);
 
-  for (let i = 0; i < ringLines.length; i++) {
-    const r = ringStartR - i * lineHeight;
-    if (r <= innerGrooveR + 8) break;
-    const id = `ringPath${i}`;
-    defs.push(`<path id="${id}" d="${circlePathD(diskCx, diskCy, r)}"/>`);
+    // Build word-safe lyric text, then constrain the final visible end of the
+    // outer ring near top center (compass 340°..020° window).
+    const charAdvance = Math.max(4.2, ringFontSize * 0.56 + Math.max(0, ringLetterSpacing) * 0.95);
+    const spaceAdvance = Math.max(1.8, charAdvance * 0.46);
+    const approxChars = Math.max(48, Math.floor((spiral.length * 0.972) / charAdvance));
+    const minChars = Math.floor(approxChars * 0.84);
+    const { chunk } = buildFlowingRingText({ text: flowText, targetChars: approxChars, minChars, start: 0 });
+    const stripTrailingPunctuation = (s: string) => s.replace(/[,\.;:!?'"`’”)\]]+\s*$/g, '').trim();
+    let baseText = stripTrailingPunctuation(chunk || flowText);
+    if (baseText) {
+      const estimateAdvance = (s: string) => {
+        let d = 0;
+        for (let i = 0; i < s.length; i++) {
+          d += /\s/.test(s[i]) ? spaceAdvance : charAdvance;
+        }
+        return d;
+      };
 
-    const approxChars = Math.max(80, Math.floor((2 * Math.PI * r) / (ringFontSize * 0.6)));
-    const text = repeatToMinLength(ringLines[i], approxChars);
+      // End window target for outermost ring:
+      // 340°..020° compass ~= ±20° around top. Convert to path-length window.
+      const endWindowDeg = 20;
+      const endWindowPx = (Math.PI * 2 * Math.max(1, spiralEndR) * endWindowDeg) / 360;
+      const minEndDistance = Math.max(0, spiral.length - endWindowPx);
+      const maxEndDistance = spiral.length + endWindowPx;
 
-    ringText.push(
-      `<text fill="${ringFill}" stroke="${ringStroke}" stroke-width="${ringStrokeWidth.toFixed(2)}" paint-order="stroke" opacity="0.93" font-size="${ringFontSize.toFixed(2)}" letter-spacing="${ringLetterSpacing.toFixed(2)}" font-family="${fontFamily('sans')}" font-weight="600">` +
-      `<textPath href="#${id}" startOffset="50%" text-anchor="middle">${svgEscape(text)}</textPath>` +
-      `</text>`
-    );
-  }
+      let endDistance = estimateAdvance(baseText);
+      if (endDistance > maxEndDistance) {
+        const words = baseText.split(/\s+/).filter(Boolean);
+        while (words.length > 1 && estimateAdvance(words.join(' ')) > maxEndDistance) {
+          words.pop();
+        }
+        baseText = stripTrailingPunctuation(words.join(' '));
+        endDistance = estimateAdvance(baseText);
+      }
 
-  // Auto-flow mode: split the lyrics into consecutive chunks for each ring.
-  if (!hasManualLines) {
-    let cursor = 0;
-    for (let i = 0; i < ringCountMax; i++) {
-      const r = ringStartR - i * lineHeight;
-      if (r <= innerGrooveR + 8) break;
-      const id = `ringPath${defs.length}`;
-      defs.push(`<path id="${id}" d="${circlePathD(diskCx, diskCy, r)}"/>`);
-      const approxChars = Math.max(90, Math.floor((2 * Math.PI * r) / (ringFontSize * 0.6)));
-      const { chunk, next } = buildFlowingRingText({ text: flowText, targetChars: approxChars, start: cursor });
-      if (!chunk) break;
-      cursor = next;
-      const text = repeatToMinLength(chunk, approxChars);
-      ringText.push(
-        `<text fill="${ringFill}" stroke="${ringStroke}" stroke-width="${ringStrokeWidth.toFixed(2)}" paint-order="stroke" opacity="0.93" font-size="${ringFontSize.toFixed(2)}" letter-spacing="${ringLetterSpacing.toFixed(2)}" font-family="${fontFamily('sans')}" font-weight="600">` +
-        `<textPath href="#${id}" startOffset="50%" text-anchor="middle">${svgEscape(text)}</textPath>` +
-        `</text>`
-      );
+      if (endDistance < minEndDistance) {
+        const padCount = Math.min(1200, Math.ceil((minEndDistance - endDistance) / spaceAdvance));
+        if (padCount > 0) {
+          // Only pad with NBSP so visible ending stays on a whole word.
+          baseText += '\u00a0'.repeat(padCount);
+        }
+      }
     }
+    const text = lyricsSpec.uppercase ? baseText.toUpperCase() : baseText;
+    spiralLyricsText =
+      `<text fill="${ringFill}" stroke="${ringStroke}" stroke-width="${ringStrokeWidth.toFixed(2)}" paint-order="stroke" opacity="0.93" font-size="${ringFontSize.toFixed(2)}" letter-spacing="${ringLetterSpacing.toFixed(2)}" font-family="${lyricsSpec.family}" font-weight="${lyricsSpec.weight}" font-style="${lyricsSpec.style ?? 'normal'}">` +
+      `<textPath href="#${spiralPathId}" startOffset="0%" text-anchor="start">${svgEscape(text)}</textPath>` +
+      `</text>`;
   }
 
-  const labelFill = '#efe3cf';
-  const labelPaper = bgRgb && relativeLuminance(bgRgb) > 0.62 ? '#f3e8d7' : '#e7d9c5';
+  const labelBaseFill = '#ffffff';
   const labelEdgeStrokeW = Math.max(3, labelR * 0.07);
   const labelInnerStrokeW = Math.max(1.2, labelR * 0.014);
   const labelHubR = Math.max(holeR * 2.9, labelR * 0.29);
   const labelHubStrokeW = Math.max(1.6, labelR * 0.017);
   const labelDividerY = diskCy;
+  const titleFontSize = clamp(v.titleFontSize, 8, 120);
   const titleArcWidth = clamp(v.titleArcWidth, 0.45, 0.95);
-  const labelTitleArcR = labelR * titleArcWidth;
-  const labelTitleY = diskCy - labelR * 0.10;
-  const titleArcCurvature = clamp(v.titleArcCurvature, 0.15, 1.4);
-  const labelTitleArcControlY = labelTitleY - labelR * titleArcCurvature;
+  const labelOuterGuideR = labelR - labelEdgeStrokeW * 0.45;
+  const labelInnerGuideR = labelR * 0.78;
+  // IMPORTANT: Keep this placement stable.
+  // Product requirement:
+  // 1) Compute the "current title arc" as midpoint(outer guide ring, hub guide ring).
+  // 2) Then move one step inward by taking midpoint(current title arc, hub guide ring).
+  //
+  // This is the exact position requested by design review:
+  // - visually lower than the old outer-biased arc
+  // - centered in the target band near the hub
+  // - should not be "simplified" back to midpoint(outer, inner guide)
+  //
+  // If this ever changes, re-verify against the approved screenshot where
+  // "LOVE YOU" sits closer to the inner center circle.
+  const titleHubGuideR = labelHubR + labelHubStrokeW * 0.5;
+  const titleArcCurrentR = (labelOuterGuideR + titleHubGuideR) * 0.5;
+  const labelTitleArcR = (titleArcCurrentR + titleHubGuideR) * 0.5;
+  const arcWidthT = (titleArcWidth - 0.45) / (0.95 - 0.45);
+  const titleArcSpanDeg = 94 + arcWidthT * 62;
+  const titleArcHalfSpan = titleArcSpanDeg * 0.5;
+  const labelTitleArcStartDeg = 270 - titleArcHalfSpan;
+  const labelTitleArcEndDeg = 270 + titleArcHalfSpan;
   const labelTitleArcId = 'labelTitleArc';
   defs.push(
-    `<path id="${labelTitleArcId}" d="M ${(diskCx - labelTitleArcR).toFixed(2)} ${labelTitleY.toFixed(2)} Q ${diskCx.toFixed(2)} ${labelTitleArcControlY.toFixed(2)} ${(diskCx + labelTitleArcR).toFixed(2)} ${labelTitleY.toFixed(2)}"/>`
+    `<path id="${labelTitleArcId}" d="${arcPathD({
+      cx: diskCx,
+      cy: diskCy,
+      r: labelTitleArcR,
+      startDeg: labelTitleArcStartDeg,
+      endDeg: labelTitleArcEndDeg
+    })}"/>`
   );
 
   const title = (v.title || '').trim();
@@ -326,9 +585,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const artist = (v.artist || '').trim();
   const names = v.names || '';
   const dateLine = v.dateLine || '';
-  const showCenterGuides = !!v.showCenterGuides;
 
-  const titleFontSize = clamp(v.titleFontSize, 10, 120);
   const namesFontSize = clamp(v.namesFontSize, 10, 120);
   const dateFontSize = clamp(v.dateFontSize, 8, 80);
   const centerMetaFontSize = clamp(v.metaFontSize, 8, 80);
@@ -343,7 +600,17 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const namesFont = fontFamily(v.namesFont);
   const dateFont = fontFamily(v.dateFont);
   const centerMetaFont = fontFamily(v.metaFont);
-  const centerTitleSize = clamp(titleFontSize, 12, labelR * 0.52);
+  const centerTitlePreferredSize = clamp(titleFontSize, 8, labelR * 0.52);
+  const centerTitleSize = fitTitleSizeToArc({
+    text: title,
+    fontKey: v.titleFont,
+    preferredSize: centerTitlePreferredSize,
+    minSize: 8,
+    maxSize: labelR * 0.52,
+    arcRadius: labelTitleArcR,
+    arcSpanDeg: titleArcSpanDeg,
+    letterSpacing: 0.5
+  });
   const centerSongSize = clamp(centerMetaFontSize, 10, labelR * 0.28);
   const centerArtistSize = clamp(centerMetaFontSize * 0.72, 8, labelR * 0.20);
 
@@ -356,31 +623,26 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
 
   const centerText: string[] = [];
   let cy = diskCy + labelR * 0.46;
-  if (title) {
+  if (showCenterLabel && title) {
     centerText.push(
       `<text fill="rgba(0,0,0,0.88)" font-size="${centerTitleSize.toFixed(2)}" letter-spacing="0.5" font-family="${titleFont}" font-weight="800">` +
       `<textPath href="#${labelTitleArcId}" startOffset="50%" text-anchor="middle">${svgEscape(title.toUpperCase())}</textPath>` +
       `</text>`
     );
   }
-  if (songTitle) {
+  if (showCenterLabel && songTitle) {
     centerText.push(
       `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${centerSongSize.toFixed(2)}" fill="rgba(0,0,0,0.86)" text-anchor="middle" font-family="${centerMetaFont}" font-weight="700" letter-spacing="0.6">${svgEscape(songTitle.toUpperCase())}</text>`
     );
     cy += centerSongSize * 1.18;
   }
-  if (artist) {
+  if (showCenterLabel && artist) {
     centerText.push(
       `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${centerArtistSize.toFixed(2)}" fill="rgba(0,0,0,0.62)" text-anchor="middle" font-family="${centerMetaFont}" font-weight="700" letter-spacing="0.5">${svgEscape(artist.toUpperCase())}</text>`
     );
   }
 
-  const centerGuides = showCenterGuides
-    ? [
-        `<line x1="${(diskCx - labelR).toFixed(2)}" y1="${diskCy.toFixed(2)}" x2="${(diskCx + labelR).toFixed(2)}" y2="${diskCy.toFixed(2)}" stroke="rgba(0,0,0,0.28)" stroke-width="1"/>`,
-        `<line x1="${diskCx.toFixed(2)}" y1="${(diskCy - labelR).toFixed(2)}" x2="${diskCx.toFixed(2)}" y2="${(diskCy + labelR).toFixed(2)}" stroke="rgba(0,0,0,0.28)" stroke-width="1"/>`
-      ].join('')
-    : '';
+  const centerGuides = '';
 
   const texture = v.backgroundTexture ?? 'solid';
   const textureOverlays: string[] = [];
@@ -395,6 +657,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect x="0" y="0" width="${W}" height="${H}" fill="${palette.bg}"/>
+  ${backgroundImage ? `<image href="${svgEscape(backgroundImage)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : ''}
   ${textureOverlays.join('\n  ')}
   <defs>
     <filter id="texNoise" x="-20%" y="-20%" width="140%" height="140%">
@@ -423,40 +686,6 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
         0 0 0 0.25 0" result="m" />
       <feGaussianBlur in="m" stdDeviation="0.45" />
     </filter>
-    <filter id="labelPaper" x="-15%" y="-15%" width="130%" height="130%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" seed="11" result="n" />
-      <feColorMatrix in="n" type="matrix" values="
-        1 0 0 0 0
-        0 1 0 0 0
-        0 0 1 0 0
-        0 0 0 0.20 0" />
-      <feGaussianBlur stdDeviation="0.35" />
-    </filter>
-    <filter id="labelDust" x="-15%" y="-15%" width="130%" height="130%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves="2" seed="17" result="n" />
-      <feColorMatrix in="n" type="matrix" values="
-        0 0 0 0 0.22
-        0 0 0 0 0.14
-        0 0 0 0 0.08
-        0 0 0 0.24 0" result="d" />
-      <feGaussianBlur in="d" stdDeviation="0.25" />
-    </filter>
-    <radialGradient id="labelTint" cx="48%" cy="44%" r="64%">
-      <stop offset="0%" stop-color="#f0e3cf"/>
-      <stop offset="62%" stop-color="#e6d3ba"/>
-      <stop offset="100%" stop-color="#cfb89b"/>
-    </radialGradient>
-    <radialGradient id="discGrad" cx="38%" cy="35%" r="70%">
-      <stop offset="0%" stop-color="#1a1b1f"/>
-      <stop offset="38%" stop-color="#0f1014"/>
-      <stop offset="72%" stop-color="#0b0b0d"/>
-      <stop offset="100%" stop-color="#050506"/>
-    </radialGradient>
-    <radialGradient id="discVignette" cx="50%" cy="50%" r="50%">
-      <stop offset="58%" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="82%" stop-color="#000000" stop-opacity="0.14"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.56"/>
-    </radialGradient>
     <clipPath id="clipDisc">
       <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}"/>
     </clipPath>
@@ -467,47 +696,48 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   </defs>
 
   <g>
-    <g clip-path="url(#clipDisc)">
+    ${
+      showDisk
+        ? `<g clip-path="url(#clipDisc)">
       ${
         diskImage
           ? `<image href="${svgEscape(diskImage)}" x="${(diskCx - recordImageR).toFixed(2)}" y="${(diskCy - recordImageR).toFixed(2)}" width="${(recordImageR * 2).toFixed(2)}" height="${(recordImageR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" opacity="1"/>`
-          : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="url(#discGrad)" opacity="0.98"/>`
+          : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="${diskFill}"/>`
       }
-      ${diskImage ? `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(innerGrooveR * 0.98).toFixed(2)}" fill="rgba(0,0,0,0.20)"/>` : ''}
-      ${diskImage ? '' : grooves.join('\n      ')}
-      <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="url(#discVignette)"/>
-      ${ringText.join('\n      ')}
-      ${diskImage ? '' : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(diskR * 0.92).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="18"/>`}
-    </g>
+    </g>`
+        : ''
+    }
+    ${spiralLyricsText}
 
     ${
-      diskImage
-        ? ''
-        : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="none" stroke="rgba(6,6,8,0.92)" stroke-width="9"/>`
+      showDisk
+        ? `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.86)" stroke-width="8"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(diskR - 10).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>`
+        : ''
     }
-    ${
-      diskImage
-        ? ''
-        : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(diskR - 16).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.11)" stroke-width="2.3"/>`
-    }
-    ${diskImage ? '' : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${innerGrooveR.toFixed(2)}" fill="none" stroke="${diskMutedInk}" stroke-width="1.1" opacity="0.35"/>`}
 
     ${
-      labelImage
-        ? `<g clip-path="url(#clipLabel)"><image href="${svgEscape(labelImage)}" x="${(diskCx - labelR).toFixed(2)}" y="${(diskCy - labelR).toFixed(2)}" width="${(labelR * 2).toFixed(2)}" height="${(labelR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice"/></g>`
-        : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="${labelPaper}" opacity="0.98" filter="url(#labelPaper)"/>`
+      showCenterLabel
+        ? labelImage
+          ? `<g clip-path="url(#clipLabel)"><image href="${svgEscape(labelImage)}" x="${(diskCx - labelR).toFixed(2)}" y="${(diskCy - labelR).toFixed(2)}" width="${(labelR * 2).toFixed(2)}" height="${(labelR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice"/></g>`
+          : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="${labelBaseFill}"/>`
+        : ''
     }
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="url(#labelTint)" opacity="${labelImage ? '0.60' : '0.95'}"/>
-    <g clip-path="url(#clipLabel)">
-      <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="${labelFill}" opacity="${labelImage ? '0.10' : '0.18'}" filter="url(#labelDust)"/>
-    </g>
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(labelR - labelEdgeStrokeW * 0.45).toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.82)" stroke-width="${labelEdgeStrokeW.toFixed(2)}"/>
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${(labelR * 0.78).toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.40)" stroke-width="${labelInnerStrokeW.toFixed(2)}"/>
-    <line x1="${(diskCx - labelR * 0.94).toFixed(2)}" y1="${labelDividerY.toFixed(2)}" x2="${(diskCx + labelR * 0.94).toFixed(2)}" y2="${labelDividerY.toFixed(2)}" stroke="rgba(0,0,0,0.62)" stroke-width="${Math.max(1.2, labelR * 0.016).toFixed(2)}"/>
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelHubR.toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.58)" stroke-width="${labelHubStrokeW.toFixed(2)}"/>
+    ${
+      showCenterLabel
+        ? `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelOuterGuideR.toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.88)" stroke-width="${labelEdgeStrokeW.toFixed(2)}"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelInnerGuideR.toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="${labelInnerStrokeW.toFixed(2)}"/>
+    <line x1="${(diskCx - labelR * 0.94).toFixed(2)}" y1="${labelDividerY.toFixed(2)}" x2="${(diskCx + labelR * 0.94).toFixed(2)}" y2="${labelDividerY.toFixed(2)}" stroke="rgba(0,0,0,0.66)" stroke-width="${Math.max(1.2, labelR * 0.016).toFixed(2)}"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelHubR.toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.62)" stroke-width="${labelHubStrokeW.toFixed(2)}"/>`
+        : ''
+    }
     ${centerGuides}
     ${centerText.join('\n    ')}
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${holeR.toFixed(2)}" fill="${diskFill}" stroke="rgba(0,0,0,0.55)" stroke-width="2"/>
+    ${
+      showCenterLabel
+        ? `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${holeR.toFixed(2)}" fill="${diskFill}" stroke="rgba(0,0,0,0.55)" stroke-width="2"/>`
+        : ''
+    }
   </g>
 
   <g>
