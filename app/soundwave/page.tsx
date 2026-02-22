@@ -737,6 +737,7 @@ export default function SoundwavePage() {
         <nav className="menu">
           <a href="/ourskymap">Sky Map</a>
           <a href="/vinyl">Vinyl</a>
+          <a href="/image">T-Shirt Design</a>
           <a href="/soundwave">Soundwave</a>
         </nav>
       </header>
