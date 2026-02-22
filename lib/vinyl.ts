@@ -471,6 +471,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const ringStroke = showDisk ? 'rgba(0,0,0,0.44)' : ringFillLum > 0.55 ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.18)';
   const ringStrokeWidth = showDisk ? 0.95 : 0.45;
   const lyricsSpec = lyricsFontSpec(v.lyricsFontPreset);
+  const lyricsCase = v.lyricsTextCase ?? 'original';
 
   // Keep font size, letter spacing and line gap visually stable.
   // Ring count only adds more turns outward with fixed radial pitch.
@@ -532,7 +533,8 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
         }
       }
     }
-    const text = lyricsSpec.uppercase ? baseText.toUpperCase() : baseText;
+    const text =
+      lyricsCase === 'upper' ? baseText.toUpperCase() : lyricsCase === 'lower' ? baseText.toLowerCase() : baseText;
     spiralLyricsText =
       `<text fill="${ringFill}" stroke="${ringStroke}" stroke-width="${ringStrokeWidth.toFixed(2)}" paint-order="stroke" opacity="0.93" font-size="${ringFontSize.toFixed(2)}" letter-spacing="${ringLetterSpacing.toFixed(2)}" font-family="${lyricsSpec.family}" font-weight="${lyricsSpec.weight}" font-style="${lyricsSpec.style ?? 'normal'}">` +
       `<textPath href="#${spiralPathId}" startOffset="0%" text-anchor="start">${svgEscape(text)}</textPath>` +
@@ -622,7 +624,9 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const dateY = belowAnchorY + dateYOffset;
 
   const centerText: string[] = [];
-  let cy = diskCy + labelR * 0.46;
+  // Keep song title clear of inner hub ring with a subtle downward offset.
+  const centerSongYOffset = clamp(labelR * 0.05, 2, 6);
+  let cy = diskCy + labelR * 0.46 + centerSongYOffset;
   if (showCenterLabel && title) {
     centerText.push(
       `<text fill="rgba(0,0,0,0.88)" font-size="${centerTitleSize.toFixed(2)}" letter-spacing="0.5" font-family="${titleFont}" font-weight="800">` +
