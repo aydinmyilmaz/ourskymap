@@ -39,6 +39,14 @@ __pycache__/
 !public/logo_ourskymap_round.png
 !public/poster-type-single.png
 !public/poster-type-companion.png
+!public/vinyl/
+!public/vinyl/backgrounds/
+!public/vinyl/labels/
+!public/vinyl/backgrounds/*.jpg
+!public/vinyl/backgrounds/*.jpeg
+!public/vinyl/backgrounds/*.webp
+!public/vinyl/labels/*.png
+!public/vinyl/labels/*.webp
 
 # Local caches / downloads
 *.bsp

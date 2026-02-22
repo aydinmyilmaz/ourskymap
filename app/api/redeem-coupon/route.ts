@@ -45,6 +45,16 @@ function isSimulationCoupon(orderCode: string): boolean {
 
 const MOON_ASSET_PATH_REGEX = /\/(?:moon_(?:gold|silver)\.png|moon-phases\/(?:gold|silver)\/(?:[1-9]|[12]\d|30)\.png)/g;
 const SAFE_MOON_ASSET_REL_PATH_REGEX = /^(?:moon_(?:gold|silver)\.png|moon-phases\/(?:gold|silver)\/(?:[1-9]|[12]\d|30)\.png)$/;
+const VINYL_ASSET_PATH_REGEX = /\/vinyl\/(?:backgrounds|labels)\/[a-zA-Z0-9._-]+\.(?:png|jpe?g|webp)/g;
+const SAFE_VINYL_ASSET_REL_PATH_REGEX = /^vinyl\/(?:backgrounds|labels)\/[a-zA-Z0-9._-]+\.(?:png|jpe?g|webp)$/i;
+
+function replaceAssetUrlRefs(svg: string, assetPath: string, replacement: string): string {
+  return svg
+    .replaceAll(`href="${assetPath}"`, `href="${replacement}"`)
+    .replaceAll(`href='${assetPath}'`, `href='${replacement}'`)
+    .replaceAll(`xlink:href="${assetPath}"`, `xlink:href="${replacement}"`)
+    .replaceAll(`xlink:href='${assetPath}'`, `xlink:href='${replacement}'`);
+}
 
 function listMoonAssetPaths(svg: string): string[] {
   return [...new Set(svg.match(MOON_ASSET_PATH_REGEX) ?? [])];
@@ -57,11 +67,7 @@ function withAbsoluteMoonUrls(svg: string, req: Request): string {
   let result = svg;
   for (const assetPath of listMoonAssetPaths(svg)) {
     const abs = `${base}${assetPath}`;
-    result = result
-      .replaceAll(`href="${assetPath}"`, `href="${abs}"`)
-      .replaceAll(`href='${assetPath}'`, `href='${abs}'`)
-      .replaceAll(`xlink:href="${assetPath}"`, `xlink:href="${abs}"`)
-      .replaceAll(`xlink:href='${assetPath}'`, `xlink:href='${abs}'`);
+    result = replaceAssetUrlRefs(result, assetPath, abs);
   }
   return result;
 }
@@ -87,11 +93,52 @@ function withEmbeddedMoonUrls(svg: string): string {
   for (const assetPath of listMoonAssetPaths(svg)) {
     const dataUri = getMoonImageDataUri(assetPath);
     if (!dataUri) continue;
-    result = result
-      .replaceAll(`href="${assetPath}"`, `href="${dataUri}"`)
-      .replaceAll(`href='${assetPath}'`, `href='${dataUri}'`)
-      .replaceAll(`xlink:href="${assetPath}"`, `xlink:href="${dataUri}"`)
-      .replaceAll(`xlink:href='${assetPath}'`, `xlink:href='${dataUri}'`);
+    result = replaceAssetUrlRefs(result, assetPath, dataUri);
+  }
+  return result;
+}
+
+function listVinylAssetPaths(svg: string): string[] {
+  return [...new Set(svg.match(VINYL_ASSET_PATH_REGEX) ?? [])];
+}
+
+function withAbsoluteVinylUrls(svg: string, req: Request): string {
+  const configuredBase = (process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
+  const requestBase = new URL(req.url).origin;
+  const base = configuredBase || requestBase;
+  let result = svg;
+  for (const assetPath of listVinylAssetPaths(svg)) {
+    const abs = `${base}${assetPath}`;
+    result = replaceAssetUrlRefs(result, assetPath, abs);
+  }
+  return result;
+}
+
+function inferImageMime(relPath: string): string {
+  if (relPath.endsWith('.png')) return 'image/png';
+  if (relPath.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
+function getVinylImageDataUri(assetPath: string): string | null {
+  const relPath = assetPath.replace(/^\/+/, '');
+  if (!SAFE_VINYL_ASSET_REL_PATH_REGEX.test(relPath)) return null;
+  try {
+    const absPath = path.join(process.cwd(), 'public', relPath);
+    const raw = readFileSync(absPath);
+    const mime = inferImageMime(relPath.toLowerCase());
+    return `data:${mime};base64,${raw.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+function withEmbeddedVinylUrls(svg: string): string {
+  let result = svg;
+  for (const assetPath of listVinylAssetPaths(svg)) {
+    const dataUri = getVinylImageDataUri(assetPath);
+    if (!dataUri) continue;
+    result = replaceAssetUrlRefs(result, assetPath, dataUri);
   }
   return result;
 }
@@ -446,7 +493,10 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-    if (!isCityDraft && !isVinylDraft && !isSoundwaveDraft) {
+    if (isVinylDraft) {
+      const embeddedVinylSvg = withEmbeddedVinylUrls(svg);
+      svg = embeddedVinylSvg !== svg ? embeddedVinylSvg : withAbsoluteVinylUrls(svg, req);
+    } else if (!isCityDraft && !isSoundwaveDraft) {
       const embeddedMoonSvg = withEmbeddedMoonUrls(svg);
       svg = embeddedMoonSvg !== svg ? embeddedMoonSvg : withAbsoluteMoonUrls(svg, req);
     }
