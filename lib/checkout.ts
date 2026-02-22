@@ -1,4 +1,4 @@
-import type { PosterRequest, VinylRequest } from './types';
+import type { PosterRequest, VinylRequest, SoundwaveRequest } from './types';
 import type { CityMapRequest } from './citymap';
 
 export const CHECKOUT_DRAFT_KEY = 'ourskymap_checkout_draft_v2';
@@ -84,8 +84,8 @@ export type CheckoutMapData = {
 
 export type CheckoutDraft = {
   createdAtIso: string;
-  productType?: 'sky' | 'city' | 'vinyl';
+  productType?: 'sky' | 'city' | 'vinyl' | 'soundwave';
   previewSvg: string;
-  renderRequest: PosterRequest | CityMapRequest | VinylRequest;
+  renderRequest: PosterRequest | CityMapRequest | VinylRequest | SoundwaveRequest;
   mapData: CheckoutMapData;
 };

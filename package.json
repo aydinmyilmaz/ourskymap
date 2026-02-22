@@ -19,6 +19,7 @@
     "mapbox-gl": "^3.18.1",
     "next": "^16.1.6",
     "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "replicate": "^1.4.0",
@@ -28,8 +29,10 @@
   "devDependencies": {
     "@types/luxon": "^3.7.1",
     "@types/node": "20.17.24",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "18.3.19",
     "@types/react-dom": "18.3.5",
+    "playwright": "^1.58.2",
     "typescript": "5.7.3"
   }
 }

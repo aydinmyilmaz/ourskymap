@@ -186,8 +186,9 @@ export default function CheckoutPage() {
   const [info, setInfo] = useState('');
   const isCity = draft?.productType === 'city';
   const isVinyl = draft?.productType === 'vinyl';
-  const productLabel = isCity ? 'city map' : isVinyl ? 'vinyl poster' : 'sky map';
-  const filePrefix = isCity ? 'citymap' : isVinyl ? 'vinylstudio' : 'ourskymap';
+  const isSoundwave = draft?.productType === 'soundwave';
+  const productLabel = isCity ? 'city map' : isVinyl ? 'vinyl poster' : isSoundwave ? 'soundwave poster' : 'sky map';
+  const filePrefix = isCity ? 'citymap' : isVinyl ? 'vinylstudio' : isSoundwave ? 'soundwave' : 'ourskymap';
 
   useEffect(() => {
     try {
@@ -204,6 +205,8 @@ export default function CheckoutPage() {
           router.replace('/citymap');
         } else if (parsed?.productType === 'vinyl') {
           router.replace('/vinyl');
+        } else if (parsed?.productType === 'soundwave') {
+          router.replace('/soundwave');
         } else {
           router.replace('/ourskymap');
         }
@@ -275,12 +278,22 @@ export default function CheckoutPage() {
       <div className="starsLayer" />
       <main className="container">
         <section className="left">
-          <h1>{isCity ? 'Your Custom City Map' : isVinyl ? 'Your Custom Vinyl Poster' : 'Your Custom Sky Map'}</h1>
+          <h1>
+            {isCity
+              ? 'Your Custom City Map'
+              : isVinyl
+                ? 'Your Custom Vinyl Poster'
+                : isSoundwave
+                  ? 'Your Custom Soundwave Poster'
+                  : 'Your Custom Sky Map'}
+          </h1>
           <p>
             {isCity
               ? 'Create your personalized city map and receive print-ready files instantly.'
               : isVinyl
                 ? 'Design your personalized vinyl poster and download print-ready files instantly.'
+                : isSoundwave
+                  ? 'Upload your audio, style the waveform, and download print-ready files instantly.'
                 : 'Capture your special moment under the stars with our personalized sky maps.'}
           </p>
           <div className="previewCard">
@@ -292,6 +305,8 @@ export default function CheckoutPage() {
                 ? 'High-quality digital city map design'
                 : isVinyl
                   ? 'High-quality digital vinyl poster design'
+                  : isSoundwave
+                    ? 'High-quality digital soundwave poster design'
                   : 'High-quality digital sky map design'}
             </li>
             <li>Instant download after purchase</li>

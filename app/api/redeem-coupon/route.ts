@@ -3,7 +3,8 @@ import { renderPosterSvg } from '../../../lib/poster';
 import type { CheckoutDraft } from '../../../lib/checkout';
 import { renderCityMapSvg, type CityMapRequest } from '../../../lib/citymap';
 import { renderVinylPosterSvg } from '../../../lib/vinyl';
-import type { PosterRequest, VinylRequest } from '../../../lib/types';
+import { renderSoundwavePosterSvg } from '../../../lib/soundwave';
+import type { PosterRequest, VinylRequest, SoundwaveRequest } from '../../../lib/types';
 import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 import JSZip from 'jszip';
 import sharp from 'sharp';
@@ -419,17 +420,20 @@ export async function POST(req: Request) {
 
     const isCityDraft = draft.productType === 'city';
     const isVinylDraft = draft.productType === 'vinyl';
+    const isSoundwaveDraft = draft.productType === 'soundwave';
     let svg = '';
     try {
       if (isCityDraft) {
         svg = await renderCityMapSvg(draft.renderRequest as CityMapRequest);
       } else if (isVinylDraft) {
         svg = renderVinylPosterSvg(draft.renderRequest as VinylRequest);
+      } else if (isSoundwaveDraft) {
+        svg = renderSoundwavePosterSvg(draft.renderRequest as SoundwaveRequest);
       } else {
         svg = renderPosterSvg(draft.renderRequest as PosterRequest);
       }
     } catch {
-      if (isCityDraft || isVinylDraft) {
+      if (isCityDraft || isVinylDraft || isSoundwaveDraft) {
         svg = draft.previewSvg;
       } else {
         throw new Error('Could not regenerate sky map for export. Please return to designer and try again.');
@@ -442,7 +446,7 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-    if (!isCityDraft && !isVinylDraft) {
+    if (!isCityDraft && !isVinylDraft && !isSoundwaveDraft) {
       const embeddedMoonSvg = withEmbeddedMoonUrls(svg);
       svg = embeddedMoonSvg !== svg ? embeddedMoonSvg : withAbsoluteMoonUrls(svg, req);
     }
@@ -465,7 +469,7 @@ export async function POST(req: Request) {
         svg: exportSvg,
         svgWidth: exportSvgW,
         svgHeight: exportSvgH,
-        allowSharpFallback: isCityDraft || isVinylDraft
+        allowSharpFallback: isCityDraft || isVinylDraft || isSoundwaveDraft
       });
       if (remoteRender) {
         png = remoteRender.png;
@@ -480,7 +484,7 @@ export async function POST(req: Request) {
         png = await renderSvgToPng(exportSvg, {
           svgWidth: exportSvgW,
           svgHeight: exportSvgH,
-          allowSharpFallback: isCityDraft || isVinylDraft
+          allowSharpFallback: isCityDraft || isVinylDraft || isSoundwaveDraft
         });
         pdf = await makePdfFromPng(png, exportSvgW, exportSvgH);
       }
@@ -488,13 +492,13 @@ export async function POST(req: Request) {
       png = await renderSvgToPng(exportSvg, {
         svgWidth: exportSvgW,
         svgHeight: exportSvgH,
-        allowSharpFallback: isCityDraft || isVinylDraft
+        allowSharpFallback: isCityDraft || isVinylDraft || isSoundwaveDraft
       });
       pdf = await makePdfFromPng(png, exportSvgW, exportSvgH);
     }
 
     const zip = new JSZip();
-    const filePrefix = isCityDraft ? 'citymap' : isVinylDraft ? 'vinylstudio' : 'ourskymap';
+    const filePrefix = isCityDraft ? 'citymap' : isVinylDraft ? 'vinylstudio' : isSoundwaveDraft ? 'soundwave' : 'ourskymap';
     zip.file(`${filePrefix}-${safeCode}.svg`, exportSvg);
     zip.file(`${filePrefix}-${safeCode}.png`, png);
     zip.file(`${filePrefix}-${safeCode}.pdf`, pdf);

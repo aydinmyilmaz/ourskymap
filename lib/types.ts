@@ -208,3 +208,81 @@ export type VinylParams = {
 export type VinylRequest = {
   vinyl: VinylParams;
 };
+
+export type SoundwaveParams = {
+  size:
+    | '4x6'
+    | '5x7'
+    | '6x9'
+    | '8x10'
+    | '11x14'
+    | '24x8'
+    | '16x20'
+    | '18x24'
+    | '30x10'
+    | '36x12'
+    | '42x14'
+    | '48x16'
+    | '54x18';
+  palette:
+    | 'multicolor-1'
+    | 'multicolor-2'
+    | 'multicolor-3'
+    | 'multicolor-4'
+    | 'multicolor-5'
+    | 'multicolor-6'
+    | 'multicolor-7'
+    | 'multicolor-8'
+    | 'multicolor-9'
+    | 'multicolor-10'
+    | 'gold'
+    | 'silver'
+    | 'emerald-green'
+    | 'black'
+    | 'white'
+    | 'sapphire'
+    | 'emerald'
+    | 'amethyst'
+    | 'iridescent'
+    | 'bronze'
+    | 'copper'
+    | 'ruby'
+    | 'onyx'
+    | 'seafoam'
+    | 'apple'
+    | 'cantaloupe'
+    | 'ocean'
+    | 'mauve'
+    | 'after-dark'
+    | 'magenta'
+    | 'peacock'
+    | 'spice'
+    | 'rainbow-1'
+    | 'rainbow-2'
+    | 'sunset';
+  fontPreset: 'f1' | 'f2' | 'f3' | 'f4' | 'f5' | 'f6' | 'f7' | 'f8';
+  textCase: 'original' | 'upper' | 'lower';
+  textColor: string;
+  title: string;
+  subtitle: string;
+  caption: string;
+  backgroundColor: string;
+  peaks: number[];
+  waveStyle: 'filled' | 'scanlines' | 'spikes' | 'brush-lines' | 'brush-spike';
+  qrMode: 'none' | 'qr' | 'picture' | 'picture-qr';
+  qrPosition?: 'bottom-right' | 'title-end';
+  qrContent: string;
+  qrImageDataUrl?: string;
+  showSpotifyCode?: boolean;
+  spotifyUri?: string;
+  spotifyCodeImageDataUrl?: string;
+  pictureImageDataUrl?: string;
+  waveHeight: number;
+  waveThickness: number;
+  waveformOpacity: number;
+  showFrame: boolean;
+};
+
+export type SoundwaveRequest = {
+  soundwave: SoundwaveParams;
+};
