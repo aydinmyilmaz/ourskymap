@@ -112,6 +112,12 @@ const LYRICS_TEXT_COLORS: Array<{ key: string; label: string }> = [
   { key: '#b27148', label: 'Copper' }
 ];
 
+const LYRICS_CASE_OPTIONS: Array<{ key: VinylParams['lyricsTextCase']; label: string }> = [
+  { key: 'original', label: 'Original' },
+  { key: 'upper', label: 'UPPERCASE' },
+  { key: 'lower', label: 'lowercase' }
+];
+
 const LEGACY_VINYL_LYRICS_PLACEHOLDER =
   'Put your lyrics here. The text will wrap into multiple rings around the record. You can paste multiple lines and we will distribute them from outside to inside.';
 
@@ -166,6 +172,7 @@ const defaultVinyl: VinylParams = {
   ringLetterSpacing: 1.2,
   ringLineGap: 3,
   title: 'YOUR TITLE HERE',
+  lyricsTextCase: 'original',
   songTitle: 'SONG TITLE',
   artist: 'ARTIST',
   outerText: STAND_BY_ME_LYRICS,
@@ -223,6 +230,7 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
   const vtx = sp.get('vtx');
   const vlf = sp.get('vlf');
   const vlc = sp.get('vlc');
+  const vlcs = sp.get('vlcs');
   const vdk = sp.get('vdk');
   const vcl = sp.get('vcl');
   const oldVinylLetterSpacing = parseNum(sp.get('vmls'), defaultVinyl.dateLetterSpacing);
@@ -236,6 +244,7 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
     inkColor: sp.get('vic') ?? defaultVinyl.inkColor,
     lyricsFontPreset: parseEnum(vlf, LYRICS_FONT_KEYS, defaultVinyl.lyricsFontPreset),
     lyricsTextColor: parseHexColor(vlc, defaultVinyl.lyricsTextColor),
+    lyricsTextCase: parseEnum(vlcs, ['original', 'upper', 'lower'] as const, defaultVinyl.lyricsTextCase),
     backgroundTexture: parseEnum(
       vtx,
       ['solid', 'paper', 'marble', 'noise'] as const,
@@ -289,6 +298,7 @@ function encodeVinylToQuery(v: VinylParams): string {
   sp.set('vic', v.inkColor);
   sp.set('vlf', v.lyricsFontPreset);
   sp.set('vlc', v.lyricsTextColor);
+  sp.set('vlcs', v.lyricsTextCase);
   sp.set('vtx', v.backgroundTexture);
   sp.set('vdd', String(v.diskDiameter));
   sp.set('vrc', String(v.ringCountMax));
@@ -997,6 +1007,18 @@ export default function VinylPage() {
                   {showAllLyricsFonts ? 'Compact' : 'Explore'}
                 </button>
               </div>
+              <div className="lyricsCaseRow" role="group" aria-label="Lyrics letter case">
+                {LYRICS_CASE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    className={`lyricsCaseBtn ${vinyl.lyricsTextCase === opt.key ? 'active' : ''}`}
+                    onClick={() => setVinyl((v) => ({ ...v, lyricsTextCase: opt.key }))}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               <div className="fontOptionGrid">
                 {visibleLyricsFontOptions.map((opt) => {
                   const active = vinyl.lyricsFontPreset === opt.key;
@@ -1687,6 +1709,37 @@ export default function VinylPage() {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 8px;
+        }
+
+        .lyricsCaseRow {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .lyricsCaseBtn {
+          min-height: 34px;
+          border-radius: 10px;
+          border: 1px solid #c8b9de;
+          background: #fff;
+          color: #4d356f;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          cursor: pointer;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+
+        .lyricsCaseBtn:hover {
+          border-color: #b79fd7;
+          background: #f8f4ff;
+        }
+
+        .lyricsCaseBtn.active {
+          border-color: #7b56c1;
+          box-shadow: inset 0 0 0 1px #7b56c1;
+          background: #f8f4ff;
+          color: #4d2f83;
         }
 
         .fontOptionBtn {
