@@ -315,7 +315,7 @@ function fontFamily(k: VinylParams['titleFont'] | VinylParams['namesFont'] | Vin
     case 'big-shoulders':
       return "'Big Shoulders Display', 'Arial Narrow', 'Franklin Gothic Medium', ui-sans-serif, Arial, sans-serif";
     case 'amsterdam-four':
-      return "'Amsterdam Four', 'Great Vibes', Allura, 'Brush Script MT', cursive";
+      return "'Amsterdam Four', 'Alex Brush', 'Great Vibes', Allura, 'Brush Script MT', cursive";
     case 'courier-prime':
       return "'Courier Prime', 'Courier New', Courier, 'Liberation Mono', monospace";
     case 'prata':
@@ -351,32 +351,32 @@ function lyricsFontSpec(preset: VinylParams['lyricsFontPreset']): LyricsFontSpec
     case 'font-2':
       return { family: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif", weight: 500 };
     case 'font-3':
-      return { family: "'Rage Italic', 'Brush Script MT', cursive", weight: 400, style: 'italic' };
+      return { family: "'Rage Italic', 'Rouge Script', 'Brush Script MT', cursive", weight: 400, style: 'italic' };
     case 'font-4':
-      return { family: "'Lucida Handwriting', 'Segoe Script', cursive", weight: 400 };
+      return { family: "'Lucida Handwriting', 'Dancing Script', 'Segoe Script', cursive", weight: 400 };
     case 'font-5':
-      return { family: "'Vladimir Script', 'Brush Script MT', cursive", weight: 400 };
+      return { family: "'Vladimir Script', Parisienne, 'Brush Script MT', cursive", weight: 400 };
     case 'font-6':
-      return { family: "'Ink Free', 'Segoe Script', cursive", weight: 500 };
+      return { family: "'Ink Free', 'Patrick Hand', 'Segoe Script', cursive", weight: 500 };
     case 'font-7':
-      return { family: "'Viner Hand ITC', 'Brush Script MT', cursive", weight: 500 };
+      return { family: "'Viner Hand ITC', 'Permanent Marker', 'Brush Script MT', cursive", weight: 500 };
     case 'font-8':
-      return { family: "'Pristina', 'Segoe Script', cursive", weight: 500 };
+      return { family: "'Pristina', Satisfy, 'Segoe Script', cursive", weight: 500 };
     case 'font-9':
-      return { family: "'Bodoni MT', Didot, 'Times New Roman', serif", weight: 500 };
+      return { family: "'Bodoni MT', 'Bodoni Moda', Didot, 'Times New Roman', serif", weight: 500 };
     case 'font-10':
-      return { family: "'Felix Titling', 'Copperplate Gothic Light', serif", weight: 600, uppercase: true };
+      return { family: "'Felix Titling', Cinzel, 'Copperplate Gothic Light', serif", weight: 600, uppercase: true };
     case 'font-11':
-      return { family: "'Engravers MT', 'Copperplate Gothic Bold', serif", weight: 700, uppercase: true };
+      return { family: "'Engravers MT', 'Cinzel Decorative', 'Copperplate Gothic Bold', serif", weight: 700, uppercase: true };
     case 'font-12':
-      return { family: "'Algerian', 'Copperplate Gothic Bold', serif", weight: 700, uppercase: true };
+      return { family: "'Algerian', 'Almendra Display', 'Copperplate Gothic Bold', serif", weight: 700, uppercase: true };
     case 'font-13':
-      return { family: "'Harrington', 'Book Antiqua', serif", weight: 500 };
+      return { family: "'Harrington', 'Marcellus SC', 'Book Antiqua', serif", weight: 500 };
     case 'font-14':
-      return { family: "'Imprint MT Shadow', 'Book Antiqua', serif", weight: 500 };
+      return { family: "'Imprint MT Shadow', 'Bungee Shade', 'Book Antiqua', serif", weight: 500 };
     case 'font-15':
     default:
-      return { family: "'Poor Richard', 'Palatino Linotype', serif", weight: 500 };
+      return { family: "'Poor Richard', 'IM Fell English SC', 'Palatino Linotype', serif", weight: 500 };
   }
 }
 

@@ -84,19 +84,19 @@ const LYRICS_FONT_KEYS = LYRICS_FONT_OPTIONS.map((o) => o.key) as readonly Vinyl
 const LYRICS_FONT_PREVIEW_FAMILY: Record<VinylParams['lyricsFontPreset'], string> = {
   'font-1': "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
   'font-2': "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
-  'font-3': "'Rage Italic', 'Brush Script MT', cursive",
-  'font-4': "'Lucida Handwriting', 'Segoe Script', cursive",
-  'font-5': "'Vladimir Script', 'Brush Script MT', cursive",
-  'font-6': "'Ink Free', 'Segoe Script', cursive",
-  'font-7': "'Viner Hand ITC', 'Brush Script MT', cursive",
-  'font-8': "'Pristina', 'Segoe Script', cursive",
-  'font-9': "'Bodoni MT', Didot, 'Times New Roman', serif",
-  'font-10': "'Felix Titling', 'Copperplate Gothic Light', serif",
-  'font-11': "'Engravers MT', 'Copperplate Gothic Bold', serif",
-  'font-12': "'Algerian', 'Copperplate Gothic Bold', serif",
-  'font-13': "'Harrington', 'Book Antiqua', serif",
-  'font-14': "'Imprint MT Shadow', 'Book Antiqua', serif",
-  'font-15': "'Poor Richard', 'Palatino Linotype', serif"
+  'font-3': "'Rage Italic', 'Rouge Script', 'Brush Script MT', cursive",
+  'font-4': "'Lucida Handwriting', 'Dancing Script', 'Segoe Script', cursive",
+  'font-5': "'Vladimir Script', Parisienne, 'Brush Script MT', cursive",
+  'font-6': "'Ink Free', 'Patrick Hand', 'Segoe Script', cursive",
+  'font-7': "'Viner Hand ITC', 'Permanent Marker', 'Brush Script MT', cursive",
+  'font-8': "'Pristina', Satisfy, 'Segoe Script', cursive",
+  'font-9': "'Bodoni MT', 'Bodoni Moda', Didot, 'Times New Roman', serif",
+  'font-10': "'Felix Titling', Cinzel, 'Copperplate Gothic Light', serif",
+  'font-11': "'Engravers MT', 'Cinzel Decorative', 'Copperplate Gothic Bold', serif",
+  'font-12': "'Algerian', 'Almendra Display', 'Copperplate Gothic Bold', serif",
+  'font-13': "'Harrington', 'Marcellus SC', 'Book Antiqua', serif",
+  'font-14': "'Imprint MT Shadow', 'Bungee Shade', 'Book Antiqua', serif",
+  'font-15': "'Poor Richard', 'IM Fell English SC', 'Palatino Linotype', serif"
 };
 
 const LYRICS_TEXT_COLORS: Array<{ key: string; label: string }> = [

@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import JSZip from 'jszip';
 import sharp from 'sharp';
 import { PDFDocument } from 'pdf-lib';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { LOCAL_FONT_ASSETS } from '../../../lib/local-font-assets';
 
 export const runtime = 'nodejs';
 
@@ -13,30 +14,16 @@ const DEFAULT_MAX_EXPORT_PIXELS = Number.parseInt(process.env.EXPORT_MAX_PIXELS 
 const MAX_SVG_CHARS = 12_000_000;
 const RENDER_SHARED_SECRET = (process.env.RENDER_SHARED_SECRET ?? '').trim();
 
-type LocalFontAsset = {
-  family: string;
-  weight: number;
-  style: 'normal' | 'italic';
-  fileName: string;
-};
-
-const POSTER_FONT_ASSETS: LocalFontAsset[] = [
-  { family: 'Allura', weight: 400, style: 'normal', fileName: 'Allura-Regular.ttf' },
-  { family: 'Great Vibes', weight: 400, style: 'normal', fileName: 'GreatVibes-Regular.ttf' },
-  { family: 'Prata', weight: 400, style: 'normal', fileName: 'Prata-Regular.ttf' },
-  { family: 'Signika', weight: 400, style: 'normal', fileName: 'Signika-Regular.ttf' },
-  { family: 'Signika', weight: 500, style: 'normal', fileName: 'Signika-Medium.ttf' },
-  { family: 'Signika', weight: 700, style: 'normal', fileName: 'Signika-Bold.ttf' }
-];
-
 function getPosterFontAbsolutePath(fileName: string): string {
   return path.join(process.cwd(), 'public', 'fonts', fileName);
 }
 
 function getPosterFontFilePaths(): string[] {
-  return POSTER_FONT_ASSETS
-    .map((asset) => getPosterFontAbsolutePath(asset.fileName))
-    .filter((absPath) => existsSync(absPath));
+  return [...new Set(
+    LOCAL_FONT_ASSETS
+      .map((asset) => getPosterFontAbsolutePath(asset.fileName))
+      .filter((absPath) => existsSync(absPath))
+  )];
 }
 
 type ResvgCtor = new (
@@ -115,6 +102,40 @@ async function renderSvgToPng(
     .toBuffer();
 }
 
+let embeddedPosterFontsCssCache: string | null | undefined;
+
+function getEmbeddedPosterFontsCss(): string {
+  if (embeddedPosterFontsCssCache !== undefined) return embeddedPosterFontsCssCache || '';
+  try {
+    const blocks: string[] = [];
+    for (const asset of LOCAL_FONT_ASSETS) {
+      const absPath = getPosterFontAbsolutePath(asset.fileName);
+      if (!existsSync(absPath)) continue;
+      const raw = readFileSync(absPath);
+      const dataUri = `data:font/ttf;base64,${raw.toString('base64')}`;
+      blocks.push(
+        `@font-face{font-family:'${asset.family}';font-style:${asset.style};font-weight:${asset.weight};font-display:swap;src:url(${dataUri}) format('truetype');}`
+      );
+    }
+    embeddedPosterFontsCssCache = blocks.join('\n');
+  } catch {
+    embeddedPosterFontsCssCache = '';
+  }
+  return embeddedPosterFontsCssCache || '';
+}
+
+function injectFontCssIntoSvg(svg: string, css: string): string {
+  const trimmed = css.trim();
+  if (!trimmed) return svg;
+  const styleNode = `<style><![CDATA[\n${trimmed}\n]]></style>`;
+  if (svg.includes('<defs>')) {
+    return svg.replace('<defs>', `<defs>\n${styleNode}`);
+  }
+  const svgOpenTag = svg.match(/<svg[^>]*>/i)?.[0];
+  if (!svgOpenTag) return svg;
+  return svg.replace(svgOpenTag, `${svgOpenTag}\n<defs>\n${styleNode}\n</defs>`);
+}
+
 async function makePdfFromPng(pngBuffer: Buffer, svgWidthPx: number, svgHeightPx: number): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
   const pageWidth = Math.max(72, svgWidthPx);
@@ -167,7 +188,10 @@ export async function POST(req: Request) {
       throw new Error('SVG payload is too large.');
     }
 
-    const png = await renderSvgToPng(svg, {
+    const embeddedFontsCss = getEmbeddedPosterFontsCss();
+    const svgWithFonts = injectFontCssIntoSvg(svg, embeddedFontsCss);
+
+    const png = await renderSvgToPng(svgWithFonts, {
       svgWidth: width,
       svgHeight: height,
       allowSharpFallback,

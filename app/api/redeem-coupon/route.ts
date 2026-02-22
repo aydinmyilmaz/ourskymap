@@ -4,6 +4,7 @@ import type { CheckoutDraft } from '../../../lib/checkout';
 import { renderCityMapSvg, type CityMapRequest } from '../../../lib/citymap';
 import { renderVinylPosterSvg } from '../../../lib/vinyl';
 import { renderSoundwavePosterSvg } from '../../../lib/soundwave';
+import { LOCAL_FONT_ASSETS } from '../../../lib/local-font-assets';
 import type { PosterRequest, VinylRequest, SoundwaveRequest } from '../../../lib/types';
 import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 import JSZip from 'jszip';
@@ -143,30 +144,16 @@ function withEmbeddedVinylUrls(svg: string): string {
   return result;
 }
 
-type LocalFontAsset = {
-  family: string;
-  weight: number;
-  style: 'normal' | 'italic';
-  fileName: string;
-};
-
-const POSTER_FONT_ASSETS: LocalFontAsset[] = [
-  { family: 'Allura', weight: 400, style: 'normal', fileName: 'Allura-Regular.ttf' },
-  { family: 'Great Vibes', weight: 400, style: 'normal', fileName: 'GreatVibes-Regular.ttf' },
-  { family: 'Prata', weight: 400, style: 'normal', fileName: 'Prata-Regular.ttf' },
-  { family: 'Signika', weight: 400, style: 'normal', fileName: 'Signika-Regular.ttf' },
-  { family: 'Signika', weight: 500, style: 'normal', fileName: 'Signika-Medium.ttf' },
-  { family: 'Signika', weight: 700, style: 'normal', fileName: 'Signika-Bold.ttf' }
-];
-
 function getPosterFontAbsolutePath(fileName: string): string {
   return path.join(process.cwd(), 'public', 'fonts', fileName);
 }
 
 function getPosterFontFilePaths(): string[] {
-  return POSTER_FONT_ASSETS
-    .map((asset) => getPosterFontAbsolutePath(asset.fileName))
-    .filter((absPath) => existsSync(absPath));
+  return [...new Set(
+    LOCAL_FONT_ASSETS
+      .map((asset) => getPosterFontAbsolutePath(asset.fileName))
+      .filter((absPath) => existsSync(absPath))
+  )];
 }
 
 type ResvgCtor = new (
@@ -244,7 +231,7 @@ function getEmbeddedPosterFontsCss(): string {
   if (embeddedPosterFontsCssCache !== undefined) return embeddedPosterFontsCssCache || '';
   try {
     const blocks: string[] = [];
-    for (const asset of POSTER_FONT_ASSETS) {
+    for (const asset of LOCAL_FONT_ASSETS) {
       const absPath = getPosterFontAbsolutePath(asset.fileName);
       if (!existsSync(absPath)) continue;
       const raw = readFileSync(absPath);
