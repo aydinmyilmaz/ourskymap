@@ -384,6 +384,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const v = req.vinyl;
   const showDisk = v.showDisk !== false;
   const showCenterLabel = v.showCenterLabel !== false;
+  const showRuler = v.showRuler === true;
   const size = v.size;
   const spec = getVinylLayoutPreset(size);
   const { W, H, topMargin, bottomMargin, leftMargin, rightMargin, recordDiameter } = spec;
@@ -583,8 +584,12 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const title = (v.title || '').trim();
   const songTitle = (v.songTitle || '').trim();
   const artist = (v.artist || '').trim();
-  const names = v.names || '';
-  const dateLine = v.dateLine || '';
+  const namesRaw = v.names || '';
+  const dateLineRaw = v.dateLine || '';
+  const namesUsesPlaceholder = namesRaw.trim().length === 0;
+  const dateUsesPlaceholder = dateLineRaw.trim().length === 0;
+  const names = namesUsesPlaceholder ? 'NAMES SURNAME' : namesRaw;
+  const dateLine = dateUsesPlaceholder ? 'CITY - DATE' : dateLineRaw;
 
   const namesFontSize = clamp(v.namesFontSize, 10, 120);
   const dateFontSize = clamp(v.dateFontSize, 8, 80);
@@ -620,7 +625,9 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const regionBottom = H - bottomMargin;
   const dateStackOffset = Math.max(0, dateLines.length - 1) * dateFontSize * dateLineSpacing;
   const namesStackOffset = Math.max(0, namesLines.length - 1) * namesFontSize * namesLineSpacing;
-  const namesGap = Math.max(14, dateFontSize * 0.9);
+  const baseNamesGap = Math.max(14, dateFontSize * 1.15, namesFontSize * 0.5);
+  const placeholderGapBoost = namesUsesPlaceholder || dateUsesPlaceholder ? Math.max(2, dateFontSize * 0.12) : 0;
+  const namesGap = baseNamesGap + placeholderGapBoost;
   const dateY = regionBottom - dateStackOffset + dateYOffset;
   const namesY = dateY - namesGap - namesStackOffset + namesYOffset;
 
@@ -648,6 +655,71 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   }
 
   const centerGuides = '';
+
+  const rulerOverlay = showRuler
+    ? (() => {
+      const cx = W / 2;
+      const cy = H / 2;
+      const stepPx = 7.2; // 0.1 in
+      const stepsV = Math.ceil((H / 2) / stepPx);
+      const stepsH = Math.ceil((W / 2) / stepPx);
+
+      const vTicks = Array.from({ length: stepsV * 2 + 1 }, (_, i) => {
+        const step = i - stepsV;
+        const y = cy + step * stepPx;
+        if (y < 0 || y > H) return '';
+        const abs = Math.abs(step);
+        const whole = abs % 10 === 0;
+        const half = abs % 5 === 0 && !whole;
+        const tickLen = whole ? 24 : half ? 16 : 8;
+        const stroke = whole ? '#ff5e57' : half ? '#ffd166' : '#66d9ff';
+        const width = whole ? 2.3 : half ? 1.7 : 1;
+        const sign = step < 0 ? '-' : step > 0 ? '+' : '';
+        const label = (whole || half) ? `${sign}${(abs / 10).toFixed(abs % 10 === 0 ? 0 : 1)}"` : '';
+        return `<line x1="${(cx - tickLen).toFixed(2)}" y1="${y.toFixed(2)}" x2="${(cx + tickLen).toFixed(2)}" y2="${y.toFixed(2)}" stroke="${stroke}" stroke-width="${width}" opacity="0.92"/>${label ? `<text x="${(cx + tickLen + 5).toFixed(2)}" y="${(y + 4).toFixed(2)}" font-size="10" fill="${stroke}" font-family="monospace" font-weight="700" stroke="#000" stroke-width="2.4" paint-order="stroke">${label}</text>` : ''}`;
+      }).join('');
+
+      const hTicks = Array.from({ length: stepsH * 2 + 1 }, (_, i) => {
+        const step = i - stepsH;
+        const x = cx + step * stepPx;
+        if (x < 0 || x > W) return '';
+        const abs = Math.abs(step);
+        const whole = abs % 10 === 0;
+        const half = abs % 5 === 0 && !whole;
+        const tickLen = whole ? 24 : half ? 16 : 8;
+        const stroke = whole ? '#ff5e57' : half ? '#ffd166' : '#66d9ff';
+        const width = whole ? 2.3 : half ? 1.7 : 1;
+        const sign = step < 0 ? '-' : step > 0 ? '+' : '';
+        const label = (whole || half) ? `${sign}${(abs / 10).toFixed(abs % 10 === 0 ? 0 : 1)}"` : '';
+        return `<line x1="${x.toFixed(2)}" y1="${(cy - tickLen).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(cy + tickLen).toFixed(2)}" stroke="${stroke}" stroke-width="${width}" opacity="0.92"/>${label ? `<text x="${(x - 12).toFixed(2)}" y="${(cy + tickLen + 14).toFixed(2)}" font-size="10" fill="${stroke}" font-family="monospace" font-weight="700" stroke="#000" stroke-width="2.4" paint-order="stroke">${label}</text>` : ''}`;
+      }).join('');
+
+      const specDiskR = recordDiameter / 2;
+      const specLabelR = specDiskR * 0.26;
+
+      const diskLabelY = diskCy - diskR - Math.max(18, diskR * 0.07);
+      const labelLabelY = diskCy + labelR + Math.max(18, labelR * 0.35);
+      const labelDiaHalf = labelR;
+      const diskDiaIn = (diskR * 2 / 72).toFixed(2);
+      return `<g id="measurement-ruler-vinyl" pointer-events="none">
+    <line x1="${cx.toFixed(2)}" y1="0" x2="${cx.toFixed(2)}" y2="${H.toFixed(2)}" stroke="#66d9ff" stroke-width="1.8" stroke-dasharray="3 7" opacity="0.86"/>
+    <line x1="0" y1="${cy.toFixed(2)}" x2="${W.toFixed(2)}" y2="${cy.toFixed(2)}" stroke="#66d9ff" stroke-width="1.8" stroke-dasharray="3 7" opacity="0.86"/>
+    ${vTicks}
+    ${hTicks}
+    <rect x="${innerLeft.toFixed(2)}" y="${topMargin.toFixed(2)}" width="${(innerRight - innerLeft).toFixed(2)}" height="${(H - topMargin - bottomMargin).toFixed(2)}" fill="none" stroke="#a6b7d4" stroke-width="1.1" stroke-dasharray="4 7" opacity="0.62"/>
+
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${specDiskR.toFixed(2)}" fill="none" stroke="#00eaff" stroke-width="2.4" stroke-dasharray="2 10" opacity="0.95"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="none" stroke="#ffd85f" stroke-width="2.4" stroke-dasharray="16 10" opacity="0.95"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${specLabelR.toFixed(2)}" fill="none" stroke="#ff78f6" stroke-width="2" stroke-dasharray="2 9" opacity="0.92"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="none" stroke="#91ff89" stroke-width="2" stroke-dasharray="11 8" opacity="0.92"/>
+
+    <line x1="${(diskCx - diskR).toFixed(2)}" y1="${diskCy.toFixed(2)}" x2="${(diskCx + diskR).toFixed(2)}" y2="${diskCy.toFixed(2)}" stroke="#ffd85f" stroke-width="2.2" opacity="0.96"/>
+    <text x="${(diskCx + diskR + 8).toFixed(2)}" y="${(diskCy - 5).toFixed(2)}" font-size="11" fill="#ffd85f" font-family="monospace" font-weight="700" stroke="#000" stroke-width="2.6" paint-order="stroke">disk ${diskDiaIn}"</text>
+    <line x1="${(diskCx - specDiskR).toFixed(2)}" y1="${diskLabelY.toFixed(2)}" x2="${(diskCx + specDiskR).toFixed(2)}" y2="${diskLabelY.toFixed(2)}" stroke="#00eaff" stroke-width="2.2" stroke-dasharray="8 7" opacity="0.96"/>
+    <line x1="${(diskCx - labelDiaHalf).toFixed(2)}" y1="${labelLabelY.toFixed(2)}" x2="${(diskCx + labelDiaHalf).toFixed(2)}" y2="${labelLabelY.toFixed(2)}" stroke="#91ff89" stroke-width="1.9" opacity="0.96"/>
+  </g>`;
+    })()
+    : '';
 
   const texture = v.backgroundTexture ?? 'solid';
   const textureOverlays: string[] = [];
@@ -752,7 +824,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       y: namesY,
       fontSize: namesFontSize,
       lineSpacing: namesLineSpacing,
-      fill: palette.accent,
+      fill: namesUsesPlaceholder ? palette.mutedInk : palette.accent,
       fontFamily: namesFont,
       letterSpacing: namesLetterSpacing
     })}
@@ -762,11 +834,12 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       y: dateY,
       fontSize: dateFontSize,
       lineSpacing: dateLineSpacing,
-      fill: palette.ink,
+      fill: dateUsesPlaceholder ? palette.mutedInk : palette.ink,
       fontFamily: dateFont,
       letterSpacing: dateLetterSpacing,
       fontWeight: 600
     })}
   </g>
+  ${rulerOverlay}
 </svg>`;
 }

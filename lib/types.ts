@@ -191,6 +191,7 @@ export type VinylParams = {
   showDisk: boolean;
   showCenterLabel: boolean;
   showCenterGuides: boolean;
+  showRuler: boolean;
   titleFont: VinylTitleFont;
   titleFontSize: number;
   titleArcCurvature: number;

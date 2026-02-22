@@ -122,6 +122,8 @@ const LYRICS_CASE_OPTIONS: Array<{ key: VinylParams['lyricsTextCase']; label: st
 
 const LEGACY_VINYL_LYRICS_PLACEHOLDER =
   'Put your lyrics here. The text will wrap into multiple rings around the record. You can paste multiple lines and we will distribute them from outside to inside.';
+const NAMES_CANVAS_PLACEHOLDER = 'NAMES SURNAME';
+const DATELINE_CANVAS_PLACEHOLDER = 'CITY - DATE';
 
 const STAND_BY_ME_LYRICS = `Verse 1
 When the night has come
@@ -174,6 +176,50 @@ function getSizeDrivenDefaults(size: VinylParams['size']) {
   >;
 }
 
+function clampNum(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function pxToIn(px: number): number {
+  return px / 72;
+}
+
+function getVinylRulerLogLines(v: VinylParams): string[] {
+  const spec = getVinylLayoutPreset(v.size);
+  const { W, H, topMargin, bottomMargin, leftMargin, rightMargin, recordDiameter } = spec;
+
+  const innerLeft = leftMargin;
+  const innerRight = W - rightMargin;
+  const diskCx = (innerLeft + innerRight) / 2;
+  const maxDiskRByX = Math.min(diskCx - innerLeft, innerRight - diskCx);
+  const maxDiskRByY = Math.max(1, (H - topMargin - bottomMargin) / 2);
+  const maxDiskR = Math.max(1, Math.min(maxDiskRByX, maxDiskRByY));
+  const minDiskR = Math.min(130, maxDiskR);
+  const requestedDiskDiameter =
+    Number.isFinite(v.diskDiameter) && v.diskDiameter > 0 ? v.diskDiameter : recordDiameter;
+  const diskR = clampNum(requestedDiskDiameter / 2, minDiskR, maxDiskR);
+  const labelR = diskR * 0.26;
+  const specLabelR = (recordDiameter / 2) * 0.26;
+
+  const titleSize = clampNum(v.titleFontSize, 8, 120);
+  const namesSize = clampNum(v.namesFontSize, 10, 120);
+  const dateSize = clampNum(v.dateFontSize, 8, 80);
+  const metaSize = clampNum(v.metaFontSize, 8, 80);
+  const songSize = clampNum(metaSize, 10, labelR * 0.28);
+  const artistSize = clampNum(metaSize * 0.75, 8, labelR * 0.2);
+
+  return [
+    `Canvas: ${pxToIn(W).toFixed(2)} x ${pxToIn(H).toFixed(2)} in`,
+    `Disk DIA req/app: ${pxToIn(recordDiameter).toFixed(2)} -> ${pxToIn(diskR * 2).toFixed(2)} in`,
+    `Label DIA req/app: ${pxToIn(specLabelR * 2).toFixed(2)} -> ${pxToIn(labelR * 2).toFixed(2)} in`,
+    `Title px req/app: ${spec.titleFontSize.toFixed(2)} -> ${titleSize.toFixed(2)}`,
+    `Song px req/app: ${spec.songFontSize.toFixed(2)} -> ${songSize.toFixed(2)}`,
+    `Artist px req/app: ${spec.artistFontSize.toFixed(2)} -> ${artistSize.toFixed(2)}`,
+    `Names px req/app: ${spec.namesFontSize.toFixed(2)} -> ${namesSize.toFixed(2)}`,
+    `Date px req/app: ${spec.dateFontSize.toFixed(2)} -> ${dateSize.toFixed(2)}`
+  ];
+}
+
 const defaultSize: VinylParams['size'] = '16x20';
 const defaultSizeDriven = getSizeDrivenDefaults(defaultSize);
 
@@ -202,6 +248,7 @@ const defaultVinyl: VinylParams = {
   showDisk: true,
   showCenterLabel: true,
   showCenterGuides: false,
+  showRuler: false,
   titleFont: 'big-shoulders',
   titleFontSize: defaultSizeDriven.titleFontSize,
   titleArcCurvature: 0.8,
@@ -290,6 +337,7 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
     showDisk: parseBool(vdk, defaultVinyl.showDisk),
     showCenterLabel: parseBool(vcl, defaultVinyl.showCenterLabel),
     showCenterGuides: false,
+    showRuler: parseBool(sp.get('vr'), defaultVinyl.showRuler),
     titleFont: parseEnum(sp.get('vtf'), ['big-shoulders', 'serif', 'sans', 'mono', 'prata'] as const, defaultVinyl.titleFont),
     titleFontSize: parseNum(sp.get('vtfs'), sizeDefaults.titleFontSize),
     titleArcCurvature: parseNum(sp.get('vtac'), defaultVinyl.titleArcCurvature),
@@ -344,6 +392,7 @@ function encodeVinylToQuery(v: VinylParams): string {
   sp.set('vdl', v.dateLine);
   sp.set('vdk', v.showDisk ? '1' : '0');
   sp.set('vcl', v.showCenterLabel ? '1' : '0');
+  sp.set('vr', v.showRuler ? '1' : '0');
   sp.set('vtf', v.titleFont);
   sp.set('vtfs', String(v.titleFontSize));
   sp.set('vtac', String(v.titleArcCurvature));
@@ -434,6 +483,8 @@ export default function VinylPage() {
   const activeLyricsFontLabel = useMemo(() => {
     return LYRICS_FONT_OPTIONS.find((x) => x.key === vinyl.lyricsFontPreset)?.label ?? '1 - Monospace';
   }, [vinyl.lyricsFontPreset]);
+
+  const rulerLogLines = useMemo(() => getVinylRulerLogLines(vinyl), [vinyl]);
 
   const previewBg = useMemo(() => {
     return `radial-gradient(1200px 700px at 10% -10%, #ffffff 0%, #eff3f9 32%, #dde4ef 100%)`;
@@ -680,6 +731,27 @@ export default function VinylPage() {
                   No Label
                 </button>
               </div>
+
+              <div className="fieldHead">
+                <label className="sizeCardLabel">Measurement Ruler</label>
+                <button
+                  type="button"
+                  className={`surfaceToggleBtn rulerToggleBtn ${vinyl.showRuler ? 'active' : ''}`}
+                  onClick={() => setVinyl((v) => ({ ...v, showRuler: !v.showRuler }))}
+                >
+                  {vinyl.showRuler ? 'On' : 'Off'}
+                </button>
+              </div>
+              <p className="controlHint">Shows dotted/dashed diameter guides and spec logs on the canvas.</p>
+              {vinyl.showRuler ? (
+                <div className="rulerLogPanel" aria-label="Vinyl ruler diagnostics">
+                  {rulerLogLines.map((line, idx) => (
+                    <p key={`${idx}:${line}`} className="rulerLogLine">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="stackField frameSection">
@@ -862,6 +934,7 @@ export default function VinylPage() {
                     className="compactTextarea"
                     rows={2}
                     value={vinyl.names}
+                    placeholder={NAMES_CANVAS_PLACEHOLDER}
                     onChange={(e) => setVinyl((v) => ({ ...v, names: e.target.value }))}
                   />
                 </div>
@@ -872,6 +945,7 @@ export default function VinylPage() {
                     className="compactTextarea"
                     rows={2}
                     value={vinyl.dateLine}
+                    placeholder={DATELINE_CANVAS_PLACEHOLDER}
                     onChange={(e) => setVinyl((v) => ({ ...v, dateLine: e.target.value }))}
                   />
                 </div>
@@ -2113,6 +2187,27 @@ export default function VinylPage() {
 
         .surfaceToggleBtn:hover {
           border-color: #b79fd7;
+        }
+
+        .rulerToggleBtn {
+          min-width: 72px;
+        }
+
+        .rulerLogPanel {
+          border: 1px dashed #c8b9de;
+          border-radius: 10px;
+          background: #ffffff;
+          padding: 8px;
+          display: grid;
+          gap: 4px;
+        }
+
+        .rulerLogLine {
+          margin: 0;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+          font-size: 11px;
+          line-height: 1.35;
+          color: #2e1f4a;
         }
 
         .inkPicker {
