@@ -576,8 +576,9 @@ export default function VinylPage() {
 
         <nav className="menu">
           <a href="/ourskymap">Sky Map</a>
-          <a href="/playground?view=vinyl">Playground</a>
+          <a href="/pricing">Pricing</a>
           <a href="/citymap">City Map</a>
+          <a href="/image">T-Shirt Design</a>
         </nav>
 
         <button type="button" className="cityMapCta cityMapCtaBtn" onClick={() => void handleCheckout()} disabled={checkoutBusy}>

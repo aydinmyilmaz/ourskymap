@@ -1154,8 +1154,10 @@ export default function DesignPage() {
         </div>
         <nav className="menu">
           <a href="/what-is-star-map">What is Sky Map?</a>
+          <a href="/vinyl">Vinyl</a>
+          <a href="/image">T-Shirt Design</a>
           <a href="/faq">FAQ</a>
-          <a href="#">Contact</a>
+          <a href="/contact">Contact</a>
           <a href="/blog">Blog</a>
         </nav>
         <a className="cityMapCta" href="/citymap">Try City Map</a>
