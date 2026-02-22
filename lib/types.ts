@@ -148,23 +148,43 @@ export type PosterRequest = {
 };
 
 export type VinylParams = {
-  size: 'a4' | 'square' | '16x20' | '20x20';
+  size: PosterParams['size'];
   palette: PosterParams['palette'];
   inkColor: string;
+  lyricsFontPreset:
+    | 'font-1'
+    | 'font-2'
+    | 'font-3'
+    | 'font-4'
+    | 'font-5'
+    | 'font-6'
+    | 'font-7'
+    | 'font-8'
+    | 'font-9'
+    | 'font-10'
+    | 'font-11'
+    | 'font-12'
+    | 'font-13'
+    | 'font-14'
+    | 'font-15';
   backgroundTexture: 'solid' | 'paper' | 'marble' | 'noise';
   recordImageDataUrl?: string;
   labelImageDataUrl?: string;
+  backgroundImageDataUrl?: string;
   diskDiameter: number;
   ringCountMax: number;
   ringFontSize: number;
   ringLetterSpacing: number;
   ringLineGap: number;
+  lyricsTextColor: string;
   title: string;
   songTitle: string;
   artist: string;
   outerText: string;
   names: string;
   dateLine: string;
+  showDisk: boolean;
+  showCenterLabel: boolean;
   showCenterGuides: boolean;
   titleFont: PosterParams['titleFont'];
   titleFontSize: number;
