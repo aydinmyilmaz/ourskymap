@@ -208,6 +208,8 @@ export type VinylParams = {
   dateLineSpacing: number;
   dateYOffset: number;
   metaFont: VinylMetaFont;
+  songFontSize: number;
+  artistFontSize: number;
   metaFontSize: number;
 };
 

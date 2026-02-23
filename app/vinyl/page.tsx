@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
 import { VINYL_BACKGROUND_PRESETS, VINYL_DISK_PRESETS } from '../../lib/vinyl-assets';
@@ -180,12 +180,22 @@ function getSizeDrivenDefaults(size: VinylParams['size']) {
     titleFontSize: preset.titleFontSize,
     namesFontSize: preset.namesFontSize,
     dateFontSize: preset.dateFontSize,
+    songFontSize: preset.songFontSize,
+    artistFontSize: preset.artistFontSize,
     metaFontSize: preset.songFontSize,
     namesYOffset: 0,
     dateYOffset: 0
   } satisfies Pick<
     VinylParams,
-    'diskDiameter' | 'titleFontSize' | 'namesFontSize' | 'dateFontSize' | 'metaFontSize' | 'namesYOffset' | 'dateYOffset'
+    | 'diskDiameter'
+    | 'titleFontSize'
+    | 'namesFontSize'
+    | 'dateFontSize'
+    | 'songFontSize'
+    | 'artistFontSize'
+    | 'metaFontSize'
+    | 'namesYOffset'
+    | 'dateYOffset'
   >;
 }
 
@@ -214,12 +224,11 @@ function getVinylRulerLogLines(v: VinylParams): string[] {
   const labelR = diskR * 0.26;
   const specLabelR = (recordDiameter / 2) * 0.26;
 
-  const titleSize = clampNum(v.titleFontSize, 8, 120);
-  const namesSize = clampNum(v.namesFontSize, 10, 120);
-  const dateSize = clampNum(v.dateFontSize, 8, 80);
-  const metaSize = clampNum(v.metaFontSize, 8, 80);
-  const songSize = clampNum(metaSize, 10, labelR * 0.28);
-  const artistSize = clampNum(metaSize * 0.75, 8, labelR * 0.2);
+  const titleSize = clampNum(v.titleFontSize, 8, 126);
+  const namesSize = clampNum(v.namesFontSize, 10, 144);
+  const dateSize = clampNum(v.dateFontSize, 8, 135);
+  const songSize = clampNum(v.songFontSize, 10, labelR * 0.42);
+  const artistSize = clampNum(v.artistFontSize, 8, labelR * 0.3);
 
   return [
     `Canvas: ${pxToIn(W).toFixed(2)} x ${pxToIn(H).toFixed(2)} in`,
@@ -249,13 +258,13 @@ const defaultVinyl: VinylParams = {
   backgroundImageDataUrl: '',
   diskDiameter: defaultSizeDriven.diskDiameter,
   ringCountMax: 9,
-  ringFontSize: 14,
-  ringLetterSpacing: 1.2,
-  ringLineGap: 3,
-  title: 'YOUR TITLE HERE',
+  ringFontSize: 16,
+  ringLetterSpacing: 1.3,
+  ringLineGap: 5,
+  title: 'OUR FIRST DANCE',
   lyricsTextCase: 'original',
-  songTitle: 'SONG TITLE',
-  artist: 'ARTIST',
+  songTitle: 'A LOVE STORY',
+  artist: 'ALICE SMITH',
   outerText: STAND_BY_ME_LYRICS,
   names: '',
   dateLine: '',
@@ -264,7 +273,7 @@ const defaultVinyl: VinylParams = {
   showCenterGuides: false,
   showRuler: false,
   titleFont: 'big-shoulders',
-  titleFontSize: defaultSizeDriven.titleFontSize,
+  titleFontSize: 56,
   titleArcCurvature: 0.8,
   titleArcWidth: 0.73,
   namesFont: 'amsterdam-four',
@@ -278,8 +287,19 @@ const defaultVinyl: VinylParams = {
   dateLineSpacing: 1.2,
   dateYOffset: defaultSizeDriven.dateYOffset,
   metaFont: 'big-shoulders',
+  songFontSize: defaultSizeDriven.songFontSize,
+  artistFontSize: defaultSizeDriven.artistFontSize,
   metaFontSize: defaultSizeDriven.metaFontSize
 };
+
+const VINYL_PARAM_KEYS = Object.keys(defaultVinyl) as Array<keyof VinylParams>;
+
+function areVinylParamsEqual(a: VinylParams, b: VinylParams): boolean {
+  for (const key of VINYL_PARAM_KEYS) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
 
 function parseNum(v: string | null, fallback: number): number {
   if (v === null) return fallback;
@@ -332,6 +352,9 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
   const oldVinylLetterSpacing = parseNum(sp.get('vmls'), defaultVinyl.dateLetterSpacing);
   const oldVinylLineSpacing = parseNum(sp.get('vmlh'), defaultVinyl.dateLineSpacing);
   const oldVinylYOffset = parseNum(sp.get('vmy'), sizeDefaults.dateYOffset);
+  const oldMetaFontSize = parseNum(sp.get('vmfs'), sizeDefaults.metaFontSize);
+  const parsedSongFontSize = parseNum(sp.get('vsfs'), oldMetaFontSize);
+  const parsedArtistFontSize = parseNum(sp.get('vafs'), clampNum(oldMetaFontSize * 0.75, 8, 160));
   const queryOuterText = (sp.get('vot') ?? '').trim();
 
   return {
@@ -392,7 +415,9 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
       ['big-shoulders', 'courier-prime', 'sans', 'serif', 'mono', 'signika'] as const,
       defaultVinyl.metaFont
     ),
-    metaFontSize: parseNum(sp.get('vmfs'), sizeDefaults.metaFontSize)
+    songFontSize: parsedSongFontSize,
+    artistFontSize: parsedArtistFontSize,
+    metaFontSize: parsedSongFontSize
   };
 }
 
@@ -436,7 +461,10 @@ function encodeVinylToQuery(v: VinylParams): string {
   sp.set('vdlh', String(v.dateLineSpacing));
   sp.set('vdy', String(v.dateYOffset));
   sp.set('vmf', v.metaFont);
-  sp.set('vmfs', String(v.metaFontSize));
+  sp.set('vsfs', String(v.songFontSize));
+  sp.set('vafs', String(v.artistFontSize));
+  // Legacy mirror: keep vmfs for backward compatibility with older shared URLs.
+  sp.set('vmfs', String(v.songFontSize));
   return sp.toString();
 }
 
@@ -470,18 +498,99 @@ async function downscaleImageToDataUrl(file: File, maxSize: number): Promise<str
   }
 }
 
+type DebouncedTextInputProps = {
+  value: string;
+  onCommit: (next: string) => void;
+  placeholder?: string;
+};
+
+const DebouncedTextInput = memo(function DebouncedTextInput({
+  value,
+  onCommit,
+  placeholder
+}: DebouncedTextInputProps) {
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (draft === value) return;
+    const timer = window.setTimeout(() => {
+      onCommit(draft);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [draft, value, onCommit]);
+
+  return (
+    <input
+      value={draft}
+      placeholder={placeholder}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        if (draft !== value) onCommit(draft);
+      }}
+    />
+  );
+});
+
+type DebouncedTextareaProps = {
+  value: string;
+  onCommit: (next: string) => void;
+  className?: string;
+  rows?: number;
+  placeholder?: string;
+};
+
+const DebouncedTextarea = memo(function DebouncedTextarea({
+  value,
+  onCommit,
+  className,
+  rows,
+  placeholder
+}: DebouncedTextareaProps) {
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (draft === value) return;
+    const timer = window.setTimeout(() => {
+      onCommit(draft);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [draft, value, onCommit]);
+
+  return (
+    <textarea
+      className={className}
+      rows={rows}
+      value={draft}
+      placeholder={placeholder}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        if (draft !== value) onCommit(draft);
+      }}
+    />
+  );
+});
+
 export default function VinylPage() {
   const router = useRouter();
   const [vinyl, setVinyl] = useState<VinylParams>(defaultVinyl);
+  const [lastRenderedVinyl, setLastRenderedVinyl] = useState<VinylParams>(defaultVinyl);
   const [vinylSvg, setVinylSvg] = useState('');
   const [error, setError] = useState('');
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [renderBusy, setRenderBusy] = useState(false);
   const [showAllBackgroundColors, setShowAllBackgroundColors] = useState(false);
   const [showAllLyricsFonts, setShowAllLyricsFonts] = useState(false);
   const [showAllLyricsColors, setShowAllLyricsColors] = useState(false);
 
   const backgroundInputRef = useRef<HTMLInputElement | null>(null);
-  const hasInitializedRef = useRef(false);
 
   const visiblePalettes = useMemo(() => {
     if (showAllBackgroundColors) return PALETTES;
@@ -512,6 +621,7 @@ export default function VinylPage() {
   }, [vinyl.lyricsFontPreset]);
 
   const rulerLogLines = useMemo(() => getVinylRulerLogLines(vinyl), [vinyl]);
+  const hasPendingPreviewChanges = useMemo(() => !areVinylParamsEqual(vinyl, lastRenderedVinyl), [vinyl, lastRenderedVinyl]);
 
   const previewBg = useMemo(() => {
     return `radial-gradient(1200px 700px at 10% -10%, #ffffff 0%, #eff3f9 32%, #dde4ef 100%)`;
@@ -527,24 +637,35 @@ export default function VinylPage() {
     return res.text();
   }, []);
 
-  const generateVinyl = useCallback(
-    async (reqVinyl: VinylParams, syncUrl = true) => {
+  const renderVinyl = useCallback(
+    async (reqVinyl: VinylParams, syncUrl = true): Promise<string> => {
       setError('');
+      setRenderBusy(true);
       try {
         const svg = await fetchVinylSvg(reqVinyl);
         setVinylSvg(svg);
+        setLastRenderedVinyl({ ...reqVinyl });
 
         if (syncUrl && typeof window !== 'undefined') {
           const qs = encodeVinylToQuery(reqVinyl);
           const nextPath = `${window.location.pathname}?${qs}`;
           window.history.replaceState(null, '', nextPath);
         }
-      } catch (e: any) {
-        setError(e?.message ?? String(e));
+        return svg;
+      } finally {
+        setRenderBusy(false);
       }
     },
     [fetchVinylSvg]
   );
+
+  const handlePreview = useCallback(async () => {
+    try {
+      await renderVinyl(vinyl, true);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    }
+  }, [renderVinyl, vinyl]);
 
   const persistCheckoutDraft = useCallback((draftRaw: string): boolean => {
     if (typeof window === 'undefined') return false;
@@ -568,12 +689,12 @@ export default function VinylPage() {
   }, []);
 
   const handleCheckout = useCallback(async () => {
-    if (checkoutBusy) return;
+    if (checkoutBusy || renderBusy) return;
     setCheckoutBusy(true);
     setError('');
     try {
-      const svg = await fetchVinylSvg(vinyl);
-      setVinylSvg(svg);
+      const canReuseCurrentPreview = !hasPendingPreviewChanges && vinylSvg.trim().startsWith('<');
+      const svg = canReuseCurrentPreview ? vinylSvg : await renderVinyl(vinyl, true);
       if (!svg.trim().startsWith('<')) {
         throw new Error('Preview is not ready yet. Please try again.');
       }
@@ -620,7 +741,16 @@ export default function VinylPage() {
     } finally {
       setCheckoutBusy(false);
     }
-  }, [checkoutBusy, fetchVinylSvg, persistCheckoutDraft, router, vinyl]);
+  }, [
+    checkoutBusy,
+    hasPendingPreviewChanges,
+    persistCheckoutDraft,
+    renderBusy,
+    renderVinyl,
+    router,
+    vinyl,
+    vinylSvg
+  ]);
 
   const applyDiskPreset = useCallback((src: string) => {
     setVinyl((v) => ({ ...v, recordImageDataUrl: src, showDisk: true }));
@@ -669,16 +799,14 @@ export default function VinylPage() {
     };
 
     setVinyl(next);
-    hasInitializedRef.current = true;
-  }, [generateVinyl]);
-
-  useEffect(() => {
-    if (!hasInitializedRef.current) return;
-    const timer = window.setTimeout(() => {
-      void generateVinyl(vinyl, true);
-    }, 120);
-    return () => window.clearTimeout(timer);
-  }, [vinyl, generateVinyl]);
+    void (async () => {
+      try {
+        await renderVinyl(next, false);
+      } catch (e: any) {
+        setError(e?.message ?? String(e));
+      }
+    })();
+  }, [renderVinyl]);
 
   return (
     <div className="designRoot">
@@ -713,7 +841,8 @@ export default function VinylPage() {
         </section>
 
         <aside className="rightPanel">
-          <div className="panelBlock sizeFrameBlock">
+          <div className="rightPanelScroll">
+            <div className="panelBlock sizeFrameBlock">
             <div className="cardTitleWrap">
               <p className="cardEyebrow">Setup</p>
               <h3 className="cardTitle">Canvas & Background</h3>
@@ -880,60 +1009,66 @@ export default function VinylPage() {
                 ))}
               </div>
             </div>
-          </div>
+            </div>
 
-          <div className="panelBlock softB contentCard">
+            <div className="panelBlock softB contentCard">
             <div className="cardTitleWrap">
               <p className="cardEyebrow">Typography</p>
               <h3 className="cardTitle">Label Text Settings</h3>
               <p className="cardSupport">Title, song, artist, names and date line in one card.</p>
             </div>
 
-            <div className="contentGrid">
-              <div className="stackField">
-                <label>Title</label>
-                <input value={vinyl.title} onChange={(e) => setVinyl((v) => ({ ...v, title: e.target.value }))} />
-              </div>
-
-              <div className="stackField twoCol">
+              <div className="contentGrid">
                 <div className="stackField">
-                  <label>Song</label>
-                  <input
-                    value={vinyl.songTitle}
-                    onChange={(e) => setVinyl((v) => ({ ...v, songTitle: e.target.value }))}
+                  <label>Title</label>
+                  <DebouncedTextInput
+                    value={vinyl.title}
+                    onCommit={(next) => setVinyl((v) => ({ ...v, title: next }))}
                   />
                 </div>
 
-                <div className="stackField">
-                  <label>Artist</label>
-                  <input value={vinyl.artist} onChange={(e) => setVinyl((v) => ({ ...v, artist: e.target.value }))} />
+                <div className="stackField twoCol">
+                  <div className="stackField">
+                    <label>Song</label>
+                    <DebouncedTextInput
+                      value={vinyl.songTitle}
+                      onCommit={(next) => setVinyl((v) => ({ ...v, songTitle: next }))}
+                    />
+                  </div>
+
+                  <div className="stackField">
+                    <label>Artist</label>
+                    <DebouncedTextInput
+                      value={vinyl.artist}
+                      onCommit={(next) => setVinyl((v) => ({ ...v, artist: next }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="compactMetaGrid">
+                  <div className="stackField">
+                    <label>Names</label>
+                    <DebouncedTextarea
+                      className="compactTextarea"
+                      rows={2}
+                      value={vinyl.names}
+                      placeholder={NAMES_CANVAS_PLACEHOLDER}
+                      onCommit={(next) => setVinyl((v) => ({ ...v, names: next }))}
+                    />
+                  </div>
+
+                  <div className="stackField">
+                    <label>Date Line</label>
+                    <DebouncedTextarea
+                      className="compactTextarea"
+                      rows={2}
+                      value={vinyl.dateLine}
+                      placeholder={DATELINE_CANVAS_PLACEHOLDER}
+                      onCommit={(next) => setVinyl((v) => ({ ...v, dateLine: next }))}
+                    />
+                  </div>
                 </div>
               </div>
-
-              <div className="compactMetaGrid">
-                <div className="stackField">
-                  <label>Names</label>
-                  <textarea
-                    className="compactTextarea"
-                    rows={2}
-                    value={vinyl.names}
-                    placeholder={NAMES_CANVAS_PLACEHOLDER}
-                    onChange={(e) => setVinyl((v) => ({ ...v, names: e.target.value }))}
-                  />
-                </div>
-
-                <div className="stackField">
-                  <label>Date Line</label>
-                  <textarea
-                    className="compactTextarea"
-                    rows={2}
-                    value={vinyl.dateLine}
-                    placeholder={DATELINE_CANVAS_PLACEHOLDER}
-                    onChange={(e) => setVinyl((v) => ({ ...v, dateLine: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
 
             <div className="signatureControlShell">
               <div className="fieldHead">
@@ -963,13 +1098,13 @@ export default function VinylPage() {
                       className="spinboxInput"
                       type="number"
                       min={8}
-                      max={84}
+                      max={126}
                       step={1}
                       value={Math.round(vinyl.titleFontSize)}
                       onChange={(e) => {
                         const n = Number(e.target.value);
                         if (!Number.isFinite(n)) return;
-                        setVinyl((v) => ({ ...v, titleFontSize: Math.max(8, Math.min(84, Math.round(n))) }));
+                        setVinyl((v) => ({ ...v, titleFontSize: Math.max(8, Math.min(126, Math.round(n))) }));
                       }}
                     />
                     <div className="spinboxButtons">
@@ -977,7 +1112,7 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, titleFontSize: Math.max(8, Math.min(84, Math.round(v.titleFontSize) + 1)) }))
+                          setVinyl((v) => ({ ...v, titleFontSize: Math.max(8, Math.min(126, Math.round(v.titleFontSize) + 1)) }))
                         }
                       >
                         +
@@ -986,7 +1121,94 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, titleFontSize: Math.max(8, Math.min(84, Math.round(v.titleFontSize) - 1)) }))
+                          setVinyl((v) => ({ ...v, titleFontSize: Math.max(8, Math.min(126, Math.round(v.titleFontSize) - 1)) }))
+                        }
+                      >
+                        -
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="stackField controlTile">
+                  <label>Song Size</label>
+                  <div className="spinbox">
+                    <input
+                      className="spinboxInput"
+                      type="number"
+                      min={8}
+                      max={120}
+                      step={1}
+                      value={Math.round(vinyl.songFontSize)}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        if (!Number.isFinite(n)) return;
+                        setVinyl((v) => {
+                          const next = Math.max(8, Math.min(120, Math.round(n)));
+                          return { ...v, songFontSize: next, metaFontSize: next };
+                        });
+                      }}
+                    />
+                    <div className="spinboxButtons">
+                      <button
+                        type="button"
+                        className="spinboxBtn"
+                        onClick={() =>
+                          setVinyl((v) => {
+                            const next = Math.max(8, Math.min(120, Math.round(v.songFontSize) + 1));
+                            return { ...v, songFontSize: next, metaFontSize: next };
+                          })
+                        }
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="spinboxBtn"
+                        onClick={() =>
+                          setVinyl((v) => {
+                            const next = Math.max(8, Math.min(120, Math.round(v.songFontSize) - 1));
+                            return { ...v, songFontSize: next, metaFontSize: next };
+                          })
+                        }
+                      >
+                        -
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="stackField controlTile">
+                  <label>Artist Size</label>
+                  <div className="spinbox">
+                    <input
+                      className="spinboxInput"
+                      type="number"
+                      min={8}
+                      max={120}
+                      step={1}
+                      value={Math.round(vinyl.artistFontSize)}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        if (!Number.isFinite(n)) return;
+                        setVinyl((v) => ({ ...v, artistFontSize: Math.max(8, Math.min(120, Math.round(n))) }));
+                      }}
+                    />
+                    <div className="spinboxButtons">
+                      <button
+                        type="button"
+                        className="spinboxBtn"
+                        onClick={() =>
+                          setVinyl((v) => ({ ...v, artistFontSize: Math.max(8, Math.min(120, Math.round(v.artistFontSize) + 1)) }))
+                        }
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="spinboxBtn"
+                        onClick={() =>
+                          setVinyl((v) => ({ ...v, artistFontSize: Math.max(8, Math.min(120, Math.round(v.artistFontSize) - 1)) }))
                         }
                       >
                         -
@@ -1018,13 +1240,13 @@ export default function VinylPage() {
                       className="spinboxInput"
                       type="number"
                       min={18}
-                      max={96}
+                      max={144}
                       step={1}
                       value={Math.round(vinyl.namesFontSize)}
                       onChange={(e) => {
                         const n = Number(e.target.value);
                         if (!Number.isFinite(n)) return;
-                        setVinyl((v) => ({ ...v, namesFontSize: Math.max(18, Math.min(96, Math.round(n))) }));
+                        setVinyl((v) => ({ ...v, namesFontSize: Math.max(18, Math.min(144, Math.round(n))) }));
                       }}
                     />
                     <div className="spinboxButtons">
@@ -1032,7 +1254,7 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, namesFontSize: Math.max(18, Math.min(96, Math.round(v.namesFontSize) + 1)) }))
+                          setVinyl((v) => ({ ...v, namesFontSize: Math.max(18, Math.min(144, Math.round(v.namesFontSize) + 1)) }))
                         }
                       >
                         +
@@ -1041,7 +1263,7 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, namesFontSize: Math.max(18, Math.min(96, Math.round(v.namesFontSize) - 1)) }))
+                          setVinyl((v) => ({ ...v, namesFontSize: Math.max(18, Math.min(144, Math.round(v.namesFontSize) - 1)) }))
                         }
                       >
                         -
@@ -1074,13 +1296,13 @@ export default function VinylPage() {
                       className="spinboxInput"
                       type="number"
                       min={10}
-                      max={90}
+                      max={135}
                       step={1}
                       value={Math.round(vinyl.dateFontSize)}
                       onChange={(e) => {
                         const n = Number(e.target.value);
                         if (!Number.isFinite(n)) return;
-                        setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(90, Math.round(n))) }));
+                        setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(135, Math.round(n))) }));
                       }}
                     />
                     <div className="spinboxButtons">
@@ -1088,7 +1310,7 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(90, Math.round(v.dateFontSize) + 1)) }))
+                          setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(135, Math.round(v.dateFontSize) + 1)) }))
                         }
                       >
                         +
@@ -1097,7 +1319,7 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(90, Math.round(v.dateFontSize) - 1)) }))
+                          setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(135, Math.round(v.dateFontSize) - 1)) }))
                         }
                       >
                         -
@@ -1124,9 +1346,9 @@ export default function VinylPage() {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
 
-          <div className="panelBlock softD lyricsCard">
+            <div className="panelBlock softD lyricsCard">
             <div className="cardTitleWrap">
               <p className="cardEyebrow">Typography</p>
               <h3 className="cardTitle">Lyrics Settings</h3>
@@ -1137,11 +1359,11 @@ export default function VinylPage() {
               <div className="fieldHead">
                 <label>Lyrics Text</label>
               </div>
-              <textarea
+              <DebouncedTextarea
                 className="lyricsEditor"
                 rows={8}
                 value={vinyl.outerText}
-                onChange={(e) => setVinyl((v) => ({ ...v, outerText: e.target.value }))}
+                onCommit={(next) => setVinyl((v) => ({ ...v, outerText: next }))}
               />
             </div>
 
@@ -1286,13 +1508,13 @@ export default function VinylPage() {
                       className="spinboxInput"
                       type="number"
                       min={10}
-                      max={34}
+                      max={51}
                       step={1}
                       value={Math.round(vinyl.ringFontSize)}
                       onChange={(e) => {
                         const n = Number(e.target.value);
                         if (!Number.isFinite(n)) return;
-                        setVinyl((v) => ({ ...v, ringFontSize: Math.max(10, Math.min(34, Math.round(n))) }));
+                        setVinyl((v) => ({ ...v, ringFontSize: Math.max(10, Math.min(51, Math.round(n))) }));
                       }}
                     />
                     <div className="spinboxButtons">
@@ -1300,7 +1522,7 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, ringFontSize: Math.max(10, Math.min(34, Math.round(v.ringFontSize) + 1)) }))
+                          setVinyl((v) => ({ ...v, ringFontSize: Math.max(10, Math.min(51, Math.round(v.ringFontSize) + 1)) }))
                         }
                       >
                         +
@@ -1309,7 +1531,7 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, ringFontSize: Math.max(10, Math.min(34, Math.round(v.ringFontSize) - 1)) }))
+                          setVinyl((v) => ({ ...v, ringFontSize: Math.max(10, Math.min(51, Math.round(v.ringFontSize) - 1)) }))
                         }
                       >
                         -
@@ -1406,14 +1628,34 @@ export default function VinylPage() {
                 </div>
               </div>
             </div>
+            </div>
+
+            <div className="panelBlock softC checkoutPanel">
+              <button
+                type="button"
+                className="checkoutBtn"
+                onClick={() => void handleCheckout()}
+                disabled={checkoutBusy || renderBusy}
+              >
+                {checkoutBusy ? 'Preparing...' : 'Checkout'}
+              </button>
+
+              {error ? <p className="error">{error}</p> : null}
+            </div>
           </div>
 
-          <div className="panelBlock softC">
-            <button type="button" className="checkoutBtn" onClick={() => void handleCheckout()} disabled={checkoutBusy}>
-              {checkoutBusy ? 'Preparing...' : 'Checkout'}
+          <div className="panelBlock softC previewDock">
+            <p className={`previewStatus ${hasPendingPreviewChanges ? 'dirty' : 'clean'}`}>
+              {hasPendingPreviewChanges ? 'Preview pending changes' : 'Preview up to date'}
+            </p>
+            <button
+              type="button"
+              className="previewBtn"
+              onClick={() => void handlePreview()}
+              disabled={checkoutBusy || renderBusy || !hasPendingPreviewChanges}
+            >
+              {renderBusy ? 'Rendering...' : hasPendingPreviewChanges ? 'Preview' : 'Previewed'}
             </button>
-
-            {error ? <p className="error">{error}</p> : null}
           </div>
         </aside>
       </main>
@@ -1549,12 +1791,16 @@ export default function VinylPage() {
           margin-top: 84px;
           display: grid;
           grid-template-columns: minmax(520px, 1fr) 430px;
+          grid-template-rows: minmax(0, 1fr);
+          align-items: stretch;
           overflow: hidden;
         }
 
         .previewPanel {
           display: grid;
           place-items: center;
+          justify-items: center;
+          align-items: center;
           padding: 28px;
           min-width: 0;
           min-height: 0;
@@ -1574,6 +1820,7 @@ export default function VinylPage() {
           box-shadow: 0 24px 80px rgba(10, 17, 32, 0.14);
           padding: clamp(12px, 2vw, 28px);
           overflow: hidden;
+          margin: 0 auto;
         }
 
         .emptyState {
@@ -1585,17 +1832,19 @@ export default function VinylPage() {
           width: 100%;
           height: 100%;
           min-height: 0;
-          display: grid;
-          place-items: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           overflow: hidden;
         }
 
         .svgMount :global(svg) {
-          width: 100%;
+          width: auto;
           height: 100%;
           max-width: 100%;
           max-height: 100%;
           display: block;
+          margin: 0 auto;
           filter: drop-shadow(0 18px 36px rgba(15, 20, 28, 0.24));
         }
 
@@ -1604,10 +1853,22 @@ export default function VinylPage() {
           background: linear-gradient(180deg, #e7ebf1 0%, #dee3ea 100%);
           border-left: 1px solid #cfd6e2;
           display: grid;
-          align-content: start;
-          gap: 16px;
+          grid-template-rows: minmax(0, 1fr) auto;
+          gap: 12px;
+          min-height: 0;
+          overflow: hidden;
+        }
+
+        .rightPanelScroll {
+          min-height: 0;
           overflow-y: auto;
           overflow-x: hidden;
+          display: grid;
+          align-content: start;
+          gap: 16px;
+          padding-right: 4px;
+          padding-bottom: 6px;
+          scrollbar-gutter: stable both-edges;
         }
 
         .panelBlock {
@@ -1634,6 +1895,17 @@ export default function VinylPage() {
         .panelBlock.softC {
           background: #f6faf7;
           border-color: #d2e1d7;
+        }
+
+        .checkoutPanel {
+          order: 4;
+        }
+
+        .previewDock {
+          z-index: 5;
+          background: rgba(246, 250, 247, 0.97);
+          box-shadow: 0 -8px 18px rgba(15, 23, 42, 0.08);
+          border-color: #c8d8cd;
         }
 
         .panelBlock.softD {
@@ -2018,9 +2290,9 @@ export default function VinylPage() {
           gap: 10px;
         }
 
-        input,
-        textarea,
-        select {
+        .designRoot :global(input),
+        .designRoot :global(textarea),
+        .designRoot :global(select) {
           width: 100%;
           max-width: 100%;
           border: 1px solid #cdd2da;
@@ -2033,7 +2305,7 @@ export default function VinylPage() {
           outline: none;
         }
 
-        textarea {
+        .designRoot :global(textarea) {
           min-height: 96px;
           padding: 12px 14px;
           resize: vertical;
@@ -2386,6 +2658,41 @@ export default function VinylPage() {
           gap: 8px;
         }
 
+        .previewStatus {
+          margin: 0;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+        }
+
+        .previewStatus.clean {
+          color: #0f5132;
+        }
+
+        .previewStatus.dirty {
+          color: #92400e;
+        }
+
+        .previewBtn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          border: 1px solid #295ad6;
+          border-radius: 12px;
+          min-height: 46px;
+          font-size: 16px;
+          font-weight: 700;
+          background: #edf3ff;
+          color: #1d3f99;
+          cursor: pointer;
+        }
+
+        .previewBtn:disabled {
+          opacity: 0.7;
+          cursor: default;
+        }
+
         .checkoutBtn {
           display: inline-flex;
           align-items: center;
@@ -2461,6 +2768,7 @@ export default function VinylPage() {
             height: auto;
             display: grid;
             grid-template-columns: 1fr;
+            grid-template-rows: none;
             overflow: visible;
           }
 
@@ -2479,6 +2787,15 @@ export default function VinylPage() {
             padding: 14px;
             border-left: 0;
             border-top: 1px solid #cfd6e2;
+            padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+            grid-template-rows: auto auto;
+            overflow: visible;
+          }
+
+          .rightPanelScroll {
+            overflow: visible;
+            padding-right: 0;
+            padding-bottom: 0;
           }
 
           .fieldGroup {
@@ -2515,6 +2832,25 @@ export default function VinylPage() {
 
           .assetPresetGrid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .previewDock {
+            position: sticky;
+            bottom: 8px;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .menuPlaceholder {
+            display: none;
+          }
+
+          .previewPanel {
+            min-height: 46vh;
+          }
+
+          .paper {
+            height: min(66dvh, 560px);
           }
         }
       `}</style>
