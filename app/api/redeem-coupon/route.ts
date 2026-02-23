@@ -61,10 +61,14 @@ function listMoonAssetPaths(svg: string): string[] {
   return [...new Set(svg.match(MOON_ASSET_PATH_REGEX) ?? [])];
 }
 
-function withAbsoluteMoonUrls(svg: string, req: Request): string {
+function resolveAssetBaseUrl(req: Request): string {
   const configuredBase = (process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
   const requestBase = new URL(req.url).origin;
-  const base = configuredBase || requestBase;
+  return configuredBase || requestBase;
+}
+
+function withAbsoluteMoonUrls(svg: string, req: Request): string {
+  const base = resolveAssetBaseUrl(req);
   let result = svg;
   for (const assetPath of listMoonAssetPaths(svg)) {
     const abs = `${base}${assetPath}`;
@@ -74,14 +78,20 @@ function withAbsoluteMoonUrls(svg: string, req: Request): string {
 }
 
 const moonDataUriCache: Record<string, string | null> = {};
+const vinylDataUriCache: Record<string, string | null> = {};
 
-function getMoonImageDataUri(assetPath: string): string | null {
+async function getMoonImageDataUri(assetPath: string, req: Request): Promise<string | null> {
   const relPath = assetPath.replace(/^\/+/, '');
   if (!SAFE_MOON_ASSET_REL_PATH_REGEX.test(relPath)) return null;
   if (Object.prototype.hasOwnProperty.call(moonDataUriCache, relPath)) return moonDataUriCache[relPath];
   try {
-    const moonPath = path.join(process.cwd(), 'public', relPath);
-    const raw = readFileSync(moonPath);
+    const base = resolveAssetBaseUrl(req);
+    const res = await fetch(`${base}/${relPath}`, { cache: 'force-cache' });
+    if (!res.ok) {
+      moonDataUriCache[relPath] = null;
+      return null;
+    }
+    const raw = Buffer.from(await res.arrayBuffer());
     moonDataUriCache[relPath] = `data:image/png;base64,${raw.toString('base64')}`;
   } catch {
     moonDataUriCache[relPath] = null;
@@ -89,10 +99,10 @@ function getMoonImageDataUri(assetPath: string): string | null {
   return moonDataUriCache[relPath];
 }
 
-function withEmbeddedMoonUrls(svg: string): string {
+async function withEmbeddedMoonUrls(svg: string, req: Request): Promise<string> {
   let result = svg;
   for (const assetPath of listMoonAssetPaths(svg)) {
-    const dataUri = getMoonImageDataUri(assetPath);
+    const dataUri = await getMoonImageDataUri(assetPath, req);
     if (!dataUri) continue;
     result = replaceAssetUrlRefs(result, assetPath, dataUri);
   }
@@ -104,9 +114,7 @@ function listVinylAssetPaths(svg: string): string[] {
 }
 
 function withAbsoluteVinylUrls(svg: string, req: Request): string {
-  const configuredBase = (process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
-  const requestBase = new URL(req.url).origin;
-  const base = configuredBase || requestBase;
+  const base = resolveAssetBaseUrl(req);
   let result = svg;
   for (const assetPath of listVinylAssetPaths(svg)) {
     const abs = `${base}${assetPath}`;
@@ -121,23 +129,33 @@ function inferImageMime(relPath: string): string {
   return 'image/jpeg';
 }
 
-function getVinylImageDataUri(assetPath: string): string | null {
+async function getVinylImageDataUri(assetPath: string, req: Request): Promise<string | null> {
   const relPath = assetPath.replace(/^\/+/, '');
   if (!SAFE_VINYL_ASSET_REL_PATH_REGEX.test(relPath)) return null;
+  const cacheKey = relPath.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(vinylDataUriCache, cacheKey)) return vinylDataUriCache[cacheKey];
   try {
-    const absPath = path.join(process.cwd(), 'public', relPath);
-    const raw = readFileSync(absPath);
+    const base = resolveAssetBaseUrl(req);
+    const res = await fetch(`${base}/${relPath}`, { cache: 'force-cache' });
+    if (!res.ok) {
+      vinylDataUriCache[cacheKey] = null;
+      return null;
+    }
+    const raw = Buffer.from(await res.arrayBuffer());
     const mime = inferImageMime(relPath.toLowerCase());
-    return `data:${mime};base64,${raw.toString('base64')}`;
+    const dataUri = `data:${mime};base64,${raw.toString('base64')}`;
+    vinylDataUriCache[cacheKey] = dataUri;
+    return dataUri;
   } catch {
+    vinylDataUriCache[cacheKey] = null;
     return null;
   }
 }
 
-function withEmbeddedVinylUrls(svg: string): string {
+async function withEmbeddedVinylUrls(svg: string, req: Request): Promise<string> {
   let result = svg;
   for (const assetPath of listVinylAssetPaths(svg)) {
-    const dataUri = getVinylImageDataUri(assetPath);
+    const dataUri = await getVinylImageDataUri(assetPath, req);
     if (!dataUri) continue;
     result = replaceAssetUrlRefs(result, assetPath, dataUri);
   }
@@ -481,10 +499,10 @@ export async function POST(req: Request) {
       );
     }
     if (isVinylDraft) {
-      const embeddedVinylSvg = withEmbeddedVinylUrls(svg);
+      const embeddedVinylSvg = await withEmbeddedVinylUrls(svg, req);
       svg = embeddedVinylSvg !== svg ? embeddedVinylSvg : withAbsoluteVinylUrls(svg, req);
     } else if (!isCityDraft && !isSoundwaveDraft) {
-      const embeddedMoonSvg = withEmbeddedMoonUrls(svg);
+      const embeddedMoonSvg = await withEmbeddedMoonUrls(svg, req);
       svg = embeddedMoonSvg !== svg ? embeddedMoonSvg : withAbsoluteMoonUrls(svg, req);
     }
 
