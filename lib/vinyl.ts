@@ -489,8 +489,8 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   // Ring count only adds more turns outward with fixed radial pitch.
   // Do not cap by disk radius; overflow is allowed so user can tune manually.
   const radialPitch = Math.max(1, ringFontSize * 0.62 + ringLineGap * 0.9);
-  // Start one full turn inward while keeping the same outer coverage.
-  const spiralInnerTurns = 1;
+  // Start two full turns inward while keeping the same outer coverage.
+  const spiralInnerTurns = 3;
   const spiralTurns = ringCountMax + spiralInnerTurns;
   const spiralStartR = Math.max(6, ringMinR - radialPitch * spiralInnerTurns);
   const spiralEndR = spiralStartR + spiralTurns * radialPitch;
