@@ -667,15 +667,13 @@ export default function VinylPage() {
         </div>
 
         <nav className="menu">
-          <a href="/ourskymap">Sky Map</a>
-          <a href="/pricing">Pricing</a>
-          <a href="/citymap">City Map</a>
-          <a href="/image">T-Shirt Design</a>
+          <a href="/vinyl">Vinyl Studio</a>
+          <span className="menuPlaceholder">Size Guide (Soon)</span>
+          <span className="menuPlaceholder">Label Styles (Soon)</span>
+          <span className="menuPlaceholder">Lyrics Layout (Soon)</span>
         </nav>
 
-        <button type="button" className="cityMapCta cityMapCtaBtn" onClick={() => void handleCheckout()} disabled={checkoutBusy}>
-          {checkoutBusy ? 'Preparing...' : 'Checkout'}
-        </button>
+        <a className="homeCta" href="/">Home Page</a>
       </header>
 
       <main className="layout">
@@ -1439,7 +1437,7 @@ export default function VinylPage() {
           left: 0;
           right: 0;
           z-index: 50;
-          background: linear-gradient(90deg, #0f172a 0%, #13203f 52%, #1b2a4d 100%);
+          background: linear-gradient(90deg, #161826 0%, #22263c 52%, #2b3150 100%);
           color: #fff;
           display: grid;
           grid-template-columns: auto 1fr auto;
@@ -1525,7 +1523,14 @@ export default function VinylPage() {
           letter-spacing: 0.01em;
         }
 
-        .cityMapCta {
+        .menuPlaceholder {
+          color: rgba(228, 230, 238, 0.78);
+          font-size: 13px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+        }
+
+        .homeCta {
           display: inline-flex;
           align-items: center;
           justify-self: end;
@@ -1535,17 +1540,6 @@ export default function VinylPage() {
           font-size: 15px;
           letter-spacing: 0.01em;
           white-space: nowrap;
-        }
-
-        .cityMapCtaBtn {
-          border: 0;
-          background: transparent;
-          cursor: pointer;
-        }
-
-        .cityMapCtaBtn:disabled {
-          opacity: 0.75;
-          cursor: wait;
         }
 
         .layout {
@@ -2412,7 +2406,7 @@ export default function VinylPage() {
           }
 
           .menu a,
-          .cityMapCta {
+          .homeCta {
             font-size: 14px;
           }
         }
@@ -2438,7 +2432,11 @@ export default function VinylPage() {
             flex-wrap: wrap;
           }
 
-          .cityMapCta {
+          .menuPlaceholder {
+            font-size: 12px;
+          }
+
+          .homeCta {
             justify-self: start;
           }
 

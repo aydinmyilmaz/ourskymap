@@ -735,11 +735,12 @@ export default function SoundwavePage() {
           <strong className="brandTitle">SOUNDWAVE STUDIO</strong>
         </div>
         <nav className="menu">
-          <a href="/ourskymap">Sky Map</a>
-          <a href="/vinyl">Vinyl</a>
-          <a href="/image">T-Shirt Design</a>
-          <a href="/soundwave">Soundwave</a>
+          <a href="/soundwave">Soundwave Studio</a>
+          <span className="menuPlaceholder">Wave Styles (Soon)</span>
+          <span className="menuPlaceholder">QR Guide (Soon)</span>
+          <span className="menuPlaceholder">Audio Tips (Soon)</span>
         </nav>
+        <a className="homeCta" href="/">Home Page</a>
       </header>
 
       <main className="layout">
@@ -1267,10 +1268,10 @@ export default function SoundwavePage() {
           left: 0;
           right: 0;
           z-index: 50;
-          background: linear-gradient(90deg, #0f172a 0%, #13203f 52%, #1b2a4d 100%);
+          background: linear-gradient(90deg, #0f172a 0%, #1b2f55 52%, #273866 100%);
           color: #fff;
           display: grid;
-          grid-template-columns: auto 1fr;
+          grid-template-columns: auto 1fr auto;
           align-items: center;
           padding: 0 24px;
           overflow: hidden;
@@ -1371,6 +1372,24 @@ export default function SoundwavePage() {
           text-decoration: none;
           font-size: 15px;
           letter-spacing: 0.01em;
+        }
+
+        .menuPlaceholder {
+          color: rgba(221, 232, 250, 0.82);
+          font-size: 13px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+        }
+
+        .homeCta {
+          display: inline-flex;
+          align-items: center;
+          justify-self: end;
+          color: rgba(255, 255, 255, 0.94);
+          text-decoration: none;
+          font-size: 15px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
         }
 
         .layout {
@@ -1986,6 +2005,14 @@ export default function SoundwavePage() {
             justify-self: start;
             gap: 12px;
             flex-wrap: wrap;
+          }
+
+          .menuPlaceholder {
+            font-size: 12px;
+          }
+
+          .homeCta {
+            justify-self: start;
           }
 
           .layout {

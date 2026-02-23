@@ -1809,51 +1809,21 @@ export default function CityMapPage() {
     <div className="designRoot">
       <header className="topbar">
         <div className="brand">
-          <div className="brandMark">*</div>
+          <div className="brandMark" aria-hidden="true">
+            <span className="cityGlyph">CM</span>
+          </div>
           <div className="brandText">
             <div className="brandMain">CITY MAP</div>
             <div className="brandSub">STUDIO</div>
           </div>
         </div>
-        <div className="heroPlaceholder" aria-hidden="true">
-          <div className="heroMapCard">
-            <svg className="heroMapSvg" viewBox="0 0 820 56" xmlns="http://www.w3.org/2000/svg" role="presentation">
-              <rect x="0" y="0" width="820" height="56" rx="12" fill="#efe5cb" />
-              <path
-                d="M244 2 C252 12,248 24,256 34 C266 44,270 53,278 56 L348 56 C338 45,334 31,326 19 C317 8,314 2,306 0 Z"
-                fill="#2cb4ad"
-                opacity="0.96"
-              />
-              <path
-                d="M540 -2 C552 10,554 21,564 34 C571 43,579 50,592 56 L640 56 C627 42,621 30,612 18 C603 6,595 1,583 0 Z"
-                fill="#2cb4ad"
-                opacity="0.9"
-              />
-              <g stroke="#ff6f67" strokeLinecap="round" fill="none">
-                <path d="M8 46 L140 8 L298 46 L444 10 L605 44 L738 12" strokeWidth="3.2" />
-                <path d="M14 24 L122 34 L234 16 L342 30 L458 18 L579 34 L708 20" strokeWidth="2.4" opacity="0.95" />
-                <path d="M72 4 L96 52" strokeWidth="1.6" opacity="0.85" />
-                <path d="M166 2 L186 54" strokeWidth="1.6" opacity="0.85" />
-                <path d="M404 2 L394 54" strokeWidth="1.7" opacity="0.85" />
-                <path d="M674 2 L658 54" strokeWidth="1.6" opacity="0.85" />
-                <path d="M760 5 L734 52" strokeWidth="1.5" opacity="0.8" />
-              </g>
-              <g stroke="#ff9c97" strokeWidth="1.1" opacity="0.75">
-                <path d="M20 16 H206" />
-                <path d="M22 36 H206" />
-                <path d="M284 10 H504" />
-                <path d="M282 26 H518" />
-                <path d="M280 42 H510" />
-                <path d="M618 14 H798" />
-                <path d="M616 36 H796" />
-              </g>
-              <rect x="652" y="7" width="153" height="42" rx="10" fill="#1f2a44" opacity="0.94" />
-              <text x="728.5" y="33.5" textAnchor="middle" fill="#f3f2ef" fontSize="15" letterSpacing="0.15em" fontFamily="'Signika', ui-sans-serif, system-ui">
-                NY RETRO
-              </text>
-            </svg>
-          </div>
-        </div>
+        <nav className="menu">
+          <a href="/citymap">City Map Studio</a>
+          <span className="menuPlaceholder">Theme Catalog (Soon)</span>
+          <span className="menuPlaceholder">Pins Guide (Soon)</span>
+          <span className="menuPlaceholder">Frame Tips (Soon)</span>
+        </nav>
+        <a className="homeCta" href="/">Home Page</a>
       </header>
 
       <main className="layout">
@@ -2201,19 +2171,36 @@ export default function CityMapPage() {
           position: fixed;
           inset: 0 0 auto 0;
           z-index: 50;
-          background: #020726;
+          background: linear-gradient(90deg, #081226 0%, #0c2242 48%, #0f2a55 100%);
           display: grid;
-          grid-template-columns: auto 1fr;
+          grid-template-columns: auto 1fr auto;
           align-items: center;
           gap: 20px;
           padding: 0 24px;
+          overflow: hidden;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .topbar::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background-image:
+            linear-gradient(90deg, rgba(104, 166, 255, 0.12) 1px, transparent 1px),
+            linear-gradient(0deg, rgba(104, 166, 255, 0.1) 1px, transparent 1px);
+          background-size: 42px 42px;
+          opacity: 0.42;
+        }
+        .topbar > * {
+          position: relative;
+          z-index: 1;
         }
 
         .brand {
           display: flex;
           align-items: center;
           gap: 12px;
+          justify-self: start;
         }
 
         .brandMark {
@@ -2223,9 +2210,15 @@ export default function CityMapPage() {
           border-radius: 50%;
           display: grid;
           place-items: center;
-          font-size: 18px;
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .cityGlyph {
+          font-size: 11px;
+          letter-spacing: 0.12em;
+          font-weight: 700;
           line-height: 1;
-          color: #fff;
+          color: rgba(255, 255, 255, 0.98);
         }
 
         .brandMain {
@@ -2245,28 +2238,38 @@ export default function CityMapPage() {
           font-family: 'Signika', ui-sans-serif, system-ui;
         }
 
-        .heroPlaceholder {
-          height: 56px;
-          border-radius: 16px;
-          border: 1px dashed rgba(255, 255, 255, 0.24);
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
-          padding: 4px;
-          overflow: hidden;
+        .menu {
+          display: flex;
+          align-items: center;
+          justify-self: center;
+          gap: 20px;
+          min-width: 0;
         }
 
-        .heroMapCard {
-          width: 100%;
-          height: 100%;
-          border-radius: 10px;
-          overflow: hidden;
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
-          background: #efe5cb;
+        .menu a {
+          color: rgba(255, 255, 255, 0.92);
+          text-decoration: none;
+          font-size: 15px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
         }
 
-        .heroMapSvg {
-          width: 100%;
-          height: 100%;
-          display: block;
+        .menuPlaceholder {
+          color: rgba(214, 229, 252, 0.84);
+          font-size: 13px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+        }
+
+        .homeCta {
+          display: inline-flex;
+          align-items: center;
+          justify-self: end;
+          color: rgba(255, 255, 255, 0.95);
+          text-decoration: none;
+          font-size: 15px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
         }
 
         .layout {
@@ -2756,15 +2759,29 @@ export default function CityMapPage() {
 
         @media (max-width: 760px) {
           .topbar {
-            grid-template-columns: 1fr;
-            height: 106px;
+            padding: 0 14px;
             gap: 10px;
-            padding: 10px 14px;
           }
 
-          .layout {
-            margin-top: 106px;
-            height: calc(100vh - 106px);
+          .brandMain {
+            font-size: 17px;
+          }
+
+          .menu {
+            gap: 12px;
+            justify-self: start;
+            overflow-x: auto;
+            max-width: 100%;
+            padding-bottom: 2px;
+            scrollbar-width: thin;
+          }
+
+          .menuPlaceholder {
+            font-size: 12px;
+          }
+
+          .homeCta {
+            font-size: 13px;
           }
 
           .controlPanel {
