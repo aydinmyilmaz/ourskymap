@@ -490,7 +490,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   // Do not cap by disk radius; overflow is allowed so user can tune manually.
   const radialPitch = Math.max(1, ringFontSize * 0.62 + ringLineGap * 0.9);
   // Start two full turns inward while keeping the same outer coverage.
-  const spiralInnerTurns = 2.5;
+  const spiralInnerTurns = 2;
   const spiralTurns = ringCountMax + spiralInnerTurns;
   const spiralStartR = Math.max(6, ringMinR - radialPitch * spiralInnerTurns);
   const spiralEndR = spiralStartR + spiralTurns * radialPitch;
