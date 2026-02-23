@@ -490,7 +490,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   // Do not cap by disk radius; overflow is allowed so user can tune manually.
   const radialPitch = Math.max(1, ringFontSize * 0.62 + ringLineGap * 0.9);
   // Start two full turns inward while keeping the same outer coverage.
-  const spiralInnerTurns = 3;
+  const spiralInnerTurns = 2.5;
   const spiralTurns = ringCountMax + spiralInnerTurns;
   const spiralStartR = Math.max(6, ringMinR - radialPitch * spiralInnerTurns);
   const spiralEndR = spiralStartR + spiralTurns * radialPitch;
@@ -663,10 +663,10 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const centerTextStroke =
     hasCustomLabelImage || usesDiskEmbeddedLabel
       ? centerTextLum > 0.62
-        ? 'rgba(0,0,0,0.38)'
-        : 'rgba(255,255,255,0.28)'
+        ? 'rgba(0,0,0,0.26)'
+        : 'rgba(255,255,255,0.16)'
       : 'rgba(0,0,0,0)';
-  const centerTextStrokeWidth = hasCustomLabelImage || usesDiskEmbeddedLabel ? 0.9 : 0;
+  const centerTextStrokeWidth = hasCustomLabelImage || usesDiskEmbeddedLabel ? 0.42 : 0;
 
   // Text layout below disk
   const namesLines = splitMultiline(names);
@@ -903,7 +903,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       y: namesY,
       fontSize: namesFontSize,
       lineSpacing: namesLineSpacing,
-      fill: namesUsesPlaceholder ? palette.mutedInk : rgba(centerTextRgb, 0.90),
+      fill: namesUsesPlaceholder ? rgba(centerTextRgb, 0.58) : rgba(centerTextRgb, 0.90),
       fontFamily: namesFont,
       letterSpacing: namesLetterSpacing
     })}
@@ -913,7 +913,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       y: dateY,
       fontSize: dateFontSize,
       lineSpacing: dateLineSpacing,
-      fill: dateUsesPlaceholder ? palette.mutedInk : rgba(centerTextRgb, 0.84),
+      fill: dateUsesPlaceholder ? rgba(centerTextRgb, 0.56) : rgba(centerTextRgb, 0.84),
       fontFamily: dateFont,
       letterSpacing: dateLetterSpacing,
       fontWeight: 600
