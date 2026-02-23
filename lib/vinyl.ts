@@ -505,54 +505,25 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     });
     defs.push(`<path id="${spiralPathId}" d="${spiral.d}"/>`);
 
-    // Build word-safe lyric text, then constrain the final visible end of the
-    // outer ring near top center (compass 340°..020° window).
+    // Build word-safe lyric text and force its visual end near 11 o'clock.
+    // 12 o'clock is fixed as the reference start direction; ending slightly
+    // before it gives the "completed circle" feel requested by design.
     const charAdvance = Math.max(4.2, ringFontSize * 0.56 + Math.max(0, ringLetterSpacing) * 0.95);
     const spaceAdvance = Math.max(1.8, charAdvance * 0.46);
-    const approxChars = Math.max(48, Math.floor((spiral.length * 0.972) / charAdvance));
+    const endTargetOffsetDeg = 30; // 11 o'clock
+    const endCircumference = Math.PI * 2 * Math.max(1, spiralEndR);
+    const endTargetOffsetPx = (endCircumference * endTargetOffsetDeg) / 360;
+    const endTargetDistance = Math.max(64, spiral.length - endTargetOffsetPx);
+    const approxChars = Math.max(48, Math.floor((endTargetDistance * 0.985) / charAdvance));
     const minChars = Math.floor(approxChars * 0.84);
     const { chunk } = buildFlowingRingText({ text: flowText, targetChars: approxChars, minChars, start: 0 });
     const stripTrailingPunctuation = (s: string) => s.replace(/[,\.;:!?'"`’”)\]]+\s*$/g, '').trim();
-    let baseText = stripTrailingPunctuation(chunk || flowText);
-    if (baseText) {
-      const estimateAdvance = (s: string) => {
-        let d = 0;
-        for (let i = 0; i < s.length; i++) {
-          d += /\s/.test(s[i]) ? spaceAdvance : charAdvance;
-        }
-        return d;
-      };
-
-      // End window target for outermost ring:
-      // 340°..020° compass ~= ±20° around top. Convert to path-length window.
-      const endWindowDeg = 20;
-      const endWindowPx = (Math.PI * 2 * Math.max(1, spiralEndR) * endWindowDeg) / 360;
-      const minEndDistance = Math.max(0, spiral.length - endWindowPx);
-      const maxEndDistance = spiral.length + endWindowPx;
-
-      let endDistance = estimateAdvance(baseText);
-      if (endDistance > maxEndDistance) {
-        const words = baseText.split(/\s+/).filter(Boolean);
-        while (words.length > 1 && estimateAdvance(words.join(' ')) > maxEndDistance) {
-          words.pop();
-        }
-        baseText = stripTrailingPunctuation(words.join(' '));
-        endDistance = estimateAdvance(baseText);
-      }
-
-      if (endDistance < minEndDistance) {
-        const padCount = Math.min(1200, Math.ceil((minEndDistance - endDistance) / spaceAdvance));
-        if (padCount > 0) {
-          // Only pad with NBSP so visible ending stays on a whole word.
-          baseText += '\u00a0'.repeat(padCount);
-        }
-      }
-    }
+    const baseText = stripTrailingPunctuation(chunk || flowText);
     const text =
       lyricsCase === 'upper' ? baseText.toUpperCase() : lyricsCase === 'lower' ? baseText.toLowerCase() : baseText;
     spiralLyricsText =
       `<text fill="${ringFill}" stroke="${ringStroke}" stroke-width="${ringStrokeWidth.toFixed(2)}" paint-order="stroke" opacity="0.93" font-size="${ringFontSize.toFixed(2)}" letter-spacing="${ringLetterSpacing.toFixed(2)}" font-family="${lyricsSpec.family}" font-weight="${lyricsSpec.weight}" font-style="${lyricsSpec.style ?? 'normal'}">` +
-      `<textPath href="#${spiralPathId}" startOffset="0%" text-anchor="start">${svgEscape(text)}</textPath>` +
+      `<textPath href="#${spiralPathId}" startOffset="0%" text-anchor="start" textLength="${endTargetDistance.toFixed(2)}" lengthAdjust="spacing">${svgEscape(text)}</textPath>` +
       `</text>`;
   }
 
@@ -561,7 +532,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const labelHubR = Math.max(holeR * 2.9, labelR * 0.29);
   const labelHubStrokeW = Math.max(1.6, labelR * 0.017);
   const labelDividerY = diskCy;
-  const titleFontSize = clamp(v.titleFontSize, 8, 120);
+  const titleFontSize = clamp(v.titleFontSize, 8, 126);
   const titleArcWidth = clamp(v.titleArcWidth, 0.45, 0.95);
   const labelOuterGuideR = labelR - labelEdgeStrokeW * 0.45;
   const labelInnerGuideR = labelR * 0.78;
@@ -613,9 +584,11 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const names = namesUsesPlaceholder ? 'NAMES SURNAME' : namesRaw;
   const dateLine = dateUsesPlaceholder ? 'CITY - DATE' : dateLineRaw;
 
-  const namesFontSize = clamp(v.namesFontSize, 10, 120);
-  const dateFontSize = clamp(v.dateFontSize, 8, 80);
-  const centerMetaFontSize = clamp(v.metaFontSize, 8, 80);
+  const namesFontSize = clamp(v.namesFontSize, 10, 144);
+  const dateFontSize = clamp(v.dateFontSize, 8, 135);
+  const centerMetaFontSize = clamp(v.metaFontSize, 8, 120);
+  const requestedSongSize = Number.isFinite(v.songFontSize) ? v.songFontSize : centerMetaFontSize;
+  const requestedArtistSize = Number.isFinite(v.artistFontSize) ? v.artistFontSize : centerMetaFontSize * 0.75;
   const namesLetterSpacing = clamp(v.namesLetterSpacing, -1, 20);
   const namesLineSpacing = clamp(v.namesLineSpacing, 0.8, 3.0);
   const namesYOffset = clamp(v.namesYOffset, -260, 260);
@@ -644,14 +617,14 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     letterSpacing: 0.5
   });
   const centerSongSize = clamp(
-    centerMetaFontSize,
+    requestedSongSize,
     10,
-    labelR * (hasCustomLabelImage ? 0.24 : usesDiskEmbeddedLabel ? 0.17 : 0.28)
+    labelR * (hasCustomLabelImage ? 0.36 : usesDiskEmbeddedLabel ? 0.255 : 0.42)
   );
   const centerArtistSize = clamp(
-    centerMetaFontSize * 0.75,
+    requestedArtistSize,
     8,
-    labelR * (hasCustomLabelImage ? 0.18 : usesDiskEmbeddedLabel ? 0.125 : 0.2)
+    labelR * (hasCustomLabelImage ? 0.27 : usesDiskEmbeddedLabel ? 0.188 : 0.3)
   );
   const defaultLabelTextRgb = hasCustomLabelImage || usesDiskEmbeddedLabel ? { r: 23, g: 17, b: 11 } : { r: 0, g: 0, b: 0 };
   const customLabelTextRgb = hexToRgb(v.labelTextColor || '');
@@ -820,7 +793,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
   <rect x="0" y="0" width="${W}" height="${H}" fill="${palette.bg}"/>
   ${backgroundImage ? `<image href="${svgEscape(backgroundImage)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : ''}
   ${textureOverlays.join('\n  ')}
