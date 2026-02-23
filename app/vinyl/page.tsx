@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
-import { VINYL_BACKGROUND_PRESETS, VINYL_LABEL_PRESETS } from '../../lib/vinyl-assets';
+import { VINYL_BACKGROUND_PRESETS, VINYL_DISK_PRESETS } from '../../lib/vinyl-assets';
 import { getVinylLayoutPreset } from '../../lib/vinyl-layout-spec';
 import type { VinylParams } from '../../lib/types';
 
@@ -13,8 +13,10 @@ type PaletteItem = {
   bg: string;
 };
 
-const VINYL_LABEL_IMAGE_KEY = 'space_map_vinyl_label_image_v1';
+const VINYL_DISK_IMAGE_KEY = 'space_map_vinyl_disk_image_v1';
 const VINYL_BACKGROUND_IMAGE_KEY = 'space_map_vinyl_background_image_v1';
+const VINYL_DISK_PRESET_SRCS = VINYL_DISK_PRESETS.map((item) => item.src) as readonly string[];
+const VINYL_BACKGROUND_PRESET_SRCS = VINYL_BACKGROUND_PRESETS.map((item) => item.src) as readonly string[];
 
 const PALETTES: PaletteItem[] = [
   // Popular + visually distinct first four for compact mode.
@@ -112,6 +114,17 @@ const LYRICS_TEXT_COLORS: Array<{ key: string; label: string }> = [
   { key: '#5f9ecf', label: 'Sky' },
   { key: '#5f4c92', label: 'Purple' },
   { key: '#b27148', label: 'Copper' }
+];
+
+const LABEL_TEXT_COLORS: Array<{ key: string; label: string }> = [
+  { key: '#17110b', label: 'Espresso' },
+  { key: '#111111', label: 'Jet Black' },
+  { key: '#2d343f', label: 'Graphite' },
+  { key: '#5d3f2f', label: 'Walnut' },
+  { key: '#6d522f', label: 'Bronze Ink' },
+  { key: '#d7ae4f', label: 'Gold' },
+  { key: '#d6d8dc', label: 'Silver' },
+  { key: '#f2f2f4', label: 'Snow' }
 ];
 
 const LYRICS_CASE_OPTIONS: Array<{ key: VinylParams['lyricsTextCase']; label: string }> = [
@@ -229,8 +242,9 @@ const defaultVinyl: VinylParams = {
   inkColor: '#e6e6ea',
   lyricsFontPreset: 'font-2',
   lyricsTextColor: '#f2f2f4',
+  labelTextColor: '#17110b',
   backgroundTexture: 'solid',
-  recordImageDataUrl: '',
+  recordImageDataUrl: VINYL_DISK_PRESETS[0]?.src ?? '',
   labelImageDataUrl: '',
   backgroundImageDataUrl: '',
   diskDiameter: defaultSizeDriven.diskDiameter,
@@ -278,6 +292,17 @@ function parseEnum<T extends string>(v: string | null, allowed: readonly T[], fa
   return (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
 }
 
+function sanitizePresetSrc(
+  value: string,
+  allowed: readonly string[],
+  fallback: string
+): string {
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  if (trimmed.startsWith('data:image/')) return trimmed;
+  return allowed.includes(trimmed) ? trimmed : fallback;
+}
+
 function parseBool(v: string | null, fallback: boolean): boolean {
   if (v === null) return fallback;
   if (v === '1' || v.toLowerCase() === 'true') return true;
@@ -298,6 +323,7 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
   const vtx = sp.get('vtx');
   const vlf = sp.get('vlf');
   const vlc = sp.get('vlc');
+  const vltc = sp.get('vltc');
   const vlcs = sp.get('vlcs');
   const vdk = sp.get('vdk');
   const vcl = sp.get('vcl');
@@ -314,6 +340,7 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
     inkColor: sp.get('vic') ?? defaultVinyl.inkColor,
     lyricsFontPreset: parseEnum(vlf, LYRICS_FONT_KEYS, defaultVinyl.lyricsFontPreset),
     lyricsTextColor: parseHexColor(vlc, defaultVinyl.lyricsTextColor),
+    labelTextColor: parseHexColor(vltc, defaultVinyl.labelTextColor),
     lyricsTextCase: parseEnum(vlcs, ['original', 'upper', 'lower'] as const, defaultVinyl.lyricsTextCase),
     backgroundTexture: parseEnum(
       vtx,
@@ -377,6 +404,7 @@ function encodeVinylToQuery(v: VinylParams): string {
   sp.set('vic', v.inkColor);
   sp.set('vlf', v.lyricsFontPreset);
   sp.set('vlc', v.lyricsTextColor);
+  sp.set('vltc', v.labelTextColor);
   sp.set('vlcs', v.lyricsTextCase);
   sp.set('vtx', v.backgroundTexture);
   sp.set('vdd', String(v.diskDiameter));
@@ -453,7 +481,6 @@ export default function VinylPage() {
   const [showAllLyricsColors, setShowAllLyricsColors] = useState(false);
 
   const backgroundInputRef = useRef<HTMLInputElement | null>(null);
-  const labelInputRef = useRef<HTMLInputElement | null>(null);
   const hasInitializedRef = useRef(false);
 
   const visiblePalettes = useMemo(() => {
@@ -557,8 +584,7 @@ export default function VinylPage() {
         previewSvg: svg,
         renderRequest: {
           vinyl: {
-            ...vinyl,
-            recordImageDataUrl: ''
+            ...vinyl
           }
         },
         mapData: {
@@ -596,25 +622,14 @@ export default function VinylPage() {
     }
   }, [checkoutBusy, fetchVinylSvg, persistCheckoutDraft, router, vinyl]);
 
-  const onLabelFile = useCallback(async (file?: File) => {
-    if (!file) return;
-    try {
-      const dataUrl = await downscaleImageToDataUrl(file, 1200);
-      setVinyl((v) => ({ ...v, labelImageDataUrl: dataUrl }));
-      window.localStorage.setItem(VINYL_LABEL_IMAGE_KEY, dataUrl);
-    } catch (e: any) {
-      setError(e?.message ?? 'Label image upload failed.');
-    }
+  const applyDiskPreset = useCallback((src: string) => {
+    setVinyl((v) => ({ ...v, recordImageDataUrl: src, showDisk: true }));
+    window.localStorage.setItem(VINYL_DISK_IMAGE_KEY, src);
   }, []);
 
   const applyBackgroundPreset = useCallback((src: string) => {
     setVinyl((v) => ({ ...v, backgroundImageDataUrl: src }));
     window.localStorage.setItem(VINYL_BACKGROUND_IMAGE_KEY, src);
-  }, []);
-
-  const applyLabelPreset = useCallback((src: string) => {
-    setVinyl((v) => ({ ...v, labelImageDataUrl: src }));
-    window.localStorage.setItem(VINYL_LABEL_IMAGE_KEY, src);
   }, []);
 
   const onBackgroundFile = useCallback(async (file?: File) => {
@@ -632,15 +647,25 @@ export default function VinylPage() {
     if (typeof window === 'undefined') return;
 
     const queryVinyl = decodeVinylFromQuery(window.location.search);
-    const savedLabel = window.localStorage.getItem(VINYL_LABEL_IMAGE_KEY) || '';
-    const savedBackground = window.localStorage.getItem(VINYL_BACKGROUND_IMAGE_KEY) || '';
+    window.localStorage.removeItem('space_map_vinyl_label_image_v1');
+    const savedDisk = sanitizePresetSrc(
+      window.localStorage.getItem(VINYL_DISK_IMAGE_KEY) || '',
+      VINYL_DISK_PRESET_SRCS,
+      defaultVinyl.recordImageDataUrl || ''
+    );
+    const savedBackground = sanitizePresetSrc(
+      window.localStorage.getItem(VINYL_BACKGROUND_IMAGE_KEY) || '',
+      VINYL_BACKGROUND_PRESET_SRCS,
+      ''
+    );
 
     const next: VinylParams = {
       ...defaultVinyl,
       ...queryVinyl,
-      recordImageDataUrl: '',
-      labelImageDataUrl: savedLabel,
-      backgroundImageDataUrl: savedBackground
+      recordImageDataUrl: savedDisk,
+      labelImageDataUrl: '',
+      backgroundImageDataUrl: savedBackground,
+      showCenterLabel: true
     };
 
     setVinyl(next);
@@ -720,13 +745,6 @@ export default function VinylPage() {
                   onClick={() => setVinyl((v) => ({ ...v, showDisk: !v.showDisk }))}
                 >
                   No Disk
-                </button>
-                <button
-                  type="button"
-                  className={`surfaceToggleBtn ${!vinyl.showCenterLabel ? 'active' : ''}`}
-                  onClick={() => setVinyl((v) => ({ ...v, showCenterLabel: !v.showCenterLabel }))}
-                >
-                  No Label
                 </button>
               </div>
 
@@ -845,54 +863,21 @@ export default function VinylPage() {
 
             <div className="stackField frameSection">
               <div className="fieldHead">
-                <label className="sizeCardLabel">Label Presets</label>
+                <label className="sizeCardLabel">Disk Presets</label>
               </div>
               <div className="assetPresetGrid">
-                {VINYL_LABEL_PRESETS.map((item) => (
+                {VINYL_DISK_PRESETS.map((item) => (
                   <button
                     key={item.key}
                     type="button"
-                    className={`assetPresetBtn ${vinyl.labelImageDataUrl === item.src ? 'active' : ''}`}
-                    onClick={() => applyLabelPreset(item.src)}
+                    className={`assetPresetBtn ${vinyl.recordImageDataUrl === item.src ? 'active' : ''}`}
+                    onClick={() => applyDiskPreset(item.src)}
                     title={item.label}
                   >
-                    <span className="assetThumb assetThumbLabel" style={{ backgroundImage: `url(${item.src})` }} />
+                    <span className="assetThumb assetThumbDisk" style={{ backgroundImage: `url(${item.src})` }} />
                     <span className="assetPresetLabel">{item.label}</span>
                   </button>
                 ))}
-              </div>
-            </div>
-
-            <div className="stackField frameSection">
-              <label className="sizeCardLabel">Center Label Image (optional)</label>
-              <input
-                ref={labelInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="uploadInputHidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  void onLabelFile(file);
-                  e.currentTarget.value = '';
-                }}
-              />
-
-              <div className="uploadActions">
-                <button type="button" className="uploadBtn" onClick={() => labelInputRef.current?.click()}>
-                  {vinyl.labelImageDataUrl ? 'Replace Label' : 'Upload Label'}
-                </button>
-                {vinyl.labelImageDataUrl ? (
-                  <button
-                    type="button"
-                    className="uploadGhostBtn"
-                    onClick={() => {
-                      setVinyl((v) => ({ ...v, labelImageDataUrl: '' }));
-                      window.localStorage.removeItem(VINYL_LABEL_IMAGE_KEY);
-                    }}
-                  >
-                    Remove
-                  </button>
-                ) : null}
               </div>
             </div>
           </div>
@@ -1118,6 +1103,23 @@ export default function VinylPage() {
                         -
                       </button>
                     </div>
+                  </div>
+                </div>
+
+                <div className="stackField controlTile controlTileWide">
+                  <label>Text Color</label>
+                  <div className="palettePicker compact labelColorPicker">
+                    {LABEL_TEXT_COLORS.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className={`paletteBtn ${vinyl.labelTextColor === item.key ? 'active' : ''}`}
+                        onClick={() => setVinyl((v) => ({ ...v, labelTextColor: item.key }))}
+                        title={item.label}
+                      >
+                        <span className="swatch" style={{ background: item.key }} />
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1794,6 +1796,10 @@ export default function VinylPage() {
           min-width: 0;
         }
 
+        .controlTileWide {
+          grid-column: 1 / -1;
+        }
+
         label {
           font-size: 14px;
           font-weight: 600;
@@ -2125,6 +2131,16 @@ export default function VinylPage() {
           height: 42px;
         }
 
+        .labelColorPicker {
+          grid-template-columns: repeat(8, minmax(0, 1fr));
+          gap: 7px;
+        }
+
+        .labelColorPicker .paletteBtn {
+          width: 34px;
+          height: 34px;
+        }
+
         .surfaceOptionHead {
           font-size: 11px;
           letter-spacing: 0.12em;
@@ -2325,9 +2341,9 @@ export default function VinylPage() {
           background-position: center;
         }
 
-        .assetThumbLabel {
-          background-size: contain;
-          background-color: #f7f4fc;
+        .assetThumbDisk {
+          border-radius: 50%;
+          background-color: #0d1018;
         }
 
         .assetPresetLabel {

@@ -181,6 +181,7 @@ export type VinylParams = {
   ringLetterSpacing: number;
   ringLineGap: number;
   lyricsTextColor: string;
+  labelTextColor: string;
   lyricsTextCase: 'original' | 'upper' | 'lower';
   title: string;
   songTitle: string;
