@@ -1,4 +1,5 @@
 import type { VinylRequest, VinylParams } from './types';
+import { getVinylLayoutPreset } from './vinyl-layout-spec';
 
 function svgEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -253,6 +254,8 @@ function estimateTitleGlyphUnits(text: string, fontKey: VinylParams['titleFont']
   const baseUnit =
     fontKey === 'mono'
       ? 0.62
+      : fontKey === 'big-shoulders'
+        ? 0.57
       : fontKey === 'sans'
         ? 0.58
         : fontKey === 'prata'
@@ -309,6 +312,12 @@ function fitTitleSizeToArc(input: {
 
 function fontFamily(k: VinylParams['titleFont'] | VinylParams['namesFont'] | VinylParams['metaFont']): string {
   switch (k) {
+    case 'big-shoulders':
+      return "'Big Shoulders Display', 'Arial Narrow', 'Franklin Gothic Medium', ui-sans-serif, Arial, sans-serif";
+    case 'amsterdam-four':
+      return "'Amsterdam Four', 'Alex Brush', 'Great Vibes', Allura, 'Brush Script MT', cursive";
+    case 'courier-prime':
+      return "'Courier Prime', 'Courier New', Courier, 'Liberation Mono', monospace";
     case 'prata':
       return "Prata, ui-serif, Georgia, Times New Roman, serif";
     case 'jimmy-script':
@@ -335,66 +344,50 @@ type LyricsFontSpec = {
 };
 
 function lyricsFontSpec(preset: VinylParams['lyricsFontPreset']): LyricsFontSpec {
-  // Keep mappings aligned with available runtime fonts (public/fonts) so
-  // changing preset always changes the rendered lyric text.
+  // These families mirror the Vinyl UI option list.
   switch (preset) {
     case 'font-1':
-      return { family: "Prata, Georgia, 'Times New Roman', serif", weight: 400 };
+      return { family: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace", weight: 500 };
     case 'font-2':
-      return { family: "Georgia, 'Times New Roman', serif", weight: 400 };
+      return { family: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif", weight: 500 };
     case 'font-3':
-      return { family: "Allura, 'Great Vibes', cursive, ui-serif, Georgia, 'Times New Roman', serif", weight: 400 };
+      return { family: "'Rage Italic', 'Rouge Script', 'Brush Script MT', cursive", weight: 400, style: 'italic' };
     case 'font-4':
-      return { family: "Georgia, 'Times New Roman', serif", weight: 400, style: 'italic' };
+      return { family: "'Lucida Handwriting', 'Dancing Script', 'Segoe Script', cursive", weight: 400 };
     case 'font-5':
-      return { family: "'Great Vibes', Allura, cursive, ui-serif, Georgia, 'Times New Roman', serif", weight: 400 };
+      return { family: "'Vladimir Script', Parisienne, 'Brush Script MT', cursive", weight: 400 };
     case 'font-6':
-      return { family: "Prata, Georgia, 'Times New Roman', serif", weight: 400, style: 'italic' };
+      return { family: "'Ink Free', 'Patrick Hand', 'Segoe Script', cursive", weight: 500 };
     case 'font-7':
-      return { family: 'Signika, ui-sans-serif, system-ui, Arial, sans-serif', weight: 700 };
+      return { family: "'Viner Hand ITC', 'Permanent Marker', 'Brush Script MT', cursive", weight: 500 };
     case 'font-8':
-      return { family: "Allura, 'Great Vibes', cursive, ui-serif, Georgia, 'Times New Roman', serif", weight: 400 };
+      return { family: "'Pristina', Satisfy, 'Segoe Script', cursive", weight: 500 };
     case 'font-9':
-      return { family: 'Signika, ui-sans-serif, system-ui, Arial, sans-serif', weight: 500 };
+      return { family: "'Bodoni MT', 'Bodoni Moda', Didot, 'Times New Roman', serif", weight: 500 };
     case 'font-10':
-      return { family: "Prata, Georgia, 'Times New Roman', serif", weight: 500, uppercase: true };
+      return { family: "'Felix Titling', Cinzel, 'Copperplate Gothic Light', serif", weight: 600, uppercase: true };
     case 'font-11':
-      return { family: 'Signika, ui-sans-serif, system-ui, Arial, sans-serif', weight: 800, uppercase: true };
+      return { family: "'Engravers MT', 'Cinzel Decorative', 'Copperplate Gothic Bold', serif", weight: 700, uppercase: true };
     case 'font-12':
-      return { family: "Prata, Georgia, 'Times New Roman', serif", weight: 700, uppercase: true };
+      return { family: "'Algerian', 'Almendra Display', 'Copperplate Gothic Bold', serif", weight: 700, uppercase: true };
     case 'font-13':
-      return { family: "Georgia, 'Times New Roman', serif", weight: 300 };
+      return { family: "'Harrington', 'Marcellus SC', 'Book Antiqua', serif", weight: 500 };
     case 'font-14':
-      return { family: "Georgia, 'Times New Roman', serif", weight: 400 };
+      return { family: "'Imprint MT Shadow', 'Bungee Shade', 'Book Antiqua', serif", weight: 500 };
     case 'font-15':
     default:
-      return { family: 'Signika, ui-sans-serif, system-ui, Arial, sans-serif', weight: 600 };
+      return { family: "'Poor Richard', 'IM Fell English SC', 'Palatino Linotype', serif", weight: 500 };
   }
 }
-
-const VINYL_CANVAS_BY_SIZE: Record<VinylParams['size'], { W: number; H: number; margin: number; diskCyRatio: number }> = {
-  'us-letter': { W: 612, H: 792, margin: 46, diskCyRatio: 0.34 },
-  a4: { W: 595, H: 842, margin: 48, diskCyRatio: 0.33 },
-  '11x14': { W: 792, H: 1008, margin: 56, diskCyRatio: 0.35 },
-  a3: { W: 842, H: 1191, margin: 62, diskCyRatio: 0.35 },
-  '12x12': { W: 864, H: 864, margin: 58, diskCyRatio: 0.42 },
-  '12x16': { W: 864, H: 1152, margin: 60, diskCyRatio: 0.36 },
-  '16x20': { W: 1152, H: 1440, margin: 72, diskCyRatio: 0.36 },
-  a2: { W: 1191, H: 1684, margin: 86, diskCyRatio: 0.35 },
-  '18x24': { W: 1296, H: 1728, margin: 80, diskCyRatio: 0.36 },
-  '20x20': { W: 1440, H: 1440, margin: 72, diskCyRatio: 0.42 },
-  a1: { W: 1701, H: 3024, margin: 110, diskCyRatio: 0.34 },
-  '24x32': { W: 1728, H: 2304, margin: 96, diskCyRatio: 0.36 },
-  square: { W: 1024, H: 1024, margin: 70, diskCyRatio: 0.42 }
-};
 
 export function renderVinylPosterSvg(req: VinylRequest): string {
   const v = req.vinyl;
   const showDisk = v.showDisk !== false;
   const showCenterLabel = v.showCenterLabel !== false;
+  const showRuler = v.showRuler === true;
   const size = v.size;
-  const dims = VINYL_CANVAS_BY_SIZE[size] ?? VINYL_CANVAS_BY_SIZE['16x20'];
-  const { W, H, margin, diskCyRatio } = dims;
+  const spec = getVinylLayoutPreset(size);
+  const { W, H, topMargin, bottomMargin, leftMargin, rightMargin, recordDiameter } = spec;
 
   const palette = getPalette(v.palette);
   const inkRgb = hexToRgb(v.inkColor || '');
@@ -416,15 +409,17 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     }
   }
 
-  const diskCx = W / 2;
-  const diskCy = H * diskCyRatio;
-  // Keep the disk fully inside poster bounds for every size.
-  const maxDiskRByX = Math.min(diskCx - margin, W - margin - diskCx);
-  const maxDiskRByY = Math.min(diskCy - margin, H - margin - diskCy);
+  const innerLeft = leftMargin;
+  const innerRight = W - rightMargin;
+  const diskCx = (innerLeft + innerRight) / 2;
+  // Keep the disk fully inside the spec margin box.
+  const maxDiskRByX = Math.min(diskCx - innerLeft, innerRight - diskCx);
+  const maxDiskRByY = Math.max(1, (H - topMargin - bottomMargin) / 2);
   const maxDiskR = Math.max(1, Math.min(maxDiskRByX, maxDiskRByY));
   const minDiskR = Math.min(130, maxDiskR);
-  const diskR = clamp(v.diskDiameter / 2, minDiskR, maxDiskR);
-  const diskDiameter = diskR * 2;
+  const requestedDiskDiameter = Number.isFinite(v.diskDiameter) && v.diskDiameter > 0 ? v.diskDiameter : recordDiameter;
+  const diskR = clamp(requestedDiskDiameter / 2, minDiskR, maxDiskR);
+  const diskCy = topMargin + diskR;
 
   const innerGrooveR = diskR * 0.62;
   const labelR = diskR * 0.26;
@@ -437,6 +432,10 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const backgroundImage = (v.backgroundImageDataUrl || '').trim();
   const diskImage = (v.recordImageDataUrl || '').trim();
   const labelImage = (v.labelImageDataUrl || '').trim();
+  const hasCustomLabelImage = showCenterLabel && labelImage.length > 0;
+  const usesDiskEmbeddedLabel = showCenterLabel && !hasCustomLabelImage && diskImage.length > 0;
+  const showEmbeddedLabelOnly = showCenterLabel && !showDisk && usesDiskEmbeddedLabel;
+  const showCenterLabelText = showCenterLabel && (showDisk || hasCustomLabelImage || usesDiskEmbeddedLabel);
   // Many uploaded record photos include a thin gray studio/background margin.
   // Slightly zoom the image inside the clip to keep only the actual vinyl edge.
   const recordImageScale = diskImage ? 1.12 : 1;
@@ -446,9 +445,22 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
 
   // Keep lyric rings on the vinyl surface and build from inner to outer.
   const ringOuterInset = clamp(ringFontSize * 1.8 + Math.max(0, ringLetterSpacing) * 1.0 + (diskImage ? 12 : 10), 24, 82);
-  // Start as close to center label as possible without overlap.
-  const ringInnerInset = clamp(ringFontSize * 0.72 + Math.max(0, ringLetterSpacing) * 0.25 + 3, 7, 28);
-  const baseCenterR = showCenterLabel ? labelR : Math.max(holeR * 2, diskR * 0.02);
+  // Disk presets include an embedded center label that is much larger than the old synthetic label radius.
+  // Use a larger effective label radius so lyrics start outside that printed label area.
+  const embeddedLabelOuterR = clamp(diskR * 0.52, labelR, Math.max(labelR, diskR - ringOuterInset - 18));
+  const effectiveLabelOuterR = usesDiskEmbeddedLabel ? embeddedLabelOuterR : labelR;
+  // Visual crop for "No disk" mode: keep only center label, exclude vinyl grooves.
+  // This is intentionally smaller than `embeddedLabelOuterR` used by lyric spacing.
+  const embeddedLabelVisualClipR = clamp(diskR * 0.46, labelR, embeddedLabelOuterR);
+  // Keep extra clearance when a raster center label is used so lyrics don't hug its outer edge.
+  const ringInnerInsetBase = ringFontSize * 0.72 + Math.max(0, ringLetterSpacing) * 0.25 + 3;
+  const ringInnerInsetBoost = hasCustomLabelImage
+    ? clamp(labelR * 0.08 + ringFontSize * 0.2, 8, 18)
+    : usesDiskEmbeddedLabel
+      ? clamp(ringFontSize * 0.35 + Math.max(0, ringLetterSpacing) * 0.16 + 2, 6, 16)
+      : 0;
+  const ringInnerInset = clamp(ringInnerInsetBase + ringInnerInsetBoost, 7, 46);
+  const baseCenterR = showCenterLabel ? effectiveLabelOuterR : Math.max(holeR * 2, diskR * 0.02);
   const ringMinR = baseCenterR + ringInnerInset;
   const ringMaxR = diskR - ringOuterInset;
   const ringSpan = Math.max(0, ringMaxR - ringMinR);
@@ -477,14 +489,17 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   // Ring count only adds more turns outward with fixed radial pitch.
   // Do not cap by disk radius; overflow is allowed so user can tune manually.
   const radialPitch = Math.max(1, ringFontSize * 0.62 + ringLineGap * 0.9);
-  const spiralTurns = ringCountMax;
-  const spiralEndR = ringMinR + spiralTurns * radialPitch;
+  // Start two full turns inward while keeping the same outer coverage.
+  const spiralInnerTurns = 3;
+  const spiralTurns = ringCountMax + spiralInnerTurns;
+  const spiralStartR = Math.max(6, ringMinR - radialPitch * spiralInnerTurns);
+  const spiralEndR = spiralStartR + spiralTurns * radialPitch;
   if (flowText && ringSpan > 2 && spiralTurns > 0.2) {
     const spiralPathId = 'lyricsSpiralPath';
     const spiral = buildSpiralPath({
       cx: diskCx,
       cy: diskCy,
-      startRadius: ringMinR,
+      startRadius: spiralStartR,
       endRadius: spiralEndR,
       turns: spiralTurns
     });
@@ -541,7 +556,6 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       `</text>`;
   }
 
-  const labelBaseFill = '#ffffff';
   const labelEdgeStrokeW = Math.max(3, labelR * 0.07);
   const labelInnerStrokeW = Math.max(1.2, labelR * 0.014);
   const labelHubR = Math.max(holeR * 2.9, labelR * 0.29);
@@ -565,28 +579,39 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   // "LOVE YOU" sits closer to the inner center circle.
   const titleHubGuideR = labelHubR + labelHubStrokeW * 0.5;
   const titleArcCurrentR = (labelOuterGuideR + titleHubGuideR) * 0.5;
-  const labelTitleArcR = (titleArcCurrentR + titleHubGuideR) * 0.5;
+  const labelTitleArcDefaultR = (titleArcCurrentR + titleHubGuideR) * 0.5;
+  const labelTitleArcR = hasCustomLabelImage
+    ? labelR * 0.72
+    : usesDiskEmbeddedLabel
+      ? labelR * 0.90
+      : labelTitleArcDefaultR;
   const arcWidthT = (titleArcWidth - 0.45) / (0.95 - 0.45);
   const titleArcSpanDeg = 94 + arcWidthT * 62;
   const titleArcHalfSpan = titleArcSpanDeg * 0.5;
   const labelTitleArcStartDeg = 270 - titleArcHalfSpan;
   const labelTitleArcEndDeg = 270 + titleArcHalfSpan;
   const labelTitleArcId = 'labelTitleArc';
-  defs.push(
-    `<path id="${labelTitleArcId}" d="${arcPathD({
-      cx: diskCx,
-      cy: diskCy,
-      r: labelTitleArcR,
-      startDeg: labelTitleArcStartDeg,
-      endDeg: labelTitleArcEndDeg
-    })}"/>`
-  );
+  if (showCenterLabelText) {
+    defs.push(
+      `<path id="${labelTitleArcId}" d="${arcPathD({
+        cx: diskCx,
+        cy: diskCy,
+        r: labelTitleArcR,
+        startDeg: labelTitleArcStartDeg,
+        endDeg: labelTitleArcEndDeg
+      })}"/>`
+    );
+  }
 
   const title = (v.title || '').trim();
   const songTitle = (v.songTitle || '').trim();
   const artist = (v.artist || '').trim();
-  const names = v.names || '';
-  const dateLine = v.dateLine || '';
+  const namesRaw = v.names || '';
+  const dateLineRaw = v.dateLine || '';
+  const namesUsesPlaceholder = namesRaw.trim().length === 0;
+  const dateUsesPlaceholder = dateLineRaw.trim().length === 0;
+  const names = namesUsesPlaceholder ? 'NAMES SURNAME' : namesRaw;
+  const dateLine = dateUsesPlaceholder ? 'CITY - DATE' : dateLineRaw;
 
   const namesFontSize = clamp(v.namesFontSize, 10, 120);
   const dateFontSize = clamp(v.dateFontSize, 8, 80);
@@ -602,51 +627,187 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const namesFont = fontFamily(v.namesFont);
   const dateFont = fontFamily(v.dateFont);
   const centerMetaFont = fontFamily(v.metaFont);
-  const centerTitlePreferredSize = clamp(titleFontSize, 8, labelR * 0.52);
+  const centerTitleMaxSize = hasCustomLabelImage
+    ? labelR * 0.46
+    : usesDiskEmbeddedLabel
+      ? labelR * 0.506
+      : labelR * 0.52;
+  const centerTitlePreferredSize = clamp(titleFontSize, 8, centerTitleMaxSize);
   const centerTitleSize = fitTitleSizeToArc({
     text: title,
     fontKey: v.titleFont,
     preferredSize: centerTitlePreferredSize,
     minSize: 8,
-    maxSize: labelR * 0.52,
+    maxSize: centerTitleMaxSize,
     arcRadius: labelTitleArcR,
     arcSpanDeg: titleArcSpanDeg,
     letterSpacing: 0.5
   });
-  const centerSongSize = clamp(centerMetaFontSize, 10, labelR * 0.28);
-  const centerArtistSize = clamp(centerMetaFontSize * 0.72, 8, labelR * 0.20);
+  const centerSongSize = clamp(
+    centerMetaFontSize,
+    10,
+    labelR * (hasCustomLabelImage ? 0.24 : usesDiskEmbeddedLabel ? 0.17 : 0.28)
+  );
+  const centerArtistSize = clamp(
+    centerMetaFontSize * 0.75,
+    8,
+    labelR * (hasCustomLabelImage ? 0.18 : usesDiskEmbeddedLabel ? 0.125 : 0.2)
+  );
+  const defaultLabelTextRgb = hasCustomLabelImage || usesDiskEmbeddedLabel ? { r: 23, g: 17, b: 11 } : { r: 0, g: 0, b: 0 };
+  const customLabelTextRgb = hexToRgb(v.labelTextColor || '');
+  const centerTextRgb = customLabelTextRgb || defaultLabelTextRgb;
+  const centerTextLum = relativeLuminance(centerTextRgb);
+  const centerTitleFill = rgba(centerTextRgb, hasCustomLabelImage || usesDiskEmbeddedLabel ? 0.90 : 0.88);
+  const centerSongFill = rgba(centerTextRgb, hasCustomLabelImage || usesDiskEmbeddedLabel ? 0.88 : 0.86);
+  const centerArtistFill = rgba(centerTextRgb, hasCustomLabelImage || usesDiskEmbeddedLabel ? 0.74 : 0.62);
+  const centerTextStroke =
+    hasCustomLabelImage || usesDiskEmbeddedLabel
+      ? centerTextLum > 0.62
+        ? 'rgba(0,0,0,0.38)'
+        : 'rgba(255,255,255,0.28)'
+      : 'rgba(0,0,0,0)';
+  const centerTextStrokeWidth = hasCustomLabelImage || usesDiskEmbeddedLabel ? 0.9 : 0;
 
   // Text layout below disk
-  const belowTop = diskCy + diskR + 40;
-  const belowAvailable = H - margin - belowTop;
-  const belowAnchorY = belowTop + Math.max(0, belowAvailable * 0.35);
-  const namesY = belowAnchorY + namesYOffset;
-  const dateY = belowAnchorY + dateYOffset;
+  const namesLines = splitMultiline(names);
+  const dateLines = splitMultiline(dateLine);
+  const regionBottom = H - bottomMargin;
+  const dateStackOffset = Math.max(0, dateLines.length - 1) * dateFontSize * dateLineSpacing;
+  const namesStackOffset = Math.max(0, namesLines.length - 1) * namesFontSize * namesLineSpacing;
+  const baseNamesGap = Math.max(14, dateFontSize * 1.15, namesFontSize * 0.5);
+  const placeholderGapBoost = namesUsesPlaceholder || dateUsesPlaceholder ? Math.max(2, dateFontSize * 0.12) : 0;
+  const namesGap = baseNamesGap + placeholderGapBoost;
+  const dateY = regionBottom - dateStackOffset + dateYOffset;
+  const namesY = dateY - namesGap - namesStackOffset + namesYOffset;
 
   const centerText: string[] = [];
   // Keep song title clear of inner hub ring with a subtle downward offset.
-  const centerSongYOffset = clamp(labelR * 0.05, 2, 6);
-  let cy = diskCy + labelR * 0.46 + centerSongYOffset;
-  if (showCenterLabel && title) {
+  const centerSongYOffset = hasCustomLabelImage
+    ? clamp(labelR * 0.08, 3, 10)
+    : usesDiskEmbeddedLabel
+      ? clamp(labelR * 0.06, 4, 13)
+      : clamp(labelR * 0.05, 2, 6);
+  let cy = diskCy + labelR * (hasCustomLabelImage ? 0.5 : usesDiskEmbeddedLabel ? 0.90 : 0.46) + centerSongYOffset;
+  const centerSongToArtistGap = hasCustomLabelImage
+    ? centerSongSize * 1.12
+    : usesDiskEmbeddedLabel
+      ? Math.max(centerSongSize * 0.95, labelR * 0.20)
+      : centerSongSize * 1.18;
+  if (showCenterLabelText && title) {
     centerText.push(
-      `<text fill="rgba(0,0,0,0.88)" font-size="${centerTitleSize.toFixed(2)}" letter-spacing="0.5" font-family="${titleFont}" font-weight="800">` +
+      `<text fill="${centerTitleFill}" stroke="${centerTextStroke}" stroke-width="${centerTextStrokeWidth.toFixed(2)}" paint-order="stroke" font-size="${centerTitleSize.toFixed(2)}" letter-spacing="0.5" font-family="${titleFont}" font-weight="800">` +
       `<textPath href="#${labelTitleArcId}" startOffset="50%" text-anchor="middle">${svgEscape(title.toUpperCase())}</textPath>` +
       `</text>`
     );
   }
-  if (showCenterLabel && songTitle) {
+  if (showCenterLabelText && songTitle) {
     centerText.push(
-      `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${centerSongSize.toFixed(2)}" fill="rgba(0,0,0,0.86)" text-anchor="middle" font-family="${centerMetaFont}" font-weight="700" letter-spacing="0.6">${svgEscape(songTitle.toUpperCase())}</text>`
+      `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${centerSongSize.toFixed(2)}" fill="${centerSongFill}" stroke="${centerTextStroke}" stroke-width="${(centerTextStrokeWidth * 0.88).toFixed(2)}" paint-order="stroke" text-anchor="middle" font-family="${centerMetaFont}" font-weight="700" letter-spacing="0.6">${svgEscape(songTitle.toUpperCase())}</text>`
     );
-    cy += centerSongSize * 1.18;
+    cy += centerSongToArtistGap;
   }
-  if (showCenterLabel && artist) {
+  if (showCenterLabelText && artist) {
     centerText.push(
-      `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${centerArtistSize.toFixed(2)}" fill="rgba(0,0,0,0.62)" text-anchor="middle" font-family="${centerMetaFont}" font-weight="700" letter-spacing="0.5">${svgEscape(artist.toUpperCase())}</text>`
+      `<text x="${diskCx}" y="${cy.toFixed(2)}" font-size="${centerArtistSize.toFixed(2)}" fill="${centerArtistFill}" stroke="${centerTextStroke}" stroke-width="${(centerTextStrokeWidth * 0.78).toFixed(2)}" paint-order="stroke" text-anchor="middle" font-family="${centerMetaFont}" font-weight="700" letter-spacing="0.5">${svgEscape(artist.toUpperCase())}</text>`
     );
   }
 
   const centerGuides = '';
+
+  const rulerOverlay = showRuler
+    ? (() => {
+      const cx = W / 2;
+      const cy = H / 2;
+      const stepPx = 7.2; // 0.1 in
+      const stepsV = Math.ceil((H / 2) / stepPx);
+      const stepsH = Math.ceil((W / 2) / stepPx);
+
+      const vTicks = Array.from({ length: stepsV * 2 + 1 }, (_, i) => {
+        const step = i - stepsV;
+        const y = cy + step * stepPx;
+        if (y < 0 || y > H) return '';
+        const abs = Math.abs(step);
+        const whole = abs % 10 === 0;
+        const half = abs % 5 === 0 && !whole;
+        const tickLen = whole ? 24 : half ? 16 : 8;
+        const stroke = whole ? '#ff5e57' : half ? '#ffd166' : '#66d9ff';
+        const width = whole ? 2.3 : half ? 1.7 : 1;
+        const sign = step < 0 ? '-' : step > 0 ? '+' : '';
+        const label = (whole || half) ? `${sign}${(abs / 10).toFixed(abs % 10 === 0 ? 0 : 1)}"` : '';
+        return `<line x1="${(cx - tickLen).toFixed(2)}" y1="${y.toFixed(2)}" x2="${(cx + tickLen).toFixed(2)}" y2="${y.toFixed(2)}" stroke="${stroke}" stroke-width="${width}" opacity="0.92"/>${label ? `<text x="${(cx + tickLen + 5).toFixed(2)}" y="${(y + 4).toFixed(2)}" font-size="10" fill="${stroke}" font-family="monospace" font-weight="700" stroke="#000" stroke-width="2.4" paint-order="stroke">${label}</text>` : ''}`;
+      }).join('');
+
+      const hTicks = Array.from({ length: stepsH * 2 + 1 }, (_, i) => {
+        const step = i - stepsH;
+        const x = cx + step * stepPx;
+        if (x < 0 || x > W) return '';
+        const abs = Math.abs(step);
+        const whole = abs % 10 === 0;
+        const half = abs % 5 === 0 && !whole;
+        const tickLen = whole ? 24 : half ? 16 : 8;
+        const stroke = whole ? '#ff5e57' : half ? '#ffd166' : '#66d9ff';
+        const width = whole ? 2.3 : half ? 1.7 : 1;
+        const sign = step < 0 ? '-' : step > 0 ? '+' : '';
+        const label = (whole || half) ? `${sign}${(abs / 10).toFixed(abs % 10 === 0 ? 0 : 1)}"` : '';
+        return `<line x1="${x.toFixed(2)}" y1="${(cy - tickLen).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(cy + tickLen).toFixed(2)}" stroke="${stroke}" stroke-width="${width}" opacity="0.92"/>${label ? `<text x="${(x - 12).toFixed(2)}" y="${(cy + tickLen + 14).toFixed(2)}" font-size="10" fill="${stroke}" font-family="monospace" font-weight="700" stroke="#000" stroke-width="2.4" paint-order="stroke">${label}</text>` : ''}`;
+      }).join('');
+
+      const specDiskR = recordDiameter / 2;
+      const specLabelR = specDiskR * 0.26;
+
+      const diskLabelY = diskCy - diskR - Math.max(18, diskR * 0.07);
+      const labelLabelY = diskCy + labelR + Math.max(18, labelR * 0.35);
+      const labelDiaHalf = labelR;
+      const diskDiaIn = (diskR * 2 / 72).toFixed(2);
+      const radialRulerY = diskCy;
+      const radialGuideStart = diskCx - labelR;
+      const radialGuideEnd = diskCx + labelR;
+      const radialTickCount = 10;
+      const radialLabelY = radialRulerY - Math.max(16, labelR * 0.16);
+      const radialTicks = Array.from({ length: radialTickCount + 1 }, (_, i) => {
+        const t = i / radialTickCount;
+        const dx = labelR * t;
+        const xRight = diskCx + dx;
+        const xLeft = diskCx - dx;
+        const major = i % 2 === 0 || i === 0 || i === radialTickCount;
+        const tickLen = major ? 15 : 9;
+        const stroke = major ? '#7efeff' : '#3cb9e8';
+        const width = major ? 1.8 : 1.2;
+        const label = major
+          ? t === 0
+            ? 'r0'
+            : `${t.toFixed(1)}R/${(labelR * t / 72).toFixed(2)}"`
+          : '';
+        return `<line x1="${xRight.toFixed(2)}" y1="${(radialRulerY - tickLen).toFixed(2)}" x2="${xRight.toFixed(2)}" y2="${(radialRulerY + tickLen).toFixed(2)}" stroke="${stroke}" stroke-width="${width}" opacity="0.98"/>` +
+          `<line x1="${xLeft.toFixed(2)}" y1="${(radialRulerY - tickLen).toFixed(2)}" x2="${xLeft.toFixed(2)}" y2="${(radialRulerY + tickLen).toFixed(2)}" stroke="${stroke}" stroke-width="${width}" opacity="0.98"/>` +
+          (label
+            ? `<text x="${(xRight + 3).toFixed(2)}" y="${radialLabelY.toFixed(2)}" font-size="9.5" fill="#7efeff" font-family="monospace" font-weight="700" stroke="#000" stroke-width="2.2" paint-order="stroke">${label}</text>`
+            : '');
+      }).join('');
+      return `<g id="measurement-ruler-vinyl" pointer-events="none">
+    <line x1="${cx.toFixed(2)}" y1="0" x2="${cx.toFixed(2)}" y2="${H.toFixed(2)}" stroke="#66d9ff" stroke-width="1.8" stroke-dasharray="3 7" opacity="0.86"/>
+    <line x1="0" y1="${cy.toFixed(2)}" x2="${W.toFixed(2)}" y2="${cy.toFixed(2)}" stroke="#66d9ff" stroke-width="1.8" stroke-dasharray="3 7" opacity="0.86"/>
+    ${vTicks}
+    ${hTicks}
+    <rect x="${innerLeft.toFixed(2)}" y="${topMargin.toFixed(2)}" width="${(innerRight - innerLeft).toFixed(2)}" height="${(H - topMargin - bottomMargin).toFixed(2)}" fill="none" stroke="#a6b7d4" stroke-width="1.1" stroke-dasharray="4 7" opacity="0.62"/>
+
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${specDiskR.toFixed(2)}" fill="none" stroke="#00eaff" stroke-width="2.4" stroke-dasharray="2 10" opacity="0.95"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}" fill="none" stroke="#ffd85f" stroke-width="2.4" stroke-dasharray="16 10" opacity="0.95"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${specLabelR.toFixed(2)}" fill="none" stroke="#ff78f6" stroke-width="2" stroke-dasharray="2 9" opacity="0.92"/>
+    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="none" stroke="#91ff89" stroke-width="2" stroke-dasharray="11 8" opacity="0.92"/>
+
+    <line x1="${(diskCx - diskR).toFixed(2)}" y1="${diskCy.toFixed(2)}" x2="${(diskCx + diskR).toFixed(2)}" y2="${diskCy.toFixed(2)}" stroke="#ffd85f" stroke-width="2.2" opacity="0.96"/>
+    <text x="${(diskCx + diskR + 8).toFixed(2)}" y="${(diskCy - 5).toFixed(2)}" font-size="11" fill="#ffd85f" font-family="monospace" font-weight="700" stroke="#000" stroke-width="2.6" paint-order="stroke">disk ${diskDiaIn}"</text>
+    <line x1="${(diskCx - specDiskR).toFixed(2)}" y1="${diskLabelY.toFixed(2)}" x2="${(diskCx + specDiskR).toFixed(2)}" y2="${diskLabelY.toFixed(2)}" stroke="#00eaff" stroke-width="2.2" stroke-dasharray="8 7" opacity="0.96"/>
+    <line x1="${(diskCx - labelDiaHalf).toFixed(2)}" y1="${labelLabelY.toFixed(2)}" x2="${(diskCx + labelDiaHalf).toFixed(2)}" y2="${labelLabelY.toFixed(2)}" stroke="#91ff89" stroke-width="1.9" opacity="0.96"/>
+    <line x1="${radialGuideStart.toFixed(2)}" y1="${radialRulerY.toFixed(2)}" x2="${radialGuideEnd.toFixed(2)}" y2="${radialRulerY.toFixed(2)}" stroke="#7efeff" stroke-width="2.2" stroke-dasharray="6 6" opacity="0.98"/>
+    <text x="${(radialGuideStart - 34).toFixed(2)}" y="${(radialRulerY - 7).toFixed(2)}" font-size="10" fill="#7efeff" font-family="monospace" font-weight="700" stroke="#000" stroke-width="2.2" paint-order="stroke">180deg</text>
+    <text x="${(radialGuideEnd + 8).toFixed(2)}" y="${(radialRulerY - 7).toFixed(2)}" font-size="10" fill="#7efeff" font-family="monospace" font-weight="700" stroke="#000" stroke-width="2.2" paint-order="stroke">0deg</text>
+    <circle cx="${diskCx.toFixed(2)}" cy="${radialRulerY.toFixed(2)}" r="2.8" fill="#7efeff" opacity="0.98"/>
+    ${radialTicks}
+  </g>`;
+    })()
+    : '';
 
   const texture = v.backgroundTexture ?? 'solid';
   const textureOverlays: string[] = [];
@@ -696,6 +857,9 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     <clipPath id="clipLabel">
       <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}"/>
     </clipPath>
+    <clipPath id="clipEmbeddedLabel">
+      <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${embeddedLabelVisualClipR.toFixed(2)}"/>
+    </clipPath>
     ${defs.join('\n    ')}
   </defs>
 
@@ -721,27 +885,15 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     }
 
     ${
-      showCenterLabel
-        ? labelImage
-          ? `<g clip-path="url(#clipLabel)"><image href="${svgEscape(labelImage)}" x="${(diskCx - labelR).toFixed(2)}" y="${(diskCy - labelR).toFixed(2)}" width="${(labelR * 2).toFixed(2)}" height="${(labelR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice"/></g>`
-          : `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}" fill="${labelBaseFill}"/>`
-        : ''
-    }
-    ${
-      showCenterLabel
-        ? `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelOuterGuideR.toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.88)" stroke-width="${labelEdgeStrokeW.toFixed(2)}"/>
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelInnerGuideR.toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="${labelInnerStrokeW.toFixed(2)}"/>
-    <line x1="${(diskCx - labelR * 0.94).toFixed(2)}" y1="${labelDividerY.toFixed(2)}" x2="${(diskCx + labelR * 0.94).toFixed(2)}" y2="${labelDividerY.toFixed(2)}" stroke="rgba(0,0,0,0.66)" stroke-width="${Math.max(1.2, labelR * 0.016).toFixed(2)}"/>
-    <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelHubR.toFixed(2)}" fill="none" stroke="rgba(0,0,0,0.62)" stroke-width="${labelHubStrokeW.toFixed(2)}"/>`
+      showCenterLabel && hasCustomLabelImage
+        ? `<g clip-path="url(#clipLabel)"><image href="${svgEscape(labelImage)}" x="${(diskCx - labelR).toFixed(2)}" y="${(diskCy - labelR).toFixed(2)}" width="${(labelR * 2).toFixed(2)}" height="${(labelR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice"/></g>`
+        : showEmbeddedLabelOnly
+          ? `<g clip-path="url(#clipEmbeddedLabel)"><image href="${svgEscape(diskImage)}" x="${(diskCx - recordImageR).toFixed(2)}" y="${(diskCy - recordImageR).toFixed(2)}" width="${(recordImageR * 2).toFixed(2)}" height="${(recordImageR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" opacity="1"/></g>`
         : ''
     }
     ${centerGuides}
     ${centerText.join('\n    ')}
-    ${
-      showCenterLabel
-        ? `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${holeR.toFixed(2)}" fill="${diskFill}" stroke="rgba(0,0,0,0.55)" stroke-width="2"/>`
-        : ''
-    }
+    ${showCenterLabel ? `<circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${holeR.toFixed(2)}" fill="${diskFill}" stroke="rgba(0,0,0,0.55)" stroke-width="2"/>` : ''}
   </g>
 
   <g>
@@ -751,7 +903,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       y: namesY,
       fontSize: namesFontSize,
       lineSpacing: namesLineSpacing,
-      fill: palette.accent,
+      fill: namesUsesPlaceholder ? palette.mutedInk : rgba(centerTextRgb, 0.90),
       fontFamily: namesFont,
       letterSpacing: namesLetterSpacing
     })}
@@ -761,11 +913,12 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       y: dateY,
       fontSize: dateFontSize,
       lineSpacing: dateLineSpacing,
-      fill: palette.ink,
+      fill: dateUsesPlaceholder ? palette.mutedInk : rgba(centerTextRgb, 0.84),
       fontFamily: dateFont,
       letterSpacing: dateLetterSpacing,
       fontWeight: 600
     })}
   </g>
+  ${rulerOverlay}
 </svg>`;
 }

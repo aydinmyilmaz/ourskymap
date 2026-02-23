@@ -4,6 +4,7 @@ import type { CheckoutDraft } from '../../../lib/checkout';
 import { renderCityMapSvg, type CityMapRequest } from '../../../lib/citymap';
 import { renderVinylPosterSvg } from '../../../lib/vinyl';
 import { renderSoundwavePosterSvg } from '../../../lib/soundwave';
+import { LOCAL_FONT_ASSETS } from '../../../lib/local-font-assets';
 import type { PosterRequest, VinylRequest, SoundwaveRequest } from '../../../lib/types';
 import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 import JSZip from 'jszip';
@@ -45,36 +46,52 @@ function isSimulationCoupon(orderCode: string): boolean {
 
 const MOON_ASSET_PATH_REGEX = /\/(?:moon_(?:gold|silver)\.png|moon-phases\/(?:gold|silver)\/(?:[1-9]|[12]\d|30)\.png)/g;
 const SAFE_MOON_ASSET_REL_PATH_REGEX = /^(?:moon_(?:gold|silver)\.png|moon-phases\/(?:gold|silver)\/(?:[1-9]|[12]\d|30)\.png)$/;
+const VINYL_ASSET_PATH_REGEX = /\/vinyl\/(?:backgrounds|labels)\/[a-zA-Z0-9._-]+\.(?:png|jpe?g|webp)/g;
+const SAFE_VINYL_ASSET_REL_PATH_REGEX = /^vinyl\/(?:backgrounds|labels)\/[a-zA-Z0-9._-]+\.(?:png|jpe?g|webp)$/i;
+
+function replaceAssetUrlRefs(svg: string, assetPath: string, replacement: string): string {
+  return svg
+    .replaceAll(`href="${assetPath}"`, `href="${replacement}"`)
+    .replaceAll(`href='${assetPath}'`, `href='${replacement}'`)
+    .replaceAll(`xlink:href="${assetPath}"`, `xlink:href="${replacement}"`)
+    .replaceAll(`xlink:href='${assetPath}'`, `xlink:href='${replacement}'`);
+}
 
 function listMoonAssetPaths(svg: string): string[] {
   return [...new Set(svg.match(MOON_ASSET_PATH_REGEX) ?? [])];
 }
 
-function withAbsoluteMoonUrls(svg: string, req: Request): string {
+function resolveAssetBaseUrl(req: Request): string {
   const configuredBase = (process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
   const requestBase = new URL(req.url).origin;
-  const base = configuredBase || requestBase;
+  return configuredBase || requestBase;
+}
+
+function withAbsoluteMoonUrls(svg: string, req: Request): string {
+  const base = resolveAssetBaseUrl(req);
   let result = svg;
   for (const assetPath of listMoonAssetPaths(svg)) {
     const abs = `${base}${assetPath}`;
-    result = result
-      .replaceAll(`href="${assetPath}"`, `href="${abs}"`)
-      .replaceAll(`href='${assetPath}'`, `href='${abs}'`)
-      .replaceAll(`xlink:href="${assetPath}"`, `xlink:href="${abs}"`)
-      .replaceAll(`xlink:href='${assetPath}'`, `xlink:href='${abs}'`);
+    result = replaceAssetUrlRefs(result, assetPath, abs);
   }
   return result;
 }
 
 const moonDataUriCache: Record<string, string | null> = {};
+const vinylDataUriCache: Record<string, string | null> = {};
 
-function getMoonImageDataUri(assetPath: string): string | null {
+async function getMoonImageDataUri(assetPath: string, req: Request): Promise<string | null> {
   const relPath = assetPath.replace(/^\/+/, '');
   if (!SAFE_MOON_ASSET_REL_PATH_REGEX.test(relPath)) return null;
   if (Object.prototype.hasOwnProperty.call(moonDataUriCache, relPath)) return moonDataUriCache[relPath];
   try {
-    const moonPath = path.join(process.cwd(), 'public', relPath);
-    const raw = readFileSync(moonPath);
+    const base = resolveAssetBaseUrl(req);
+    const res = await fetch(`${base}/${relPath}`, { cache: 'force-cache' });
+    if (!res.ok) {
+      moonDataUriCache[relPath] = null;
+      return null;
+    }
+    const raw = Buffer.from(await res.arrayBuffer());
     moonDataUriCache[relPath] = `data:image/png;base64,${raw.toString('base64')}`;
   } catch {
     moonDataUriCache[relPath] = null;
@@ -82,44 +99,79 @@ function getMoonImageDataUri(assetPath: string): string | null {
   return moonDataUriCache[relPath];
 }
 
-function withEmbeddedMoonUrls(svg: string): string {
+async function withEmbeddedMoonUrls(svg: string, req: Request): Promise<string> {
   let result = svg;
   for (const assetPath of listMoonAssetPaths(svg)) {
-    const dataUri = getMoonImageDataUri(assetPath);
+    const dataUri = await getMoonImageDataUri(assetPath, req);
     if (!dataUri) continue;
-    result = result
-      .replaceAll(`href="${assetPath}"`, `href="${dataUri}"`)
-      .replaceAll(`href='${assetPath}'`, `href='${dataUri}'`)
-      .replaceAll(`xlink:href="${assetPath}"`, `xlink:href="${dataUri}"`)
-      .replaceAll(`xlink:href='${assetPath}'`, `xlink:href='${dataUri}'`);
+    result = replaceAssetUrlRefs(result, assetPath, dataUri);
   }
   return result;
 }
 
-type LocalFontAsset = {
-  family: string;
-  weight: number;
-  style: 'normal' | 'italic';
-  fileName: string;
-};
+function listVinylAssetPaths(svg: string): string[] {
+  return [...new Set(svg.match(VINYL_ASSET_PATH_REGEX) ?? [])];
+}
 
-const POSTER_FONT_ASSETS: LocalFontAsset[] = [
-  { family: 'Allura', weight: 400, style: 'normal', fileName: 'Allura-Regular.ttf' },
-  { family: 'Great Vibes', weight: 400, style: 'normal', fileName: 'GreatVibes-Regular.ttf' },
-  { family: 'Prata', weight: 400, style: 'normal', fileName: 'Prata-Regular.ttf' },
-  { family: 'Signika', weight: 400, style: 'normal', fileName: 'Signika-Regular.ttf' },
-  { family: 'Signika', weight: 500, style: 'normal', fileName: 'Signika-Medium.ttf' },
-  { family: 'Signika', weight: 700, style: 'normal', fileName: 'Signika-Bold.ttf' }
-];
+function withAbsoluteVinylUrls(svg: string, req: Request): string {
+  const base = resolveAssetBaseUrl(req);
+  let result = svg;
+  for (const assetPath of listVinylAssetPaths(svg)) {
+    const abs = `${base}${assetPath}`;
+    result = replaceAssetUrlRefs(result, assetPath, abs);
+  }
+  return result;
+}
+
+function inferImageMime(relPath: string): string {
+  if (relPath.endsWith('.png')) return 'image/png';
+  if (relPath.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
+async function getVinylImageDataUri(assetPath: string, req: Request): Promise<string | null> {
+  const relPath = assetPath.replace(/^\/+/, '');
+  if (!SAFE_VINYL_ASSET_REL_PATH_REGEX.test(relPath)) return null;
+  const cacheKey = relPath.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(vinylDataUriCache, cacheKey)) return vinylDataUriCache[cacheKey];
+  try {
+    const base = resolveAssetBaseUrl(req);
+    const res = await fetch(`${base}/${relPath}`, { cache: 'force-cache' });
+    if (!res.ok) {
+      vinylDataUriCache[cacheKey] = null;
+      return null;
+    }
+    const raw = Buffer.from(await res.arrayBuffer());
+    const mime = inferImageMime(relPath.toLowerCase());
+    const dataUri = `data:${mime};base64,${raw.toString('base64')}`;
+    vinylDataUriCache[cacheKey] = dataUri;
+    return dataUri;
+  } catch {
+    vinylDataUriCache[cacheKey] = null;
+    return null;
+  }
+}
+
+async function withEmbeddedVinylUrls(svg: string, req: Request): Promise<string> {
+  let result = svg;
+  for (const assetPath of listVinylAssetPaths(svg)) {
+    const dataUri = await getVinylImageDataUri(assetPath, req);
+    if (!dataUri) continue;
+    result = replaceAssetUrlRefs(result, assetPath, dataUri);
+  }
+  return result;
+}
 
 function getPosterFontAbsolutePath(fileName: string): string {
   return path.join(process.cwd(), 'public', 'fonts', fileName);
 }
 
 function getPosterFontFilePaths(): string[] {
-  return POSTER_FONT_ASSETS
-    .map((asset) => getPosterFontAbsolutePath(asset.fileName))
-    .filter((absPath) => existsSync(absPath));
+  return [...new Set(
+    LOCAL_FONT_ASSETS
+      .map((asset) => getPosterFontAbsolutePath(asset.fileName))
+      .filter((absPath) => existsSync(absPath))
+  )];
 }
 
 type ResvgCtor = new (
@@ -197,7 +249,7 @@ function getEmbeddedPosterFontsCss(): string {
   if (embeddedPosterFontsCssCache !== undefined) return embeddedPosterFontsCssCache || '';
   try {
     const blocks: string[] = [];
-    for (const asset of POSTER_FONT_ASSETS) {
+    for (const asset of LOCAL_FONT_ASSETS) {
       const absPath = getPosterFontAbsolutePath(asset.fileName);
       if (!existsSync(absPath)) continue;
       const raw = readFileSync(absPath);
@@ -446,8 +498,11 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-    if (!isCityDraft && !isVinylDraft && !isSoundwaveDraft) {
-      const embeddedMoonSvg = withEmbeddedMoonUrls(svg);
+    if (isVinylDraft) {
+      const embeddedVinylSvg = await withEmbeddedVinylUrls(svg, req);
+      svg = embeddedVinylSvg !== svg ? embeddedVinylSvg : withAbsoluteVinylUrls(svg, req);
+    } else if (!isCityDraft && !isSoundwaveDraft) {
+      const embeddedMoonSvg = await withEmbeddedMoonUrls(svg, req);
       svg = embeddedMoonSvg !== svg ? embeddedMoonSvg : withAbsoluteMoonUrls(svg, req);
     }
 

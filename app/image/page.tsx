@@ -1657,15 +1657,18 @@ export default function ImageDesignPage() {
             <div className="brandSub">STUDIO</div>
           </div>
         </div>
-        <div className="healthBadge" aria-label={`AI Service status: ${replicateHealth}`}>
-          <span className={`healthDot health-${replicateHealth}`} aria-hidden="true" />
-          <span className="healthLabel">
+        <nav className="menu">
+          <a href="/image">Image Studio</a>
+          <span className="menuPlaceholder">T-Shirt Guide (Soon)</span>
+          <span className="menuPlaceholder">Template Packs (Soon)</span>
+          <span className={`statusPill status-${replicateHealth}`}>
             {replicateHealth === 'operational' && 'AI: Online'}
             {replicateHealth === 'degraded' && 'AI: Degraded'}
             {replicateHealth === 'outage' && 'AI: Down'}
             {replicateHealth === 'unknown' && 'AI: Checking…'}
           </span>
-        </div>
+        </nav>
+        <a className="homeCta" href="/">Home Page</a>
       </header>
 
       <main className="layout">
@@ -2932,19 +2935,34 @@ export default function ImageDesignPage() {
           right: 0;
           top: 0;
           z-index: 20;
-          background: linear-gradient(90deg, #0b1224 0%, #14254d 100%);
+          background: linear-gradient(90deg, #0b1224 0%, #1b2f64 52%, #24417f 100%);
           display: grid;
-          grid-template-columns: auto 1fr;
+          grid-template-columns: auto 1fr auto;
           align-items: center;
           gap: 22px;
           padding: 0 22px;
+          overflow: hidden;
           border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .topbar::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background-image:
+            radial-gradient(circle at 14% 28%, rgba(255, 255, 255, 0.24) 0, rgba(255, 255, 255, 0) 38%),
+            linear-gradient(120deg, rgba(120, 172, 255, 0.18), rgba(120, 172, 255, 0) 52%);
+        }
+        .topbar > * {
+          position: relative;
+          z-index: 1;
         }
 
         .brand {
           display: flex;
           align-items: center;
           gap: 12px;
+          justify-self: start;
         }
 
         .brandMark {
@@ -2979,12 +2997,68 @@ export default function ImageDesignPage() {
           color: rgba(255, 255, 255, 0.86);
         }
 
-        .bannerPlaceholder {
-          justify-self: stretch;
-          height: 46px;
-          border: 1px dashed rgba(255, 255, 255, 0.24);
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.04);
+        .menu {
+          display: flex;
+          align-items: center;
+          justify-self: center;
+          gap: 18px;
+          min-width: 0;
+        }
+
+        .menu a {
+          color: rgba(255, 255, 255, 0.92);
+          text-decoration: none;
+          font-size: 14px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+        }
+
+        .menuPlaceholder {
+          color: rgba(224, 234, 252, 0.84);
+          font-size: 12px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+        }
+
+        .statusPill {
+          display: inline-flex;
+          align-items: center;
+          height: 28px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.36);
+          background: rgba(15, 23, 42, 0.4);
+          color: rgba(244, 248, 255, 0.95);
+          padding: 0 10px;
+          font-size: 11px;
+          letter-spacing: 0.02em;
+          white-space: nowrap;
+        }
+
+        .status-operational {
+          border-color: rgba(122, 255, 196, 0.55);
+        }
+
+        .status-degraded {
+          border-color: rgba(255, 213, 116, 0.65);
+        }
+
+        .status-outage {
+          border-color: rgba(255, 132, 132, 0.68);
+        }
+
+        .status-unknown {
+          border-color: rgba(160, 176, 205, 0.58);
+        }
+
+        .homeCta {
+          display: inline-flex;
+          align-items: center;
+          justify-self: end;
+          text-decoration: none;
+          color: rgba(255, 255, 255, 0.94);
+          font-size: 14px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
         }
 
         .layout {
@@ -4358,6 +4432,29 @@ export default function ImageDesignPage() {
 
           .brandMain {
             font-size: 16px;
+          }
+
+          .menu {
+            gap: 10px;
+            justify-self: start;
+            overflow-x: auto;
+            max-width: 100%;
+            padding-bottom: 2px;
+            scrollbar-width: thin;
+          }
+
+          .menuPlaceholder {
+            display: none;
+          }
+
+          .statusPill {
+            font-size: 10px;
+            height: 25px;
+            padding: 0 8px;
+          }
+
+          .homeCta {
+            font-size: 13px;
           }
 
           .previewPanel {

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
+import { VINYL_BACKGROUND_PRESETS, VINYL_DISK_PRESETS } from '../../lib/vinyl-assets';
+import { getVinylLayoutPreset } from '../../lib/vinyl-layout-spec';
 import type { VinylParams } from '../../lib/types';
 
 type PaletteItem = {
@@ -11,8 +13,10 @@ type PaletteItem = {
   bg: string;
 };
 
-const VINYL_LABEL_IMAGE_KEY = 'space_map_vinyl_label_image_v1';
+const VINYL_DISK_IMAGE_KEY = 'space_map_vinyl_disk_image_v1';
 const VINYL_BACKGROUND_IMAGE_KEY = 'space_map_vinyl_background_image_v1';
+const VINYL_DISK_PRESET_SRCS = VINYL_DISK_PRESETS.map((item) => item.src) as readonly string[];
+const VINYL_BACKGROUND_PRESET_SRCS = VINYL_BACKGROUND_PRESETS.map((item) => item.src) as readonly string[];
 
 const PALETTES: PaletteItem[] = [
   // Popular + visually distinct first four for compact mode.
@@ -40,7 +44,8 @@ const PALETTES: PaletteItem[] = [
 const PALETTE_KEYS = PALETTES.map((p) => p.key) as readonly VinylParams['palette'][];
 
 const VINYL_SIZE_OPTIONS: { key: VinylParams['size']; label: string }[] = [
-  { key: 'a4', label: '8x12\" (A4 21x29.7 cm)' },
+  { key: 'us-letter', label: 'US Letter (8.5x11\")' },
+  { key: 'a4', label: '8x12\" / A4 (21x29.7 cm)' },
   { key: '11x14', label: '11x14\" (27x35 cm)' },
   { key: 'a3', label: 'A3 (29.7x42 cm)' },
   { key: '12x12', label: '12x12\" (30x30 cm)' },
@@ -49,52 +54,51 @@ const VINYL_SIZE_OPTIONS: { key: VinylParams['size']; label: string }[] = [
   { key: 'a2', label: 'A2 (42x59.4 cm)' },
   { key: '18x24', label: '18x24\" (45x60 cm)' },
   { key: '20x20', label: '20x20\" (50x50 cm)' },
+  { key: 'a1', label: 'A1 (59.4x84.1 cm)' },
   { key: '24x32', label: '24x32\" (60x80 cm)' }
 ];
 
 const VINYL_SIZE_KEYS: readonly VinylParams['size'][] = [
   ...VINYL_SIZE_OPTIONS.map((s) => s.key),
-  'square',
-  'us-letter',
-  'a1'
+  'square'
 ];
 
 const LYRICS_FONT_OPTIONS: Array<{ key: VinylParams['lyricsFontPreset']; label: string }> = [
-  { key: 'font-1', label: '1 - Cormorant Garamond Light' },
-  { key: 'font-2', label: '2 - Cormorant Garamond Regular' },
-  { key: 'font-3', label: '3 - Allura' },
-  { key: 'font-4', label: '4 - Playfair Display Italic' },
-  { key: 'font-5', label: '5 - Alex Brush' },
-  { key: 'font-6', label: '6 - Cormorant Garamond Italic' },
-  { key: 'font-7', label: '7 - Montserrat Bold' },
-  { key: 'font-8', label: '8 - Great Vibes' },
-  { key: 'font-9', label: '9 - Cormorant Garamond' },
-  { key: 'font-10', label: '10 - Cinzel' },
-  { key: 'font-11', label: '11 - Cinzel Bold' },
-  { key: 'font-12', label: '12 - Playfair Display SC' },
-  { key: 'font-13', label: '13 - Cormorant Garamond Light' },
-  { key: 'font-14', label: '14 - Cormorant Garamond Regular' },
-  { key: 'font-15', label: '15 - Cormorant Garamond Medium' }
+  { key: 'font-1', label: '1 - Monospace' },
+  { key: 'font-2', label: '2 - Sans Serif' },
+  { key: 'font-3', label: '3 - Rage Italic' },
+  { key: 'font-4', label: '4 - Lucida Handwriting' },
+  { key: 'font-5', label: '5 - Vladimir Script' },
+  { key: 'font-6', label: '6 - Ink Free' },
+  { key: 'font-7', label: '7 - Viner Hand ITC' },
+  { key: 'font-8', label: '8 - Pristina' },
+  { key: 'font-9', label: '9 - Bodoni MT' },
+  { key: 'font-10', label: '10 - Felix Titling' },
+  { key: 'font-11', label: '11 - Engravers MT' },
+  { key: 'font-12', label: '12 - Algerian' },
+  { key: 'font-13', label: '13 - Harrington' },
+  { key: 'font-14', label: '14 - Imprint MT Shadow' },
+  { key: 'font-15', label: '15 - Poor Richard' }
 ];
 
 const LYRICS_FONT_KEYS = LYRICS_FONT_OPTIONS.map((o) => o.key) as readonly VinylParams['lyricsFontPreset'][];
 
 const LYRICS_FONT_PREVIEW_FAMILY: Record<VinylParams['lyricsFontPreset'], string> = {
-  'font-1': "Prata, Georgia, 'Times New Roman', serif",
-  'font-2': "Georgia, 'Times New Roman', serif",
-  'font-3': "Allura, 'Great Vibes', cursive, serif",
-  'font-4': "Georgia, 'Times New Roman', serif",
-  'font-5': "'Great Vibes', Allura, cursive, serif",
-  'font-6': "Prata, Georgia, 'Times New Roman', serif",
-  'font-7': 'Signika, Arial, sans-serif',
-  'font-8': "Allura, 'Great Vibes', cursive, serif",
-  'font-9': 'Signika, Arial, sans-serif',
-  'font-10': "Prata, Georgia, 'Times New Roman', serif",
-  'font-11': 'Signika, Arial, sans-serif',
-  'font-12': "Prata, Georgia, 'Times New Roman', serif",
-  'font-13': "Georgia, 'Times New Roman', serif",
-  'font-14': "Georgia, 'Times New Roman', serif",
-  'font-15': 'Signika, Arial, sans-serif'
+  'font-1': "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
+  'font-2': "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+  'font-3': "'Rage Italic', 'Rouge Script', 'Brush Script MT', cursive",
+  'font-4': "'Lucida Handwriting', 'Dancing Script', 'Segoe Script', cursive",
+  'font-5': "'Vladimir Script', Parisienne, 'Brush Script MT', cursive",
+  'font-6': "'Ink Free', 'Patrick Hand', 'Segoe Script', cursive",
+  'font-7': "'Viner Hand ITC', 'Permanent Marker', 'Brush Script MT', cursive",
+  'font-8': "'Pristina', Satisfy, 'Segoe Script', cursive",
+  'font-9': "'Bodoni MT', 'Bodoni Moda', Didot, 'Times New Roman', serif",
+  'font-10': "'Felix Titling', Cinzel, 'Copperplate Gothic Light', serif",
+  'font-11': "'Engravers MT', 'Cinzel Decorative', 'Copperplate Gothic Bold', serif",
+  'font-12': "'Algerian', 'Almendra Display', 'Copperplate Gothic Bold', serif",
+  'font-13': "'Harrington', 'Marcellus SC', 'Book Antiqua', serif",
+  'font-14': "'Imprint MT Shadow', 'Bungee Shade', 'Book Antiqua', serif",
+  'font-15': "'Poor Richard', 'IM Fell English SC', 'Palatino Linotype', serif"
 };
 
 const LYRICS_TEXT_COLORS: Array<{ key: string; label: string }> = [
@@ -112,6 +116,17 @@ const LYRICS_TEXT_COLORS: Array<{ key: string; label: string }> = [
   { key: '#b27148', label: 'Copper' }
 ];
 
+const LABEL_TEXT_COLORS: Array<{ key: string; label: string }> = [
+  { key: '#17110b', label: 'Espresso' },
+  { key: '#111111', label: 'Jet Black' },
+  { key: '#2d343f', label: 'Graphite' },
+  { key: '#5d3f2f', label: 'Walnut' },
+  { key: '#6d522f', label: 'Bronze Ink' },
+  { key: '#d7ae4f', label: 'Gold' },
+  { key: '#d6d8dc', label: 'Silver' },
+  { key: '#f2f2f4', label: 'Snow' }
+];
+
 const LYRICS_CASE_OPTIONS: Array<{ key: VinylParams['lyricsTextCase']; label: string }> = [
   { key: 'original', label: 'Original' },
   { key: 'upper', label: 'UPPERCASE' },
@@ -120,6 +135,8 @@ const LYRICS_CASE_OPTIONS: Array<{ key: VinylParams['lyricsTextCase']; label: st
 
 const LEGACY_VINYL_LYRICS_PLACEHOLDER =
   'Put your lyrics here. The text will wrap into multiple rings around the record. You can paste multiple lines and we will distribute them from outside to inside.';
+const NAMES_CANVAS_PLACEHOLDER = 'NAMES SURNAME';
+const DATELINE_CANVAS_PLACEHOLDER = 'CITY - DATE';
 
 const STAND_BY_ME_LYRICS = `Verse 1
 When the night has come
@@ -156,17 +173,81 @@ Oh, stand, stand by me
 Stand by me`
 ;
 
+function getSizeDrivenDefaults(size: VinylParams['size']) {
+  const preset = getVinylLayoutPreset(size);
+  return {
+    diskDiameter: preset.recordDiameter,
+    titleFontSize: preset.titleFontSize,
+    namesFontSize: preset.namesFontSize,
+    dateFontSize: preset.dateFontSize,
+    metaFontSize: preset.songFontSize,
+    namesYOffset: 0,
+    dateYOffset: 0
+  } satisfies Pick<
+    VinylParams,
+    'diskDiameter' | 'titleFontSize' | 'namesFontSize' | 'dateFontSize' | 'metaFontSize' | 'namesYOffset' | 'dateYOffset'
+  >;
+}
+
+function clampNum(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function pxToIn(px: number): number {
+  return px / 72;
+}
+
+function getVinylRulerLogLines(v: VinylParams): string[] {
+  const spec = getVinylLayoutPreset(v.size);
+  const { W, H, topMargin, bottomMargin, leftMargin, rightMargin, recordDiameter } = spec;
+
+  const innerLeft = leftMargin;
+  const innerRight = W - rightMargin;
+  const diskCx = (innerLeft + innerRight) / 2;
+  const maxDiskRByX = Math.min(diskCx - innerLeft, innerRight - diskCx);
+  const maxDiskRByY = Math.max(1, (H - topMargin - bottomMargin) / 2);
+  const maxDiskR = Math.max(1, Math.min(maxDiskRByX, maxDiskRByY));
+  const minDiskR = Math.min(130, maxDiskR);
+  const requestedDiskDiameter =
+    Number.isFinite(v.diskDiameter) && v.diskDiameter > 0 ? v.diskDiameter : recordDiameter;
+  const diskR = clampNum(requestedDiskDiameter / 2, minDiskR, maxDiskR);
+  const labelR = diskR * 0.26;
+  const specLabelR = (recordDiameter / 2) * 0.26;
+
+  const titleSize = clampNum(v.titleFontSize, 8, 120);
+  const namesSize = clampNum(v.namesFontSize, 10, 120);
+  const dateSize = clampNum(v.dateFontSize, 8, 80);
+  const metaSize = clampNum(v.metaFontSize, 8, 80);
+  const songSize = clampNum(metaSize, 10, labelR * 0.28);
+  const artistSize = clampNum(metaSize * 0.75, 8, labelR * 0.2);
+
+  return [
+    `Canvas: ${pxToIn(W).toFixed(2)} x ${pxToIn(H).toFixed(2)} in`,
+    `Disk DIA req/app: ${pxToIn(recordDiameter).toFixed(2)} -> ${pxToIn(diskR * 2).toFixed(2)} in`,
+    `Label DIA req/app: ${pxToIn(specLabelR * 2).toFixed(2)} -> ${pxToIn(labelR * 2).toFixed(2)} in`,
+    `Title px req/app: ${spec.titleFontSize.toFixed(2)} -> ${titleSize.toFixed(2)}`,
+    `Song px req/app: ${spec.songFontSize.toFixed(2)} -> ${songSize.toFixed(2)}`,
+    `Artist px req/app: ${spec.artistFontSize.toFixed(2)} -> ${artistSize.toFixed(2)}`,
+    `Names px req/app: ${spec.namesFontSize.toFixed(2)} -> ${namesSize.toFixed(2)}`,
+    `Date px req/app: ${spec.dateFontSize.toFixed(2)} -> ${dateSize.toFixed(2)}`
+  ];
+}
+
+const defaultSize: VinylParams['size'] = '16x20';
+const defaultSizeDriven = getSizeDrivenDefaults(defaultSize);
+
 const defaultVinyl: VinylParams = {
-  size: '16x20',
+  size: defaultSize,
   palette: 'classic-black',
   inkColor: '#e6e6ea',
   lyricsFontPreset: 'font-2',
   lyricsTextColor: '#f2f2f4',
+  labelTextColor: '#17110b',
   backgroundTexture: 'solid',
-  recordImageDataUrl: '',
+  recordImageDataUrl: VINYL_DISK_PRESETS[0]?.src ?? '',
   labelImageDataUrl: '',
   backgroundImageDataUrl: '',
-  diskDiameter: 13.7 * 72,
+  diskDiameter: defaultSizeDriven.diskDiameter,
   ringCountMax: 9,
   ringFontSize: 14,
   ringLetterSpacing: 1.2,
@@ -181,22 +262,23 @@ const defaultVinyl: VinylParams = {
   showDisk: true,
   showCenterLabel: true,
   showCenterGuides: false,
-  titleFont: 'prata',
-  titleFontSize: 40,
+  showRuler: false,
+  titleFont: 'big-shoulders',
+  titleFontSize: defaultSizeDriven.titleFontSize,
   titleArcCurvature: 0.8,
   titleArcWidth: 0.73,
-  namesFont: 'jimmy-script',
-  namesFontSize: 64,
+  namesFont: 'amsterdam-four',
+  namesFontSize: defaultSizeDriven.namesFontSize,
   namesLetterSpacing: 0,
   namesLineSpacing: 1.2,
-  namesYOffset: 0,
-  dateFont: 'signika',
-  dateFontSize: 18,
+  namesYOffset: defaultSizeDriven.namesYOffset,
+  dateFont: 'courier-prime',
+  dateFontSize: defaultSizeDriven.dateFontSize,
   dateLetterSpacing: 0,
   dateLineSpacing: 1.2,
-  dateYOffset: 74,
-  metaFont: 'signika',
-  metaFontSize: 18
+  dateYOffset: defaultSizeDriven.dateYOffset,
+  metaFont: 'big-shoulders',
+  metaFontSize: defaultSizeDriven.metaFontSize
 };
 
 function parseNum(v: string | null, fallback: number): number {
@@ -208,6 +290,17 @@ function parseNum(v: string | null, fallback: number): number {
 function parseEnum<T extends string>(v: string | null, allowed: readonly T[], fallback: T): T {
   if (!v) return fallback;
   return (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
+}
+
+function sanitizePresetSrc(
+  value: string,
+  allowed: readonly string[],
+  fallback: string
+): string {
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  if (trimmed.startsWith('data:image/')) return trimmed;
+  return allowed.includes(trimmed) ? trimmed : fallback;
 }
 
 function parseBool(v: string | null, fallback: boolean): boolean {
@@ -230,27 +323,31 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
   const vtx = sp.get('vtx');
   const vlf = sp.get('vlf');
   const vlc = sp.get('vlc');
+  const vltc = sp.get('vltc');
   const vlcs = sp.get('vlcs');
   const vdk = sp.get('vdk');
   const vcl = sp.get('vcl');
+  const parsedSize = parseEnum(vs, VINYL_SIZE_KEYS, defaultVinyl.size);
+  const sizeDefaults = getSizeDrivenDefaults(parsedSize);
   const oldVinylLetterSpacing = parseNum(sp.get('vmls'), defaultVinyl.dateLetterSpacing);
   const oldVinylLineSpacing = parseNum(sp.get('vmlh'), defaultVinyl.dateLineSpacing);
-  const oldVinylYOffset = parseNum(sp.get('vmy'), defaultVinyl.dateYOffset);
+  const oldVinylYOffset = parseNum(sp.get('vmy'), sizeDefaults.dateYOffset);
   const queryOuterText = (sp.get('vot') ?? '').trim();
 
   return {
-    size: parseEnum(vs, VINYL_SIZE_KEYS, defaultVinyl.size),
+    size: parsedSize,
     palette: parseEnum(vp, PALETTE_KEYS, defaultVinyl.palette),
     inkColor: sp.get('vic') ?? defaultVinyl.inkColor,
     lyricsFontPreset: parseEnum(vlf, LYRICS_FONT_KEYS, defaultVinyl.lyricsFontPreset),
     lyricsTextColor: parseHexColor(vlc, defaultVinyl.lyricsTextColor),
+    labelTextColor: parseHexColor(vltc, defaultVinyl.labelTextColor),
     lyricsTextCase: parseEnum(vlcs, ['original', 'upper', 'lower'] as const, defaultVinyl.lyricsTextCase),
     backgroundTexture: parseEnum(
       vtx,
       ['solid', 'paper', 'marble', 'noise'] as const,
       defaultVinyl.backgroundTexture
     ),
-    diskDiameter: parseNum(sp.get('vdd'), defaultVinyl.diskDiameter),
+    diskDiameter: parseNum(sp.get('vdd'), sizeDefaults.diskDiameter),
     ringCountMax: parseNum(sp.get('vrc'), defaultVinyl.ringCountMax),
     ringFontSize: parseNum(sp.get('vrfs'), defaultVinyl.ringFontSize),
     ringLetterSpacing: parseNum(sp.get('vrls'), defaultVinyl.ringLetterSpacing),
@@ -267,26 +364,35 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
     showDisk: parseBool(vdk, defaultVinyl.showDisk),
     showCenterLabel: parseBool(vcl, defaultVinyl.showCenterLabel),
     showCenterGuides: false,
-    titleFont: parseEnum(sp.get('vtf'), ['serif', 'sans', 'mono', 'prata'] as const, defaultVinyl.titleFont),
-    titleFontSize: parseNum(sp.get('vtfs'), defaultVinyl.titleFontSize),
+    showRuler: parseBool(sp.get('vr'), defaultVinyl.showRuler),
+    titleFont: parseEnum(sp.get('vtf'), ['big-shoulders', 'serif', 'sans', 'mono', 'prata'] as const, defaultVinyl.titleFont),
+    titleFontSize: parseNum(sp.get('vtfs'), sizeDefaults.titleFontSize),
     titleArcCurvature: parseNum(sp.get('vtac'), defaultVinyl.titleArcCurvature),
     titleArcWidth: parseNum(sp.get('vtaw'), defaultVinyl.titleArcWidth),
     namesFont: parseEnum(
       sp.get('vnf'),
-      ['serif', 'sans', 'cursive', 'jimmy-script'] as const,
+      ['amsterdam-four', 'serif', 'sans', 'cursive', 'jimmy-script'] as const,
       defaultVinyl.namesFont
     ),
-    namesFontSize: parseNum(sp.get('vnfs'), defaultVinyl.namesFontSize),
+    namesFontSize: parseNum(sp.get('vnfs'), sizeDefaults.namesFontSize),
     namesLetterSpacing: parseNum(sp.get('vnsls'), defaultVinyl.namesLetterSpacing),
     namesLineSpacing: parseNum(sp.get('vnslh'), defaultVinyl.namesLineSpacing),
-    namesYOffset: parseNum(sp.get('vnsy'), defaultVinyl.namesYOffset),
-    dateFont: parseEnum(sp.get('vdf'), ['sans', 'serif', 'mono', 'signika'] as const, defaultVinyl.dateFont),
-    dateFontSize: parseNum(sp.get('vdfs'), defaultVinyl.dateFontSize),
+    namesYOffset: parseNum(sp.get('vnsy'), sizeDefaults.namesYOffset),
+    dateFont: parseEnum(
+      sp.get('vdf'),
+      ['courier-prime', 'big-shoulders', 'sans', 'serif', 'mono', 'signika'] as const,
+      defaultVinyl.dateFont
+    ),
+    dateFontSize: parseNum(sp.get('vdfs'), sizeDefaults.dateFontSize),
     dateLetterSpacing: parseNum(sp.get('vdls'), oldVinylLetterSpacing),
     dateLineSpacing: parseNum(sp.get('vdlh'), oldVinylLineSpacing),
     dateYOffset: parseNum(sp.get('vdy'), oldVinylYOffset),
-    metaFont: parseEnum(sp.get('vmf'), ['sans', 'serif', 'mono', 'signika'] as const, defaultVinyl.metaFont),
-    metaFontSize: parseNum(sp.get('vmfs'), defaultVinyl.metaFontSize)
+    metaFont: parseEnum(
+      sp.get('vmf'),
+      ['big-shoulders', 'courier-prime', 'sans', 'serif', 'mono', 'signika'] as const,
+      defaultVinyl.metaFont
+    ),
+    metaFontSize: parseNum(sp.get('vmfs'), sizeDefaults.metaFontSize)
   };
 }
 
@@ -298,6 +404,7 @@ function encodeVinylToQuery(v: VinylParams): string {
   sp.set('vic', v.inkColor);
   sp.set('vlf', v.lyricsFontPreset);
   sp.set('vlc', v.lyricsTextColor);
+  sp.set('vltc', v.labelTextColor);
   sp.set('vlcs', v.lyricsTextCase);
   sp.set('vtx', v.backgroundTexture);
   sp.set('vdd', String(v.diskDiameter));
@@ -313,6 +420,7 @@ function encodeVinylToQuery(v: VinylParams): string {
   sp.set('vdl', v.dateLine);
   sp.set('vdk', v.showDisk ? '1' : '0');
   sp.set('vcl', v.showCenterLabel ? '1' : '0');
+  sp.set('vr', v.showRuler ? '1' : '0');
   sp.set('vtf', v.titleFont);
   sp.set('vtfs', String(v.titleFontSize));
   sp.set('vtac', String(v.titleArcCurvature));
@@ -373,7 +481,6 @@ export default function VinylPage() {
   const [showAllLyricsColors, setShowAllLyricsColors] = useState(false);
 
   const backgroundInputRef = useRef<HTMLInputElement | null>(null);
-  const labelInputRef = useRef<HTMLInputElement | null>(null);
   const hasInitializedRef = useRef(false);
 
   const visiblePalettes = useMemo(() => {
@@ -401,8 +508,10 @@ export default function VinylPage() {
   }, [showAllLyricsColors, vinyl.lyricsTextColor]);
 
   const activeLyricsFontLabel = useMemo(() => {
-    return LYRICS_FONT_OPTIONS.find((x) => x.key === vinyl.lyricsFontPreset)?.label ?? '1 - Cormorant Garamond Light';
+    return LYRICS_FONT_OPTIONS.find((x) => x.key === vinyl.lyricsFontPreset)?.label ?? '1 - Monospace';
   }, [vinyl.lyricsFontPreset]);
+
+  const rulerLogLines = useMemo(() => getVinylRulerLogLines(vinyl), [vinyl]);
 
   const previewBg = useMemo(() => {
     return `radial-gradient(1200px 700px at 10% -10%, #ffffff 0%, #eff3f9 32%, #dde4ef 100%)`;
@@ -475,8 +584,7 @@ export default function VinylPage() {
         previewSvg: svg,
         renderRequest: {
           vinyl: {
-            ...vinyl,
-            recordImageDataUrl: ''
+            ...vinyl
           }
         },
         mapData: {
@@ -514,15 +622,14 @@ export default function VinylPage() {
     }
   }, [checkoutBusy, fetchVinylSvg, persistCheckoutDraft, router, vinyl]);
 
-  const onLabelFile = useCallback(async (file?: File) => {
-    if (!file) return;
-    try {
-      const dataUrl = await downscaleImageToDataUrl(file, 1200);
-      setVinyl((v) => ({ ...v, labelImageDataUrl: dataUrl }));
-      window.localStorage.setItem(VINYL_LABEL_IMAGE_KEY, dataUrl);
-    } catch (e: any) {
-      setError(e?.message ?? 'Label image upload failed.');
-    }
+  const applyDiskPreset = useCallback((src: string) => {
+    setVinyl((v) => ({ ...v, recordImageDataUrl: src, showDisk: true }));
+    window.localStorage.setItem(VINYL_DISK_IMAGE_KEY, src);
+  }, []);
+
+  const applyBackgroundPreset = useCallback((src: string) => {
+    setVinyl((v) => ({ ...v, backgroundImageDataUrl: src }));
+    window.localStorage.setItem(VINYL_BACKGROUND_IMAGE_KEY, src);
   }, []);
 
   const onBackgroundFile = useCallback(async (file?: File) => {
@@ -540,15 +647,25 @@ export default function VinylPage() {
     if (typeof window === 'undefined') return;
 
     const queryVinyl = decodeVinylFromQuery(window.location.search);
-    const savedLabel = window.localStorage.getItem(VINYL_LABEL_IMAGE_KEY) || '';
-    const savedBackground = window.localStorage.getItem(VINYL_BACKGROUND_IMAGE_KEY) || '';
+    window.localStorage.removeItem('space_map_vinyl_label_image_v1');
+    const savedDisk = sanitizePresetSrc(
+      window.localStorage.getItem(VINYL_DISK_IMAGE_KEY) || '',
+      VINYL_DISK_PRESET_SRCS,
+      defaultVinyl.recordImageDataUrl || ''
+    );
+    const savedBackground = sanitizePresetSrc(
+      window.localStorage.getItem(VINYL_BACKGROUND_IMAGE_KEY) || '',
+      VINYL_BACKGROUND_PRESET_SRCS,
+      ''
+    );
 
     const next: VinylParams = {
       ...defaultVinyl,
       ...queryVinyl,
-      recordImageDataUrl: '',
-      labelImageDataUrl: savedLabel,
-      backgroundImageDataUrl: savedBackground
+      recordImageDataUrl: savedDisk,
+      labelImageDataUrl: '',
+      backgroundImageDataUrl: savedBackground,
+      showCenterLabel: true
     };
 
     setVinyl(next);
@@ -575,15 +692,13 @@ export default function VinylPage() {
         </div>
 
         <nav className="menu">
-          <a href="/ourskymap">Sky Map</a>
-          <a href="/pricing">Pricing</a>
-          <a href="/citymap">City Map</a>
-          <a href="/image">T-Shirt Design</a>
+          <a href="/vinyl">Vinyl Studio</a>
+          <span className="menuPlaceholder">Size Guide (Soon)</span>
+          <span className="menuPlaceholder">Label Styles (Soon)</span>
+          <span className="menuPlaceholder">Lyrics Layout (Soon)</span>
         </nav>
 
-        <button type="button" className="cityMapCta cityMapCtaBtn" onClick={() => void handleCheckout()} disabled={checkoutBusy}>
-          {checkoutBusy ? 'Preparing...' : 'Checkout'}
-        </button>
+        <a className="homeCta" href="/">Home Page</a>
       </header>
 
       <main className="layout">
@@ -611,7 +726,9 @@ export default function VinylPage() {
                 className="dashedInput"
                 value={vinyl.size}
                 onChange={(e) => {
-                  setVinyl((v) => ({ ...v, size: e.target.value as VinylParams['size'] }));
+                  const nextSize = e.target.value as VinylParams['size'];
+                  const sizeDefaults = getSizeDrivenDefaults(nextSize);
+                  setVinyl((v) => ({ ...v, size: nextSize, ...sizeDefaults }));
                 }}
               >
                 {VINYL_SIZE_OPTIONS.map((opt) => (
@@ -629,14 +746,28 @@ export default function VinylPage() {
                 >
                   No Disk
                 </button>
+              </div>
+
+              <div className="fieldHead">
+                <label className="sizeCardLabel">Measurement Ruler</label>
                 <button
                   type="button"
-                  className={`surfaceToggleBtn ${!vinyl.showCenterLabel ? 'active' : ''}`}
-                  onClick={() => setVinyl((v) => ({ ...v, showCenterLabel: !v.showCenterLabel }))}
+                  className={`surfaceToggleBtn rulerToggleBtn ${vinyl.showRuler ? 'active' : ''}`}
+                  onClick={() => setVinyl((v) => ({ ...v, showRuler: !v.showRuler }))}
                 >
-                  No Label
+                  {vinyl.showRuler ? 'On' : 'Off'}
                 </button>
               </div>
+              <p className="controlHint">Shows dotted/dashed diameter guides and spec logs on the canvas.</p>
+              {vinyl.showRuler ? (
+                <div className="rulerLogPanel" aria-label="Vinyl ruler diagnostics">
+                  {rulerLogLines.map((line, idx) => (
+                    <p key={`${idx}:${line}`} className="rulerLogLine">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="stackField frameSection">
@@ -678,6 +809,26 @@ export default function VinylPage() {
             </div>
 
             <div className="stackField frameSection">
+              <div className="fieldHead">
+                <label className="sizeCardLabel">Background Presets</label>
+              </div>
+              <div className="assetPresetGrid">
+                {VINYL_BACKGROUND_PRESETS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`assetPresetBtn ${vinyl.backgroundImageDataUrl === item.src ? 'active' : ''}`}
+                    onClick={() => applyBackgroundPreset(item.src)}
+                    title={item.label}
+                  >
+                    <span className="assetThumb" style={{ backgroundImage: `url(${item.src})` }} />
+                    <span className="assetPresetLabel">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="stackField frameSection">
               <label className="sizeCardLabel">Background Image (optional)</label>
               <input
                 ref={backgroundInputRef}
@@ -711,35 +862,22 @@ export default function VinylPage() {
             </div>
 
             <div className="stackField frameSection">
-              <label className="sizeCardLabel">Center Label Image (optional)</label>
-              <input
-                ref={labelInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="uploadInputHidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  void onLabelFile(file);
-                  e.currentTarget.value = '';
-                }}
-              />
-
-              <div className="uploadActions">
-                <button type="button" className="uploadBtn" onClick={() => labelInputRef.current?.click()}>
-                  {vinyl.labelImageDataUrl ? 'Replace Label' : 'Upload Label'}
-                </button>
-                {vinyl.labelImageDataUrl ? (
+              <div className="fieldHead">
+                <label className="sizeCardLabel">Disk Presets</label>
+              </div>
+              <div className="assetPresetGrid">
+                {VINYL_DISK_PRESETS.map((item) => (
                   <button
+                    key={item.key}
                     type="button"
-                    className="uploadGhostBtn"
-                    onClick={() => {
-                      setVinyl((v) => ({ ...v, labelImageDataUrl: '' }));
-                      window.localStorage.removeItem(VINYL_LABEL_IMAGE_KEY);
-                    }}
+                    className={`assetPresetBtn ${vinyl.recordImageDataUrl === item.src ? 'active' : ''}`}
+                    onClick={() => applyDiskPreset(item.src)}
+                    title={item.label}
                   >
-                    Remove
+                    <span className="assetThumb assetThumbDisk" style={{ backgroundImage: `url(${item.src})` }} />
+                    <span className="assetPresetLabel">{item.label}</span>
                   </button>
-                ) : null}
+                ))}
               </div>
             </div>
           </div>
@@ -779,6 +917,7 @@ export default function VinylPage() {
                     className="compactTextarea"
                     rows={2}
                     value={vinyl.names}
+                    placeholder={NAMES_CANVAS_PLACEHOLDER}
                     onChange={(e) => setVinyl((v) => ({ ...v, names: e.target.value }))}
                   />
                 </div>
@@ -789,6 +928,7 @@ export default function VinylPage() {
                     className="compactTextarea"
                     rows={2}
                     value={vinyl.dateLine}
+                    placeholder={DATELINE_CANVAS_PLACEHOLDER}
                     onChange={(e) => setVinyl((v) => ({ ...v, dateLine: e.target.value }))}
                   />
                 </div>
@@ -808,6 +948,7 @@ export default function VinylPage() {
                       setVinyl((v) => ({ ...v, titleFont: e.target.value as VinylParams['titleFont'] }))
                     }
                   >
+                    <option value="big-shoulders">Big Shoulders Display</option>
                     <option value="prata">Prata</option>
                     <option value="serif">Serif</option>
                     <option value="sans">Sans</option>
@@ -862,6 +1003,7 @@ export default function VinylPage() {
                       setVinyl((v) => ({ ...v, namesFont: e.target.value as VinylParams['namesFont'] }))
                     }
                   >
+                    <option value="amsterdam-four">Amsterdam Four</option>
                     <option value="jimmy-script">Jimmy Script</option>
                     <option value="cursive">Cursive</option>
                     <option value="serif">Serif</option>
@@ -916,6 +1058,8 @@ export default function VinylPage() {
                       setVinyl((v) => ({ ...v, dateFont: e.target.value as VinylParams['dateFont'] }))
                     }
                   >
+                    <option value="courier-prime">Courier Prime</option>
+                    <option value="big-shoulders">Big Shoulders Display</option>
                     <option value="signika">Signika</option>
                     <option value="sans">Sans</option>
                     <option value="serif">Serif</option>
@@ -930,13 +1074,13 @@ export default function VinylPage() {
                       className="spinboxInput"
                       type="number"
                       min={10}
-                      max={42}
+                      max={90}
                       step={1}
                       value={Math.round(vinyl.dateFontSize)}
                       onChange={(e) => {
                         const n = Number(e.target.value);
                         if (!Number.isFinite(n)) return;
-                        setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(42, Math.round(n))) }));
+                        setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(90, Math.round(n))) }));
                       }}
                     />
                     <div className="spinboxButtons">
@@ -944,7 +1088,7 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(42, Math.round(v.dateFontSize) + 1)) }))
+                          setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(90, Math.round(v.dateFontSize) + 1)) }))
                         }
                       >
                         +
@@ -953,12 +1097,29 @@ export default function VinylPage() {
                         type="button"
                         className="spinboxBtn"
                         onClick={() =>
-                          setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(42, Math.round(v.dateFontSize) - 1)) }))
+                          setVinyl((v) => ({ ...v, dateFontSize: Math.max(10, Math.min(90, Math.round(v.dateFontSize) - 1)) }))
                         }
                       >
                         -
                       </button>
                     </div>
+                  </div>
+                </div>
+
+                <div className="stackField controlTile controlTileWide">
+                  <label>Text Color</label>
+                  <div className="palettePicker compact labelColorPicker">
+                    {LABEL_TEXT_COLORS.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className={`paletteBtn ${vinyl.labelTextColor === item.key ? 'active' : ''}`}
+                        onClick={() => setVinyl((v) => ({ ...v, labelTextColor: item.key }))}
+                        title={item.label}
+                      >
+                        <span className="swatch" style={{ background: item.key }} />
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1278,7 +1439,7 @@ export default function VinylPage() {
           left: 0;
           right: 0;
           z-index: 50;
-          background: linear-gradient(90deg, #0f172a 0%, #13203f 52%, #1b2a4d 100%);
+          background: linear-gradient(90deg, #161826 0%, #22263c 52%, #2b3150 100%);
           color: #fff;
           display: grid;
           grid-template-columns: auto 1fr auto;
@@ -1364,7 +1525,14 @@ export default function VinylPage() {
           letter-spacing: 0.01em;
         }
 
-        .cityMapCta {
+        .menuPlaceholder {
+          color: rgba(228, 230, 238, 0.78);
+          font-size: 13px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+        }
+
+        .homeCta {
           display: inline-flex;
           align-items: center;
           justify-self: end;
@@ -1374,17 +1542,6 @@ export default function VinylPage() {
           font-size: 15px;
           letter-spacing: 0.01em;
           white-space: nowrap;
-        }
-
-        .cityMapCtaBtn {
-          border: 0;
-          background: transparent;
-          cursor: pointer;
-        }
-
-        .cityMapCtaBtn:disabled {
-          opacity: 0.75;
-          cursor: wait;
         }
 
         .layout {
@@ -1637,6 +1794,10 @@ export default function VinylPage() {
           padding: 8px;
           gap: 6px;
           min-width: 0;
+        }
+
+        .controlTileWide {
+          grid-column: 1 / -1;
         }
 
         label {
@@ -1970,6 +2131,16 @@ export default function VinylPage() {
           height: 42px;
         }
 
+        .labelColorPicker {
+          grid-template-columns: repeat(8, minmax(0, 1fr));
+          gap: 7px;
+        }
+
+        .labelColorPicker .paletteBtn {
+          width: 34px;
+          height: 34px;
+        }
+
         .surfaceOptionHead {
           font-size: 11px;
           letter-spacing: 0.12em;
@@ -2026,6 +2197,27 @@ export default function VinylPage() {
 
         .surfaceToggleBtn:hover {
           border-color: #b79fd7;
+        }
+
+        .rulerToggleBtn {
+          min-width: 72px;
+        }
+
+        .rulerLogPanel {
+          border: 1px dashed #c8b9de;
+          border-radius: 10px;
+          background: #ffffff;
+          padding: 8px;
+          display: grid;
+          gap: 4px;
+        }
+
+        .rulerLogLine {
+          margin: 0;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+          font-size: 11px;
+          line-height: 1.35;
+          color: #2e1f4a;
         }
 
         .inkPicker {
@@ -2108,6 +2300,62 @@ export default function VinylPage() {
           background: #eef4ff;
         }
 
+        .assetPresetGrid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .assetPresetBtn {
+          border: 1px solid #c9bbde;
+          border-radius: 10px;
+          background: #ffffff;
+          display: grid;
+          gap: 6px;
+          padding: 6px;
+          cursor: pointer;
+          color: #31234d;
+          min-width: 0;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+        }
+
+        .assetPresetBtn:hover {
+          transform: translateY(-1px);
+          border-color: #b397d5;
+        }
+
+        .assetPresetBtn.active {
+          border-color: #7b56c1;
+          box-shadow: inset 0 0 0 1px #7b56c1;
+          background: #faf6ff;
+        }
+
+        .assetThumb {
+          width: 100%;
+          aspect-ratio: 1 / 1;
+          border-radius: 8px;
+          border: 1px solid rgba(33, 23, 52, 0.22);
+          background-color: #ecf0f6;
+          background-repeat: no-repeat;
+          background-size: cover;
+          background-position: center;
+        }
+
+        .assetThumbDisk {
+          border-radius: 50%;
+          background-color: #0d1018;
+        }
+
+        .assetPresetLabel {
+          font-size: 11px;
+          line-height: 1.25;
+          font-weight: 700;
+          color: #4a3b66;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
         .sizeFrameBlock .dashedInput {
           border: 1px solid #c8b9de;
           background: #fff;
@@ -2174,7 +2422,7 @@ export default function VinylPage() {
           }
 
           .menu a,
-          .cityMapCta {
+          .homeCta {
             font-size: 14px;
           }
         }
@@ -2200,7 +2448,11 @@ export default function VinylPage() {
             flex-wrap: wrap;
           }
 
-          .cityMapCta {
+          .menuPlaceholder {
+            font-size: 12px;
+          }
+
+          .homeCta {
             justify-self: start;
           }
 
@@ -2258,6 +2510,10 @@ export default function VinylPage() {
           }
 
           .fontOptionGrid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .assetPresetGrid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }

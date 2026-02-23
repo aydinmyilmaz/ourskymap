@@ -3,8 +3,6 @@ import { buildChartGeometry } from './geometry';
 import type { PosterRequest } from './types';
 import { DateTime } from 'luxon';
 import { AstroTime, MoonPhase } from 'astronomy-engine';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import { getFixedVerticalSpacingPx } from './ourskymap-fixed-sizes';
 
 function svgEscape(s: string): string {
@@ -23,17 +21,8 @@ function envFlagEnabled(v: string | undefined): boolean {
 function resolvePosterPublicAssetUrl(preferredUrl: string, fallbackUrl: string): string {
   const preferred = preferredUrl.trim();
   const fallback = fallbackUrl.trim() || '/moon_gold.png';
-
-  const assetExists = (url: string): boolean => {
-    if (!url.startsWith('/')) return true;
-    const rel = url.replace(/^\/+/, '');
-    const abs = path.join(process.cwd(), 'public', rel);
-    return existsSync(abs);
-  };
-
-  if (preferred && assetExists(preferred)) return preferred;
-  if (assetExists(fallback)) return fallback;
-  return '/moon_gold.png';
+  if (preferred) return preferred;
+  return fallback;
 }
 
 function resolveMoonPhaseAssetUrl(inkPreset: PosterRequest['poster']['inkPreset'], phaseIndex: number): string {

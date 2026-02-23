@@ -1154,13 +1154,11 @@ export default function DesignPage() {
         </div>
         <nav className="menu">
           <a href="/what-is-star-map">What is Sky Map?</a>
-          <a href="/vinyl">Vinyl</a>
-          <a href="/image">T-Shirt Design</a>
-          <a href="/faq">FAQ</a>
-          <a href="/contact">Contact</a>
-          <a href="/blog">Blog</a>
+          <span className="menuPlaceholder">Constellation Guide (Soon)</span>
+          <span className="menuPlaceholder">Moon Phase Notes (Soon)</span>
+          <span className="menuPlaceholder">Gift Ideas (Soon)</span>
         </nav>
-        <a className="cityMapCta" href="/citymap">Try City Map</a>
+        <a className="homeCta" href="/">Home Page</a>
       </header>
 
       <main className="layout">
@@ -1798,7 +1796,14 @@ export default function DesignPage() {
           letter-spacing: 0.01em;
         }
 
-        .cityMapCta {
+        .menuPlaceholder {
+          color: rgba(219, 228, 245, 0.82);
+          font-size: 13px;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+        }
+
+        .homeCta {
           display: inline-flex;
           align-items: center;
           justify-self: end;
@@ -2619,7 +2624,7 @@ export default function DesignPage() {
             gap: 10px 16px;
           }
 
-          .cityMapCta {
+          .homeCta {
             position: static;
             transform: none;
             justify-self: start;

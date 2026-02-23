@@ -1,49 +1,7 @@
 import type { Metadata } from 'next';
+import { buildLocalFontFaceCss } from '../lib/local-font-assets';
 
-const LOCAL_FONT_FACE_CSS = `
-@font-face {
-  font-family: 'Allura';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/Allura-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Great Vibes';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/GreatVibes-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Prata';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/Prata-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Signika';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/Signika-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Signika';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/Signika-Medium.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Signika';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/Signika-Bold.ttf') format('truetype');
-}
-`;
+const LOCAL_FONT_FACE_CSS = buildLocalFontFaceCss();
 
 export const metadata: Metadata = {
   title: 'Sky Chart Generator',

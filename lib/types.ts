@@ -147,6 +147,10 @@ export type PosterRequest = {
   poster: PosterParams;
 };
 
+export type VinylTitleFont = PosterParams['titleFont'] | 'big-shoulders';
+export type VinylNamesFont = PosterParams['namesFont'] | 'amsterdam-four';
+export type VinylMetaFont = PosterParams['metaFont'] | 'courier-prime' | 'big-shoulders';
+
 export type VinylParams = {
   size: PosterParams['size'];
   palette: PosterParams['palette'];
@@ -177,6 +181,7 @@ export type VinylParams = {
   ringLetterSpacing: number;
   ringLineGap: number;
   lyricsTextColor: string;
+  labelTextColor: string;
   lyricsTextCase: 'original' | 'upper' | 'lower';
   title: string;
   songTitle: string;
@@ -187,21 +192,22 @@ export type VinylParams = {
   showDisk: boolean;
   showCenterLabel: boolean;
   showCenterGuides: boolean;
-  titleFont: PosterParams['titleFont'];
+  showRuler: boolean;
+  titleFont: VinylTitleFont;
   titleFontSize: number;
   titleArcCurvature: number;
   titleArcWidth: number;
-  namesFont: PosterParams['namesFont'];
+  namesFont: VinylNamesFont;
   namesFontSize: number;
   namesLetterSpacing: number;
   namesLineSpacing: number;
   namesYOffset: number;
-  dateFont: PosterParams['metaFont'];
+  dateFont: VinylMetaFont;
   dateFontSize: number;
   dateLetterSpacing: number;
   dateLineSpacing: number;
   dateYOffset: number;
-  metaFont: PosterParams['metaFont'];
+  metaFont: VinylMetaFont;
   metaFontSize: number;
 };
 
