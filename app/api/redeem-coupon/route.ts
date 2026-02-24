@@ -80,6 +80,18 @@ function withAbsoluteMoonUrls(svg: string, req: Request): string {
 const moonDataUriCache: Record<string, string | null> = {};
 const vinylDataUriCache: Record<string, string | null> = {};
 
+function readLocalPublicAssetDataUri(relPath: string, mime: string): string | null {
+  try {
+    const abs = path.join(process.cwd(), 'public', relPath);
+    if (!existsSync(abs)) return null;
+    const raw = readFileSync(abs);
+    if (!raw.length) return null;
+    return `data:${mime};base64,${raw.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
 async function getMoonImageDataUri(assetPath: string, req: Request): Promise<string | null> {
   const relPath = assetPath.replace(/^\/+/, '');
   if (!SAFE_MOON_ASSET_REL_PATH_REGEX.test(relPath)) return null;
@@ -88,13 +100,13 @@ async function getMoonImageDataUri(assetPath: string, req: Request): Promise<str
     const base = resolveAssetBaseUrl(req);
     const res = await fetch(`${base}/${relPath}`, { cache: 'force-cache' });
     if (!res.ok) {
-      moonDataUriCache[relPath] = null;
-      return null;
+      moonDataUriCache[relPath] = readLocalPublicAssetDataUri(relPath, 'image/png');
+      return moonDataUriCache[relPath];
     }
     const raw = Buffer.from(await res.arrayBuffer());
     moonDataUriCache[relPath] = `data:image/png;base64,${raw.toString('base64')}`;
   } catch {
-    moonDataUriCache[relPath] = null;
+    moonDataUriCache[relPath] = readLocalPublicAssetDataUri(relPath, 'image/png');
   }
   return moonDataUriCache[relPath];
 }
@@ -134,21 +146,21 @@ async function getVinylImageDataUri(assetPath: string, req: Request): Promise<st
   if (!SAFE_VINYL_ASSET_REL_PATH_REGEX.test(relPath)) return null;
   const cacheKey = relPath.toLowerCase();
   if (Object.prototype.hasOwnProperty.call(vinylDataUriCache, cacheKey)) return vinylDataUriCache[cacheKey];
+  const mime = inferImageMime(relPath.toLowerCase());
   try {
     const base = resolveAssetBaseUrl(req);
     const res = await fetch(`${base}/${relPath}`, { cache: 'force-cache' });
     if (!res.ok) {
-      vinylDataUriCache[cacheKey] = null;
-      return null;
+      vinylDataUriCache[cacheKey] = readLocalPublicAssetDataUri(relPath, mime);
+      return vinylDataUriCache[cacheKey];
     }
     const raw = Buffer.from(await res.arrayBuffer());
-    const mime = inferImageMime(relPath.toLowerCase());
     const dataUri = `data:${mime};base64,${raw.toString('base64')}`;
     vinylDataUriCache[cacheKey] = dataUri;
     return dataUri;
   } catch {
-    vinylDataUriCache[cacheKey] = null;
-    return null;
+    vinylDataUriCache[cacheKey] = readLocalPublicAssetDataUri(relPath, mime);
+    return vinylDataUriCache[cacheKey];
   }
 }
 
