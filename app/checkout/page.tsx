@@ -17,6 +17,8 @@ type RedeemResponse = {
 const TARGET_EXPORT_DPI = 300;
 const BASE_SVG_DPI = 72;
 const MAX_CLIENT_EXPORT_PIXELS = 40_000_000;
+const MOON_ASSET_PATH_REGEX = /\/(?:moon_(?:gold|silver)\.png|moon-phases\/(?:gold|silver)\/(?:[1-9]|[12]\d|30)\.png)/g;
+const VINYL_ASSET_PATH_REGEX = /\/vinyl\/(?:backgrounds|labels)\/[a-zA-Z0-9._-]+\.(?:png|jpe?g|webp)/g;
 
 function getRasterScale(svgWidth: number, svgHeight: number): number {
   const targetScale = TARGET_EXPORT_DPI / BASE_SVG_DPI;
@@ -45,16 +47,69 @@ function parseSvgSize(svg: string): { width: number; height: number } {
   return { width: 1200, height: 1800 };
 }
 
+function replaceAssetUrlRefs(svg: string, assetPath: string, replacement: string): string {
+  return svg
+    .replaceAll(`href="${assetPath}"`, `href="${replacement}"`)
+    .replaceAll(`href='${assetPath}'`, `href='${replacement}'`)
+    .replaceAll(`xlink:href="${assetPath}"`, `xlink:href="${replacement}"`)
+    .replaceAll(`xlink:href='${assetPath}'`, `xlink:href='${replacement}'`);
+}
+
+function listAssetPaths(svg: string, regex: RegExp): string[] {
+  return [...new Set(svg.match(regex) ?? [])];
+}
+
+function inferImageMime(assetPath: string): string {
+  const rel = assetPath.toLowerCase();
+  if (rel.endsWith('.png')) return 'image/png';
+  if (rel.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
+function base64Encode(bytes: Uint8Array): string {
+  // Encode in chunks to avoid call-stack limits on large assets.
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(bytes.length, i + chunkSize));
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 function withAbsoluteMoonUrls(svg: string): string {
   const origin = window.location.origin;
   let result = svg;
-  for (const name of ['moon_gold.png', 'moon_silver.png']) {
-    const abs = `${origin}/${name}`;
-    result = result
-      .replaceAll(`href="/${name}"`, `href="${abs}"`)
-      .replaceAll(`href='/${name}'`, `href='${abs}'`)
-      .replaceAll(`xlink:href="/${name}"`, `xlink:href="${abs}"`)
-      .replaceAll(`xlink:href='/${name}'`, `xlink:href='${abs}'`);
+  for (const assetPath of listAssetPaths(svg, MOON_ASSET_PATH_REGEX)) {
+    const abs = `${origin}${assetPath}`;
+    result = replaceAssetUrlRefs(result, assetPath, abs);
+  }
+  return result;
+}
+
+function withAbsoluteVinylUrls(svg: string): string {
+  const origin = window.location.origin;
+  let result = svg;
+  for (const assetPath of listAssetPaths(svg, VINYL_ASSET_PATH_REGEX)) {
+    const abs = `${origin}${assetPath}`;
+    result = replaceAssetUrlRefs(result, assetPath, abs);
+  }
+  return result;
+}
+
+async function withEmbeddedVinylUrls(svg: string): Promise<string> {
+  let result = svg;
+  for (const assetPath of listAssetPaths(svg, VINYL_ASSET_PATH_REGEX)) {
+    try {
+      const res = await fetch(`${window.location.origin}${assetPath}`, { cache: 'force-cache' });
+      if (!res.ok) continue;
+      const mime = inferImageMime(assetPath);
+      const raw = new Uint8Array(await res.arrayBuffer());
+      const dataUri = `data:${mime};base64,${base64Encode(raw)}`;
+      result = replaceAssetUrlRefs(result, assetPath, dataUri);
+    } catch {
+      // Keep original URL and let absolute fallback handle it.
+    }
   }
   return result;
 }
@@ -148,7 +203,9 @@ async function svgToPngBytes(svg: string, width: number, height: number): Promis
 async function downloadFlatBrowserZip(args: { svg: string; filePrefix: string; fileCode: string }): Promise<void> {
   const [{ PDFDocument }, zipMod] = await Promise.all([import('pdf-lib'), import('jszip')]);
   const JSZipCtor = zipMod.default;
-  const svg = withAbsoluteMoonUrls(args.svg);
+  let svg = await withEmbeddedVinylUrls(args.svg);
+  svg = withAbsoluteVinylUrls(svg);
+  svg = withAbsoluteMoonUrls(svg);
   const { width, height } = parseSvgSize(svg);
   const pngBytes = await svgToPngBytes(svg, width, height);
 
