@@ -14,3 +14,7 @@ Notlar:
 - Render tarafinda px cevirimi kullanilir (`72 / 25.4`).
 - `ringGap` render formati icin su sekilde turetilir:
   - `ringGap = visibleGapPx + ringInnerWidthPx/2 + ringOuterWidthPx/2`
+- `2026-02-25` text-fit tuning (companion):
+  - `minTextGap = 28px`
+  - `gap1 = 8px`, `gap2 = 10px` (`12x12` haric)
+  - Bu degerler `lib/poster.ts` tarafinda uygulanir; sabit boyut tablosu (`lib/ourskymap-fixed-sizes.ts`) degismemistir.

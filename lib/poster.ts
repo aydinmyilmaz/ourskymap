@@ -855,8 +855,9 @@ export function renderPosterSvg(req: PosterRequest): string {
   const compOuterRRef = showCompanionCircle ? chartR + ringGapEarly : 0;
   const topVisualTop = showCompanionCircle ? Math.min(chartCy - compOuterRRef, moonCy - moonR) : chartCy - outerR;
   const topVisualBottom = showCompanionCircle ? Math.max(chartCy + compOuterRRef, moonCy + moonR) : chartCy + outerR;
-  // Proportional gap: outerR × 0.12 → 16x20'de ≈46px (reference), scales with chart size
-  const minTextGap = showCompanionCircle ? 56 : Math.round(outerR * 0.12);
+  // Companion uses a slightly tighter but still safe visual gap so fixed font presets shrink less often.
+  // Single mode keeps proportional spacing based on chart radius.
+  const minTextGap = showCompanionCircle ? 28 : Math.round(outerR * 0.12);
   const regionTop = topVisualBottom + minTextGap;
 
   // Her iki modda da spec-defined bottom margin
@@ -869,8 +870,8 @@ export function renderPosterSvg(req: PosterRequest): string {
   const effectiveMetaLineSpacing = is12x12Layout ? Math.max(1.15, metaLineSpacing - 0.12) : metaLineSpacing;
   const metaLineHeight = () => metaFont * effectiveMetaLineSpacing;
 
-  const gap1 = is12x12Layout ? 10 : 14;
-  const gap2 = is12x12Layout ? 10 : 16;
+  const gap1 = is12x12Layout ? 10 : showCompanionCircle ? 8 : 14;
+  const gap2 = is12x12Layout ? 10 : showCompanionCircle ? 10 : 16;
   const textBlockYOffset = is12x12Layout ? -20 : 0;
 
   const calcNeeded = () => {
