@@ -1148,12 +1148,12 @@ export default function DesignPage() {
             <img src="/logo_ourskymap_v4.jpeg" alt="" />
           </div>
           <div className="brandText">
-            <div className="brandMain">SKY MAP</div>
+            <div className="brandMain">STAR MAP</div>
             <div className="brandSub">STUDIO</div>
           </div>
         </div>
         <nav className="menu">
-          <a href="/what-is-star-map">What is Sky Map?</a>
+          <a href="/what-is-star-map">What is StarMap?</a>
           <span className="menuPlaceholder">Constellation Guide (Soon)</span>
           <span className="menuPlaceholder">Moon Phase Notes (Soon)</span>
           <span className="menuPlaceholder">Gift Ideas (Soon)</span>

@@ -93,7 +93,7 @@ export default function ContactPage() {
             <Link href="/faq">FAQ</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/blog">Blog</Link>
-            <Link href="/ourskymap">Open OurSkyMap</Link>
+            <Link href="/ourskymap">Open StarMap</Link>
           </div>
         </section>
       </div>

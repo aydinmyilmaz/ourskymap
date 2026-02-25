@@ -342,7 +342,7 @@ export default function CheckoutPage() {
                 ? 'Your Custom Vinyl Poster'
                 : isSoundwave
                   ? 'Your Custom Soundwave Poster'
-                  : 'Your Custom Sky Map'}
+                  : 'Your Custom StarMap'}
           </h1>
           <p>
             {isCity

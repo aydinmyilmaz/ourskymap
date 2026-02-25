@@ -80,7 +80,7 @@ export default function PricingPage() {
             </p>
             <div className="heroActions">
               <Link href="/ourskymap" className="btn btnPrimary">
-                Start with Sky Map
+                Start with StarMap
               </Link>
               <Link href="/contact" className="btn btnSecondary">
                 Contact Sales
@@ -88,7 +88,7 @@ export default function PricingPage() {
             </div>
           </div>
           <div className="heroVisual" aria-hidden="true">
-            <Image src="/home/product-vinyl.jpg" alt="Pricing showcase" fill sizes="(max-width: 920px) 100vw, 34vw" />
+            <Image src="/home/product-vinyl2.jpeg" alt="Pricing showcase" fill sizes="(max-width: 920px) 100vw, 34vw" />
           </div>
         </header>
 

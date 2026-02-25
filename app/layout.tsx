@@ -4,8 +4,8 @@ import { buildLocalFontFaceCss } from '../lib/local-font-assets';
 const LOCAL_FONT_FACE_CSS = buildLocalFontFaceCss();
 
 export const metadata: Metadata = {
-  title: 'Sky Chart Generator',
-  description: 'Generate a printable sky chart for any location and time.',
+  title: 'MementoGifts',
+  description: 'MementoGifts personalized design studio for star maps, city maps, soundwave, vinyl, and image products.',
   icons: {
     icon: '/logo_ourskymap_round.png',
     shortcut: '/logo_ourskymap_round.png',

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 const NAV_LINKS = [
-  { href: '/ourskymap', label: 'OurSkyMap' },
+  { href: '/ourskymap', label: 'StarMap' },
   { href: '/citymap', label: 'CityMap' },
   { href: '/soundwave', label: 'Soundwave' },
   { href: '/vinyl', label: 'Vinyl' },
@@ -32,11 +32,11 @@ const STATS = [
 const PRODUCTS = [
   {
     href: '/ourskymap',
-    title: 'OurSkyMap',
+    title: 'StarMap',
     tag: 'Signature Product',
     description: 'Create memory-driven star maps with elegant typography, moon phases, and premium print proportions.',
     image: '/home/product-starmap.jpg',
-    cta: 'Start Sky Map'
+    cta: 'Start StarMap'
   },
   {
     href: '/citymap',
@@ -59,7 +59,7 @@ const PRODUCTS = [
     title: 'Vinyl Studio',
     tag: 'Music Collectible',
     description: 'Design vinyl-inspired posters with curated gradients, labels, and premium visual treatments.',
-    image: '/home/product-vinyl.jpg',
+    image: '/home/product-vinyl2.jpeg',
     cta: 'Open Vinyl Studio'
   },
   {
@@ -150,7 +150,7 @@ const BLOG_PREVIEW = [
     title: 'How to Design Gift-Ready Star Map Posters',
     category: 'Guides',
     date: 'Jan 2026',
-    image: '/home/product-vinyl.jpg'
+    image: '/home/product-vinyl2.jpeg'
   },
   {
     href: '/blog',
@@ -172,7 +172,7 @@ const FOOTER_COLUMNS = [
   {
     title: 'Products',
     links: [
-      { href: '/ourskymap', label: 'OurSkyMap' },
+      { href: '/ourskymap', label: 'StarMap' },
       { href: '/citymap', label: 'CityMap' },
       { href: '/soundwave', label: 'Soundwave' },
       { href: '/vinyl', label: 'Vinyl Studio' },
@@ -185,7 +185,7 @@ const FOOTER_COLUMNS = [
       { href: '/pricing', label: 'Pricing' },
       { href: '/faq', label: 'FAQ' },
       { href: '/blog', label: 'Blog' },
-      { href: '/what-is-star-map', label: 'What is Sky Map?' }
+      { href: '/what-is-star-map', label: 'What is StarMap?' }
     ]
   },
   {
@@ -212,6 +212,15 @@ export default function HomePage() {
         </section>
 
         <header className="topNav">
+          <Link href="/" className="brandLockup" aria-label="MEMENTOGIFTS home">
+            <span className="brandLogo" aria-hidden="true">
+              <span className="brandLogoCore" />
+              <span className="brandLogoDot" />
+            </span>
+            <span className="brandText" lang="en">
+              MEMENTOGIFTS
+            </span>
+          </Link>
           <nav className="navLinks" aria-label="Main navigation">
             {NAV_LINKS.map((item) => (
               <Link key={item.href} href={item.href}>
@@ -223,8 +232,10 @@ export default function HomePage() {
 
         <section className="hero">
           <div className="heroCopy">
-            <p className="eyebrow">Custom Digital Poster Platform</p>
-            <h1>Build Meaningful Poster Products with Studio Precision</h1>
+            <p className="eyebrow brandEyebrow" lang="en">
+              MEMENTOGIFTS PLATFORM
+            </p>
+            <h1>Build Meaningful Gift Products with Studio Precision</h1>
             <p className="lead">
               Create sky maps, city maps, soundwave art, and vinyl concepts in one unified platform. Designed for premium visual
               quality and production-ready delivery.
@@ -234,14 +245,6 @@ export default function HomePage() {
                 <li key={point}>{point}</li>
               ))}
             </ul>
-            <div className="heroActions">
-              <Link href="/ourskymap" className="btn btnPrimary">
-                Design Sky Map
-              </Link>
-              <Link href="/citymap" className="btn btnSecondary">
-                Design City Map
-              </Link>
-            </div>
           </div>
 
           <div className="heroVisual" aria-hidden="true">
@@ -391,7 +394,7 @@ export default function HomePage() {
 
         <section id="contact" className="contactBand" aria-label="Contact call to action">
           <div className="contactMedia" aria-hidden="true">
-            <Image src="/home/product-vinyl.jpg" alt="Vinyl poster mockup" fill sizes="(max-width: 960px) 100vw, 24vw" />
+            <Image src="/home/product-vinyl2.jpeg" alt="Vinyl poster mockup" fill sizes="(max-width: 960px) 100vw, 24vw" />
           </div>
           <div className="contactCopy">
             <p className="sectionTag">Contact</p>
@@ -414,7 +417,7 @@ export default function HomePage() {
         <footer className="footer">
           <div className="footerTop">
             <div className="footerBrand">
-              <p className="footerLogo">SpaceMap Studio</p>
+              <p className="footerLogo">MementoGifts</p>
               <p>Digital-first poster platform for story-driven products and print-grade outputs.</p>
             </div>
             <div className="footerCols">
@@ -434,7 +437,7 @@ export default function HomePage() {
           </div>
 
           <div className="footerBottom">
-            <p>© {new Date().getFullYear()} SpaceMap Studio. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} MementoGifts. All rights reserved.</p>
             <div>
               <Link href="/faq">Support</Link>
               <Link href="/contact">Contact</Link>
@@ -527,16 +530,83 @@ export default function HomePage() {
           backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
-          justify-content: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 10px 14px;
           padding: 10px 16px;
+        }
+
+        .brandLockup {
+          min-height: 42px;
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          text-decoration: none;
+          border-radius: 999px;
+          padding: 4px 6px;
+        }
+
+        .brandLogo {
+          width: 34px;
+          height: 34px;
+          border-radius: 999px;
+          position: relative;
+          border: 1px solid #a8bbd8;
+          background:
+            radial-gradient(circle at 28% 26%, #ffffff 0%, #eaf3ff 34%, rgba(234, 243, 255, 0) 50%),
+            linear-gradient(145deg, #182a4a 0%, #27487a 48%, #1a3359 100%);
+          box-shadow: 0 8px 18px rgba(18, 40, 74, 0.24);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .brandLogo::before {
+          content: '';
+          position: absolute;
+          inset: 3px;
+          border-radius: 999px;
+          border: 1.5px solid rgba(211, 225, 247, 0.72);
+        }
+
+        .brandLogoCore {
+          width: 14px;
+          height: 14px;
+          border-radius: 999px;
+          border: 1px solid rgba(190, 213, 246, 0.9);
+          background: linear-gradient(145deg, #24497e 0%, #173055 100%);
+          box-shadow: inset 0 1px 2px rgba(240, 247, 255, 0.45);
+        }
+
+        .brandLogoDot {
+          position: absolute;
+          width: 4px;
+          height: 4px;
+          border-radius: 999px;
+          background: #f2f7ff;
+          top: 10px;
+          right: 9px;
+          box-shadow: 0 0 6px rgba(242, 247, 255, 0.8);
+        }
+
+        .brandText {
+          color: #183359;
+          font-size: 15px;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          line-height: 1;
+          white-space: nowrap;
+          text-transform: none;
         }
 
         .navLinks {
           display: flex;
           align-items: center;
-          justify-content: center;
+          justify-content: flex-end;
           flex-wrap: wrap;
           gap: 6px;
+          flex: 1;
         }
 
         .navLinks :global(a) {
@@ -579,6 +649,10 @@ export default function HomePage() {
           text-transform: uppercase;
           color: #365d8e;
           font-weight: 700;
+        }
+
+        .brandEyebrow {
+          text-transform: none;
         }
 
         h1 {
@@ -1162,6 +1236,19 @@ export default function HomePage() {
         }
 
         @media (max-width: 1180px) {
+          .topNav {
+            justify-content: center;
+          }
+
+          .brandLockup {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .navLinks {
+            justify-content: center;
+          }
+
           .hero {
             grid-template-columns: 1fr;
           }

@@ -38,7 +38,7 @@ const POSTS = [
     category: 'Creative Ops',
     date: 'October 2025',
     href: '/vinyl',
-    image: '/home/product-vinyl.jpg'
+    image: '/home/product-vinyl2.jpeg'
   }
 ] as const;
 

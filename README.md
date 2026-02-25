@@ -1,6 +1,6 @@
-# Space Map (Sky Chart)
+# MementoGifts
 
-Next.js app that generates a printable sky chart (SVG) for a given location and local time.
+Next.js app for personalized gift products, including star maps, city maps, soundwave, vinyl, and image-based designs.
 
 ## Dev
 

@@ -45,7 +45,7 @@ export default function WhatIsStarMapPage() {
     <main className={styles.page}>
       <section className={styles.hero}>
         <div className={styles.heroText}>
-          <p className={styles.eyebrow}>What is Sky Map?</p>
+          <p className={styles.eyebrow}>What is StarMap?</p>
           <h1>
             Written in the stars,
             <br />
@@ -57,7 +57,7 @@ export default function WhatIsStarMapPage() {
           </p>
           <div className={styles.heroActions}>
             <a className={styles.primaryBtn} href="/ourskymap">
-              Create Your Sky Map
+              Create Your StarMap
             </a>
             <div className={styles.rating}>4.9/5 from 200+ reviews</div>
           </div>
@@ -69,7 +69,7 @@ export default function WhatIsStarMapPage() {
 
       <section className={styles.centerIntro}>
         <h2>
-          What is a <span>Sky Map?</span>
+          What is a <span>StarMap?</span>
         </h2>
         <p>
           A sky map is a unique representation of the night sky from a specific place and time. Whether
