@@ -12,6 +12,8 @@ Bu dokuman, layout/formul degisimlerinin 3 durumunu kaydeder:
 - **Companion mode** su anda yeni formullerle calisiyor.
 - Companion'da font hesabi en son revizyonda **uzun kenar** bazina cekildi.
 - `SHOW_RULER=true` icin beyaz cap ruler'i + `DIA:` etiketi eklendi.
+- `2026-02-21` sonrasi sabit boyut kaynaklari `lib/ourskymap-fixed-sizes.ts` uzerinden gelir.
+- `2026-02-25` itibariyla companion text-fit gevsedildi (`minTextGap` ve section gap ayarlari).
 
 ## 2) Terimler
 
@@ -97,6 +99,10 @@ top/bottom margin:
   - diger boyutlar: (H_short/16) * 1.6 inch
 
 title text width = W_canvas * 0.75
+
+text fit tuning (2026-02-25):
+  minTextGap = 28px (companion)
+  gap1 = 8px, gap2 = 10px (companion, 12x12 haric)
 ```
 
 ## 4) Boyut Tablosu (Single vs Companion)
@@ -178,3 +184,18 @@ SHOW_RULER=TRUE
 
 - Continuous moon shading/render bu turda bilerek uygulanmadi.
 - Mevcut karar: 30-image deterministic mapping ile devam.
+
+## 8) Companion Text-Fit Tuning (2026-02-25)
+
+Bu bolum, Star Map with Moon Phase tarafinda font shrink davranisini yumusatmak icin yapilan guncellemeyi kaydeder.
+
+- Neden: Sabit font presetleri dogru gelse de ozellikle kucuk/orta boyutlarda shrink loop fazla agresif calisiyordu.
+- Yapilan:
+  - `minTextGap` companion icin `56 -> 28`
+  - `gap1` companion icin `14 -> 8` (12x12 haric)
+  - `gap2` companion icin `16 -> 10` (12x12 haric)
+- Kod:
+  - `lib/poster.ts` (`minTextGap`, `gap1`, `gap2`)
+- Sonuc:
+  - Kisa metin senaryolarinda shrink buyuk oranda kalkti.
+  - Cok uzun metinlerde shrink yine olusabilir; bu davranis bilerek korunuyor (metin-cember cakismasini onlemek icin).
