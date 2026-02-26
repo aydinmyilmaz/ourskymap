@@ -148,7 +148,15 @@ export type PosterRequest = {
 };
 
 export type VinylTitleFont = PosterParams['titleFont'] | 'big-shoulders';
-export type VinylNamesFont = PosterParams['namesFont'] | 'amsterdam-four';
+export type VinylNamesFont =
+  | PosterParams['namesFont']
+  | 'amsterdam-four'
+  | 'corinthia'
+  | 'meow-script'
+  | 'mrs-saint-delafield'
+  | 'windsong'
+  | 'sacramento'
+  | 'montez';
 export type VinylMetaFont = PosterParams['metaFont'] | 'courier-prime' | 'big-shoulders';
 
 export type VinylParams = {

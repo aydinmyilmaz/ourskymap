@@ -23,6 +23,15 @@ const VINYL_LABEL_PRESET_SRCS = VINYL_LABEL_PRESETS.map((item) => item.src) as r
 const METALLIC_BACKGROUND_KEYS = new Set(['bg-7', 'bg-8', 'bg-9', 'bg-10', 'bg-11', 'bg-12']);
 const GOLD_TEXT_COLOR = '#d7ae4f';
 const SILVER_TEXT_COLOR = '#d6d8dc';
+const DEFAULT_DARK_LABEL_TEXT_COLOR = '#111111';
+const DEFAULT_LIGHT_LABEL_TEXT_COLOR = '#f2f2f4';
+const LIGHT_TEXT_DISK_KEYS = new Set(['disk-vintage-black', 'disk-vintage-retro-black']);
+
+function defaultLabelTextColorForDiskSrc(src: string): string {
+  const preset = VINYL_DISK_PRESETS.find((item) => item.src === src);
+  if (!preset) return DEFAULT_DARK_LABEL_TEXT_COLOR;
+  return LIGHT_TEXT_DISK_KEYS.has(preset.key) ? DEFAULT_LIGHT_LABEL_TEXT_COLOR : DEFAULT_DARK_LABEL_TEXT_COLOR;
+}
 
 function isMetallicBackgroundSrc(src: string): boolean {
   const preset = VINYL_BACKGROUND_PRESETS.find((item) => item.src === src);
@@ -254,7 +263,20 @@ function getVinylRulerLogLines(v: VinylParams): string[] {
   const labelR = diskR * 0.26;
   const specLabelR = (recordDiameter / 2) * 0.26;
 
-  const titleSize = clampNum(v.titleFontSize, 8, 126);
+  const showDisk = v.showDisk !== false;
+  const showCenterLabel = v.showCenterLabel !== false;
+  const diskImage = (v.recordImageDataUrl || '').trim();
+  const labelImage = (v.labelImageDataUrl || '').trim();
+  const hasCustomLabelImage = showCenterLabel && labelImage.length > 0;
+  const hasCustomLabelOnDisk = hasCustomLabelImage && showDisk;
+  const usesDiskEmbeddedLabel = showCenterLabel && !hasCustomLabelImage && diskImage.length > 0;
+  const usesEmbeddedLabelLayout = usesDiskEmbeddedLabel || (hasCustomLabelImage && !showDisk);
+  const centerTitleMaxSize = hasCustomLabelOnDisk
+    ? labelR * 0.46
+    : usesEmbeddedLabelLayout
+      ? labelR * 0.506
+      : labelR * 0.52;
+  const titleSize = clampNum(v.titleFontSize, 8, Math.min(126, centerTitleMaxSize));
   const namesSize = clampNum(v.namesFontSize, 10, 144);
   const dateSize = clampNum(v.dateFontSize, 8, 135);
   const songSize = clampNum(v.songFontSize, 10, labelR * 0.42);
@@ -281,7 +303,7 @@ const defaultVinyl: VinylParams = {
   inkColor: '#e6e6ea',
   lyricsFontPreset: 'font-2',
   lyricsTextColor: '#f2f2f4',
-  labelTextColor: '#17110b',
+  labelTextColor: defaultLabelTextColorForDiskSrc(VINYL_DISK_PRESETS[0]?.src ?? ''),
   backgroundTexture: 'solid',
   recordImageDataUrl: VINYL_DISK_PRESETS[0]?.src ?? '',
   labelImageDataUrl: '',
@@ -303,7 +325,7 @@ const defaultVinyl: VinylParams = {
   showCenterGuides: false,
   showRuler: false,
   titleFont: 'big-shoulders',
-  titleFontSize: 56,
+  titleFontSize: defaultSizeDriven.titleFontSize,
   titleArcCurvature: 0.8,
   titleArcWidth: 0.73,
   namesFont: 'amsterdam-four',
@@ -424,7 +446,19 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
     titleArcWidth: parseNum(sp.get('vtaw'), defaultVinyl.titleArcWidth),
     namesFont: parseEnum(
       sp.get('vnf'),
-      ['amsterdam-four', 'serif', 'sans', 'cursive', 'jimmy-script'] as const,
+      [
+        'amsterdam-four',
+        'corinthia',
+        'meow-script',
+        'mrs-saint-delafield',
+        'windsong',
+        'sacramento',
+        'montez',
+        'serif',
+        'sans',
+        'cursive',
+        'jimmy-script'
+      ] as const,
       defaultVinyl.namesFont
     ),
     namesFontSize: parseNum(sp.get('vnfs'), sizeDefaults.namesFontSize),
@@ -787,6 +821,7 @@ export default function VinylPage() {
       ...v,
       recordImageDataUrl: src,
       labelImageDataUrl: '',
+      labelTextColor: defaultLabelTextColorForDiskSrc(src),
       showDisk: true,
       showCenterLabel: true
     }));
@@ -830,7 +865,9 @@ export default function VinylPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    const searchParams = new URLSearchParams(window.location.search);
     const queryVinyl = decodeVinylFromQuery(window.location.search);
+    const hasLabelTextColorQuery = searchParams.has('vltc');
     window.localStorage.removeItem(LEGACY_VINYL_LABEL_IMAGE_KEY);
     const savedDisk = sanitizePresetSrc(
       window.localStorage.getItem(VINYL_DISK_IMAGE_KEY) || '',
@@ -848,7 +885,7 @@ export default function VinylPage() {
       ''
     );
 
-    const next = applyMetallicTextDefaults({
+    let next = applyMetallicTextDefaults({
       ...defaultVinyl,
       ...queryVinyl,
       recordImageDataUrl: savedDisk,
@@ -857,6 +894,12 @@ export default function VinylPage() {
       showDisk: savedLabel ? false : queryVinyl.showDisk ?? defaultVinyl.showDisk,
       showCenterLabel: true
     });
+    if (!savedLabel && next.showDisk && !hasLabelTextColorQuery) {
+      next = {
+        ...next,
+        labelTextColor: defaultLabelTextColorForDiskSrc(next.recordImageDataUrl || '')
+      };
+    }
 
     setVinyl(next);
     void (async () => {
@@ -1312,6 +1355,12 @@ export default function VinylPage() {
                     }
                   >
                     <option value="amsterdam-four">Amsterdam Four</option>
+                    <option value="corinthia">Corinthia</option>
+                    <option value="meow-script">Meow Script</option>
+                    <option value="mrs-saint-delafield">Mrs Saint Delafield</option>
+                    <option value="windsong">WindSong</option>
+                    <option value="sacramento">Sacramento</option>
+                    <option value="montez">Montez</option>
                     <option value="jimmy-script">Jimmy Script</option>
                     <option value="cursive">Cursive</option>
                     <option value="serif">Serif</option>

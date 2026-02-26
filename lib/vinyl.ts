@@ -316,6 +316,18 @@ function fontFamily(k: VinylParams['titleFont'] | VinylParams['namesFont'] | Vin
       return "'Big Shoulders Display', 'Arial Narrow', 'Franklin Gothic Medium', ui-sans-serif, Arial, sans-serif";
     case 'amsterdam-four':
       return "'Amsterdam Four', 'Alex Brush', 'Great Vibes', Allura, 'Brush Script MT', cursive";
+    case 'corinthia':
+      return "Corinthia, 'Mrs Saint Delafield', 'Meow Script', 'Segoe Script', cursive";
+    case 'meow-script':
+      return "'Meow Script', Corinthia, 'Mrs Saint Delafield', 'Segoe Script', cursive";
+    case 'mrs-saint-delafield':
+      return "'Mrs Saint Delafield', 'Meow Script', Corinthia, 'Segoe Script', cursive";
+    case 'windsong':
+      return "WindSong, Sacramento, 'Meow Script', cursive";
+    case 'sacramento':
+      return "Sacramento, WindSong, 'Meow Script', cursive";
+    case 'montez':
+      return "Montez, Sacramento, WindSong, cursive";
     case 'courier-prime':
       return "'Courier Prime', 'Courier New', Courier, 'Liberation Mono', monospace";
     case 'prata':
@@ -613,16 +625,8 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       ? labelR * 0.506
       : labelR * 0.52;
   const centerTitlePreferredSize = clamp(titleFontSize, 8, centerTitleMaxSize);
-  const centerTitleSize = fitTitleSizeToArc({
-    text: title,
-    fontKey: v.titleFont,
-    preferredSize: centerTitlePreferredSize,
-    minSize: 8,
-    maxSize: centerTitleMaxSize,
-    arcRadius: labelTitleArcR,
-    arcSpanDeg: titleArcSpanDeg,
-    letterSpacing: 0.5
-  });
+  // Keep title size exactly at the configured size (subject to hard layout caps).
+  const centerTitleSize = centerTitlePreferredSize;
   const centerSongSize = clamp(
     requestedSongSize,
     10,
