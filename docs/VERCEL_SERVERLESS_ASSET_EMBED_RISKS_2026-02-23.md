@@ -67,7 +67,8 @@ Practical indicators:
    - `/moon_gold.png`
    - `/moon-phases/gold/1.png`
    - `/vinyl/backgrounds/a.jpg`
-   - `/vinyl/labels/vintage-gold.png`
+   - `/vinyl/labels/disk-vintage-gold.png`
+   - `/vinyl/labels/label-gold.png`
 3. If auth middleware is enabled, allow internal server-side static fetches.
 4. Keep fallback to absolute URLs enabled (current behavior).
 

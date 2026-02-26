@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
-import { VINYL_BACKGROUND_PRESETS, VINYL_DISK_PRESETS } from '../../lib/vinyl-assets';
+import { VINYL_BACKGROUND_PRESETS, VINYL_DISK_PRESETS, VINYL_LABEL_PRESETS } from '../../lib/vinyl-assets';
 import { getVinylLayoutPreset } from '../../lib/vinyl-layout-spec';
 import type { VinylParams } from '../../lib/types';
 
@@ -15,8 +15,38 @@ type PaletteItem = {
 
 const VINYL_DISK_IMAGE_KEY = 'space_map_vinyl_disk_image_v1';
 const VINYL_BACKGROUND_IMAGE_KEY = 'space_map_vinyl_background_image_v1';
+const VINYL_LABEL_IMAGE_KEY = 'space_map_vinyl_label_preset_image_v1';
+const LEGACY_VINYL_LABEL_IMAGE_KEY = 'space_map_vinyl_label_image_v1';
 const VINYL_DISK_PRESET_SRCS = VINYL_DISK_PRESETS.map((item) => item.src) as readonly string[];
 const VINYL_BACKGROUND_PRESET_SRCS = VINYL_BACKGROUND_PRESETS.map((item) => item.src) as readonly string[];
+const VINYL_LABEL_PRESET_SRCS = VINYL_LABEL_PRESETS.map((item) => item.src) as readonly string[];
+const METALLIC_BACKGROUND_KEYS = new Set(['bg-7', 'bg-8', 'bg-9', 'bg-10', 'bg-11', 'bg-12']);
+const GOLD_TEXT_COLOR = '#d7ae4f';
+const SILVER_TEXT_COLOR = '#d6d8dc';
+
+function isMetallicBackgroundSrc(src: string): boolean {
+  const preset = VINYL_BACKGROUND_PRESETS.find((item) => item.src === src);
+  return Boolean(preset && METALLIC_BACKGROUND_KEYS.has(preset.key));
+}
+
+function metallicTextColorForLabelSrc(src: string): string | null {
+  const preset = VINYL_LABEL_PRESETS.find((item) => item.src === src);
+  if (!preset) return null;
+  if (preset.key === 'label-gold') return GOLD_TEXT_COLOR;
+  if (preset.key === 'label-silver') return SILVER_TEXT_COLOR;
+  return null;
+}
+
+function applyMetallicTextDefaults(v: VinylParams): VinylParams {
+  if (!isMetallicBackgroundSrc(v.backgroundImageDataUrl || '')) return v;
+  const textColor = metallicTextColorForLabelSrc(v.labelImageDataUrl || '');
+  if (!textColor) return v;
+  return {
+    ...v,
+    lyricsTextColor: textColor,
+    labelTextColor: textColor
+  };
+}
 
 const PALETTES: PaletteItem[] = [
   // Popular + visually distinct first four for compact mode.
@@ -753,12 +783,36 @@ export default function VinylPage() {
   ]);
 
   const applyDiskPreset = useCallback((src: string) => {
-    setVinyl((v) => ({ ...v, recordImageDataUrl: src, showDisk: true }));
+    setVinyl((v) => ({
+      ...v,
+      recordImageDataUrl: src,
+      labelImageDataUrl: '',
+      showDisk: true,
+      showCenterLabel: true
+    }));
     window.localStorage.setItem(VINYL_DISK_IMAGE_KEY, src);
+    window.localStorage.removeItem(VINYL_LABEL_IMAGE_KEY);
+  }, []);
+
+  const applyLabelPreset = useCallback((src: string) => {
+    setVinyl((v) =>
+      applyMetallicTextDefaults({
+        ...v,
+        labelImageDataUrl: src,
+        showDisk: false,
+        showCenterLabel: true
+      })
+    );
+    window.localStorage.setItem(VINYL_LABEL_IMAGE_KEY, src);
   }, []);
 
   const applyBackgroundPreset = useCallback((src: string) => {
-    setVinyl((v) => ({ ...v, backgroundImageDataUrl: src }));
+    setVinyl((v) =>
+      applyMetallicTextDefaults({
+        ...v,
+        backgroundImageDataUrl: src
+      })
+    );
     window.localStorage.setItem(VINYL_BACKGROUND_IMAGE_KEY, src);
   }, []);
 
@@ -777,11 +831,16 @@ export default function VinylPage() {
     if (typeof window === 'undefined') return;
 
     const queryVinyl = decodeVinylFromQuery(window.location.search);
-    window.localStorage.removeItem('space_map_vinyl_label_image_v1');
+    window.localStorage.removeItem(LEGACY_VINYL_LABEL_IMAGE_KEY);
     const savedDisk = sanitizePresetSrc(
       window.localStorage.getItem(VINYL_DISK_IMAGE_KEY) || '',
       VINYL_DISK_PRESET_SRCS,
       defaultVinyl.recordImageDataUrl || ''
+    );
+    const savedLabel = sanitizePresetSrc(
+      window.localStorage.getItem(VINYL_LABEL_IMAGE_KEY) || '',
+      VINYL_LABEL_PRESET_SRCS,
+      ''
     );
     const savedBackground = sanitizePresetSrc(
       window.localStorage.getItem(VINYL_BACKGROUND_IMAGE_KEY) || '',
@@ -789,14 +848,15 @@ export default function VinylPage() {
       ''
     );
 
-    const next: VinylParams = {
+    const next = applyMetallicTextDefaults({
       ...defaultVinyl,
       ...queryVinyl,
       recordImageDataUrl: savedDisk,
-      labelImageDataUrl: '',
+      labelImageDataUrl: savedLabel,
       backgroundImageDataUrl: savedBackground,
+      showDisk: savedLabel ? false : queryVinyl.showDisk ?? defaultVinyl.showDisk,
       showCenterLabel: true
-    };
+    });
 
     setVinyl(next);
     void (async () => {
@@ -999,7 +1059,7 @@ export default function VinylPage() {
                   <button
                     key={item.key}
                     type="button"
-                    className={`assetPresetBtn ${vinyl.recordImageDataUrl === item.src ? 'active' : ''}`}
+                    className={`assetPresetBtn ${vinyl.recordImageDataUrl === item.src && vinyl.showDisk && !vinyl.labelImageDataUrl ? 'active' : ''}`}
                     onClick={() => applyDiskPreset(item.src)}
                     title={item.label}
                   >
@@ -1008,6 +1068,32 @@ export default function VinylPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="stackField frameSection">
+              <div className="fieldHead">
+                <label className="sizeCardLabel">Label Presets (Optional)</label>
+              </div>
+              <div className="assetPresetGrid">
+                {VINYL_LABEL_PRESETS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`assetPresetBtn ${vinyl.labelImageDataUrl === item.src ? 'active' : ''}`}
+                    onClick={() => applyLabelPreset(item.src)}
+                    title={item.label}
+                  >
+                    <span className="assetThumb assetThumbDisk" style={{ backgroundImage: `url(${item.src})` }} />
+                    <span className="assetPresetLabel">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="controlHint">
+                Label presets render only the center label while lyrics keep the same disk layout.
+              </p>
+              <p className="controlHint">
+                On Backgrounds 7-12, Gold and Silver labels auto-apply matching text color as a soft default.
+              </p>
             </div>
             </div>
 
