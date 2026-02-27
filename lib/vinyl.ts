@@ -553,6 +553,9 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const labelDividerY = diskCy;
   const titleFontSize = clamp(v.titleFontSize, 8, 126);
   const titleArcWidth = clamp(v.titleArcWidth, 0.45, 0.95);
+  const title = (v.title || '').trim();
+  const songTitle = (v.songTitle || '').trim();
+  const artist = (v.artist || '').trim();
   const labelOuterGuideR = labelR - labelEdgeStrokeW * 0.45;
   const labelInnerGuideR = labelR * 0.78;
   // IMPORTANT: Keep this placement stable.
@@ -576,7 +579,25 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       ? labelR * 0.90
       : labelTitleArcDefaultR;
   const arcWidthT = (titleArcWidth - 0.45) / (0.95 - 0.45);
-  const titleArcSpanDeg = 94 + arcWidthT * 62;
+  const baseTitleArcSpanDeg = 94 + arcWidthT * 62;
+  const centerTitleMaxSize = hasCustomLabelOnDisk
+    ? labelR * 0.46
+    : usesEmbeddedLabelLayout
+      ? labelR * 0.506
+      : labelR * 0.52;
+  // Keep title size exactly at the configured size (subject to hard layout caps).
+  const centerTitleSize = clamp(titleFontSize, 8, centerTitleMaxSize);
+  // Prevent first/last letters from being clipped in export renderers when title text is long.
+  const titleArcSpanDeg = (() => {
+    if (!title) return baseTitleArcSpanDeg;
+    const titleGlyphUnits = estimateTitleGlyphUnits(title.toUpperCase(), v.titleFont);
+    if (!Number.isFinite(titleGlyphUnits) || titleGlyphUnits <= 0) return baseTitleArcSpanDeg;
+    const spacingTotal = Math.max(0, title.length - 1) * 0.5;
+    const textLength = centerTitleSize * titleGlyphUnits + spacingTotal;
+    const requiredArcLength = textLength / 0.92;
+    const requiredSpanDeg = (requiredArcLength * 360) / (Math.PI * 2 * Math.max(1, labelTitleArcR));
+    return clamp(Math.max(baseTitleArcSpanDeg, requiredSpanDeg + 2), baseTitleArcSpanDeg, 240);
+  })();
   const titleArcHalfSpan = titleArcSpanDeg * 0.5;
   const labelTitleArcStartDeg = 270 - titleArcHalfSpan;
   const labelTitleArcEndDeg = 270 + titleArcHalfSpan;
@@ -593,9 +614,6 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     );
   }
 
-  const title = (v.title || '').trim();
-  const songTitle = (v.songTitle || '').trim();
-  const artist = (v.artist || '').trim();
   const namesRaw = v.names || '';
   const dateLineRaw = v.dateLine || '';
   const namesUsesPlaceholder = namesRaw.trim().length === 0;
@@ -619,14 +637,6 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const namesFont = fontFamily(v.namesFont);
   const dateFont = fontFamily(v.dateFont);
   const centerMetaFont = fontFamily(v.metaFont);
-  const centerTitleMaxSize = hasCustomLabelOnDisk
-    ? labelR * 0.46
-    : usesEmbeddedLabelLayout
-      ? labelR * 0.506
-      : labelR * 0.52;
-  const centerTitlePreferredSize = clamp(titleFontSize, 8, centerTitleMaxSize);
-  // Keep title size exactly at the configured size (subject to hard layout caps).
-  const centerTitleSize = centerTitlePreferredSize;
   const centerSongSize = clamp(
     requestedSongSize,
     10,
