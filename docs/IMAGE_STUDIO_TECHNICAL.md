@@ -2,6 +2,9 @@
 
 This document describes the `image` endpoint so development can continue quickly later with clear onboarding.
 
+Related docs:
+- `docs/IMAGE_TEXT_CURVE_TECHNICAL_2026-02-27.md`
+
 ## 1. Scope and Routes
 
 ### UI Route
