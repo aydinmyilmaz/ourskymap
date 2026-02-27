@@ -21,6 +21,12 @@ export const LOCAL_FONT_ASSETS: LocalFontAsset[] = [
   { family: 'Courier Prime', weight: 400, style: 'normal', fileName: 'CourierPrime-Regular.ttf' },
   { family: 'Courier Prime', weight: 700, style: 'normal', fileName: 'CourierPrime-Bold.ttf' },
   { family: 'Amsterdam Four', weight: 400, style: 'normal', fileName: 'AlexBrush-Regular.ttf' },
+  { family: 'Corinthia', weight: 400, style: 'normal', fileName: 'Corinthia-Regular.ttf' },
+  { family: 'Meow Script', weight: 400, style: 'normal', fileName: 'MeowScript-Regular.ttf' },
+  { family: 'Mrs Saint Delafield', weight: 400, style: 'normal', fileName: 'MrsSaintDelafield-Regular.ttf' },
+  { family: 'WindSong', weight: 400, style: 'normal', fileName: 'WindSong-Regular.ttf' },
+  { family: 'Sacramento', weight: 400, style: 'normal', fileName: 'Sacramento-Regular.ttf' },
+  { family: 'Montez', weight: 400, style: 'normal', fileName: 'Montez-Regular.ttf' },
 
   // Vinyl lyrics font family aliases.
   { family: 'Rage Italic', weight: 400, style: 'italic', fileName: 'RougeScript-Regular.ttf' },

@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
-import { VINYL_BACKGROUND_PRESETS, VINYL_DISK_PRESETS } from '../../lib/vinyl-assets';
+import { VINYL_BACKGROUND_PRESETS, VINYL_DISK_PRESETS, VINYL_LABEL_PRESETS } from '../../lib/vinyl-assets';
 import { getVinylLayoutPreset } from '../../lib/vinyl-layout-spec';
 import type { VinylParams } from '../../lib/types';
 
@@ -15,8 +15,47 @@ type PaletteItem = {
 
 const VINYL_DISK_IMAGE_KEY = 'space_map_vinyl_disk_image_v1';
 const VINYL_BACKGROUND_IMAGE_KEY = 'space_map_vinyl_background_image_v1';
+const VINYL_LABEL_IMAGE_KEY = 'space_map_vinyl_label_preset_image_v1';
+const LEGACY_VINYL_LABEL_IMAGE_KEY = 'space_map_vinyl_label_image_v1';
 const VINYL_DISK_PRESET_SRCS = VINYL_DISK_PRESETS.map((item) => item.src) as readonly string[];
 const VINYL_BACKGROUND_PRESET_SRCS = VINYL_BACKGROUND_PRESETS.map((item) => item.src) as readonly string[];
+const VINYL_LABEL_PRESET_SRCS = VINYL_LABEL_PRESETS.map((item) => item.src) as readonly string[];
+const METALLIC_BACKGROUND_KEYS = new Set(['bg-7', 'bg-8', 'bg-9', 'bg-10', 'bg-11', 'bg-12']);
+const GOLD_TEXT_COLOR = '#d7ae4f';
+const SILVER_TEXT_COLOR = '#d6d8dc';
+const DEFAULT_DARK_LABEL_TEXT_COLOR = '#111111';
+const DEFAULT_LIGHT_LABEL_TEXT_COLOR = '#f2f2f4';
+const LIGHT_TEXT_DISK_KEYS = new Set(['disk-vintage-black', 'disk-vintage-retro-black']);
+
+function defaultLabelTextColorForDiskSrc(src: string): string {
+  const preset = VINYL_DISK_PRESETS.find((item) => item.src === src);
+  if (!preset) return DEFAULT_DARK_LABEL_TEXT_COLOR;
+  return LIGHT_TEXT_DISK_KEYS.has(preset.key) ? DEFAULT_LIGHT_LABEL_TEXT_COLOR : DEFAULT_DARK_LABEL_TEXT_COLOR;
+}
+
+function isMetallicBackgroundSrc(src: string): boolean {
+  const preset = VINYL_BACKGROUND_PRESETS.find((item) => item.src === src);
+  return Boolean(preset && METALLIC_BACKGROUND_KEYS.has(preset.key));
+}
+
+function metallicTextColorForLabelSrc(src: string): string | null {
+  const preset = VINYL_LABEL_PRESETS.find((item) => item.src === src);
+  if (!preset) return null;
+  if (preset.key === 'label-gold') return GOLD_TEXT_COLOR;
+  if (preset.key === 'label-silver') return SILVER_TEXT_COLOR;
+  return null;
+}
+
+function applyMetallicTextDefaults(v: VinylParams): VinylParams {
+  if (!isMetallicBackgroundSrc(v.backgroundImageDataUrl || '')) return v;
+  const textColor = metallicTextColorForLabelSrc(v.labelImageDataUrl || '');
+  if (!textColor) return v;
+  return {
+    ...v,
+    lyricsTextColor: textColor,
+    labelTextColor: textColor
+  };
+}
 
 const PALETTES: PaletteItem[] = [
   // Popular + visually distinct first four for compact mode.
@@ -224,7 +263,20 @@ function getVinylRulerLogLines(v: VinylParams): string[] {
   const labelR = diskR * 0.26;
   const specLabelR = (recordDiameter / 2) * 0.26;
 
-  const titleSize = clampNum(v.titleFontSize, 8, 126);
+  const showDisk = v.showDisk !== false;
+  const showCenterLabel = v.showCenterLabel !== false;
+  const diskImage = (v.recordImageDataUrl || '').trim();
+  const labelImage = (v.labelImageDataUrl || '').trim();
+  const hasCustomLabelImage = showCenterLabel && labelImage.length > 0;
+  const hasCustomLabelOnDisk = hasCustomLabelImage && showDisk;
+  const usesDiskEmbeddedLabel = showCenterLabel && !hasCustomLabelImage && diskImage.length > 0;
+  const usesEmbeddedLabelLayout = usesDiskEmbeddedLabel || (hasCustomLabelImage && !showDisk);
+  const centerTitleMaxSize = hasCustomLabelOnDisk
+    ? labelR * 0.46
+    : usesEmbeddedLabelLayout
+      ? labelR * 0.506
+      : labelR * 0.52;
+  const titleSize = clampNum(v.titleFontSize, 8, Math.min(126, centerTitleMaxSize));
   const namesSize = clampNum(v.namesFontSize, 10, 144);
   const dateSize = clampNum(v.dateFontSize, 8, 135);
   const songSize = clampNum(v.songFontSize, 10, labelR * 0.42);
@@ -251,7 +303,7 @@ const defaultVinyl: VinylParams = {
   inkColor: '#e6e6ea',
   lyricsFontPreset: 'font-2',
   lyricsTextColor: '#f2f2f4',
-  labelTextColor: '#17110b',
+  labelTextColor: defaultLabelTextColorForDiskSrc(VINYL_DISK_PRESETS[0]?.src ?? ''),
   backgroundTexture: 'solid',
   recordImageDataUrl: VINYL_DISK_PRESETS[0]?.src ?? '',
   labelImageDataUrl: '',
@@ -273,7 +325,7 @@ const defaultVinyl: VinylParams = {
   showCenterGuides: false,
   showRuler: false,
   titleFont: 'big-shoulders',
-  titleFontSize: 56,
+  titleFontSize: defaultSizeDriven.titleFontSize,
   titleArcCurvature: 0.8,
   titleArcWidth: 0.73,
   namesFont: 'amsterdam-four',
@@ -394,7 +446,19 @@ function decodeVinylFromQuery(search: string): Partial<VinylParams> {
     titleArcWidth: parseNum(sp.get('vtaw'), defaultVinyl.titleArcWidth),
     namesFont: parseEnum(
       sp.get('vnf'),
-      ['amsterdam-four', 'serif', 'sans', 'cursive', 'jimmy-script'] as const,
+      [
+        'amsterdam-four',
+        'corinthia',
+        'meow-script',
+        'mrs-saint-delafield',
+        'windsong',
+        'sacramento',
+        'montez',
+        'serif',
+        'sans',
+        'cursive',
+        'jimmy-script'
+      ] as const,
       defaultVinyl.namesFont
     ),
     namesFontSize: parseNum(sp.get('vnfs'), sizeDefaults.namesFontSize),
@@ -753,12 +817,37 @@ export default function VinylPage() {
   ]);
 
   const applyDiskPreset = useCallback((src: string) => {
-    setVinyl((v) => ({ ...v, recordImageDataUrl: src, showDisk: true }));
+    setVinyl((v) => ({
+      ...v,
+      recordImageDataUrl: src,
+      labelImageDataUrl: '',
+      labelTextColor: defaultLabelTextColorForDiskSrc(src),
+      showDisk: true,
+      showCenterLabel: true
+    }));
     window.localStorage.setItem(VINYL_DISK_IMAGE_KEY, src);
+    window.localStorage.removeItem(VINYL_LABEL_IMAGE_KEY);
+  }, []);
+
+  const applyLabelPreset = useCallback((src: string) => {
+    setVinyl((v) =>
+      applyMetallicTextDefaults({
+        ...v,
+        labelImageDataUrl: src,
+        showDisk: false,
+        showCenterLabel: true
+      })
+    );
+    window.localStorage.setItem(VINYL_LABEL_IMAGE_KEY, src);
   }, []);
 
   const applyBackgroundPreset = useCallback((src: string) => {
-    setVinyl((v) => ({ ...v, backgroundImageDataUrl: src }));
+    setVinyl((v) =>
+      applyMetallicTextDefaults({
+        ...v,
+        backgroundImageDataUrl: src
+      })
+    );
     window.localStorage.setItem(VINYL_BACKGROUND_IMAGE_KEY, src);
   }, []);
 
@@ -776,12 +865,19 @@ export default function VinylPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    const searchParams = new URLSearchParams(window.location.search);
     const queryVinyl = decodeVinylFromQuery(window.location.search);
-    window.localStorage.removeItem('space_map_vinyl_label_image_v1');
+    const hasLabelTextColorQuery = searchParams.has('vltc');
+    window.localStorage.removeItem(LEGACY_VINYL_LABEL_IMAGE_KEY);
     const savedDisk = sanitizePresetSrc(
       window.localStorage.getItem(VINYL_DISK_IMAGE_KEY) || '',
       VINYL_DISK_PRESET_SRCS,
       defaultVinyl.recordImageDataUrl || ''
+    );
+    const savedLabel = sanitizePresetSrc(
+      window.localStorage.getItem(VINYL_LABEL_IMAGE_KEY) || '',
+      VINYL_LABEL_PRESET_SRCS,
+      ''
     );
     const savedBackground = sanitizePresetSrc(
       window.localStorage.getItem(VINYL_BACKGROUND_IMAGE_KEY) || '',
@@ -789,14 +885,21 @@ export default function VinylPage() {
       ''
     );
 
-    const next: VinylParams = {
+    let next = applyMetallicTextDefaults({
       ...defaultVinyl,
       ...queryVinyl,
       recordImageDataUrl: savedDisk,
-      labelImageDataUrl: '',
+      labelImageDataUrl: savedLabel,
       backgroundImageDataUrl: savedBackground,
+      showDisk: savedLabel ? false : queryVinyl.showDisk ?? defaultVinyl.showDisk,
       showCenterLabel: true
-    };
+    });
+    if (!savedLabel && next.showDisk && !hasLabelTextColorQuery) {
+      next = {
+        ...next,
+        labelTextColor: defaultLabelTextColorForDiskSrc(next.recordImageDataUrl || '')
+      };
+    }
 
     setVinyl(next);
     void (async () => {
@@ -999,7 +1102,7 @@ export default function VinylPage() {
                   <button
                     key={item.key}
                     type="button"
-                    className={`assetPresetBtn ${vinyl.recordImageDataUrl === item.src ? 'active' : ''}`}
+                    className={`assetPresetBtn ${vinyl.recordImageDataUrl === item.src && vinyl.showDisk && !vinyl.labelImageDataUrl ? 'active' : ''}`}
                     onClick={() => applyDiskPreset(item.src)}
                     title={item.label}
                   >
@@ -1008,6 +1111,32 @@ export default function VinylPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="stackField frameSection">
+              <div className="fieldHead">
+                <label className="sizeCardLabel">Label Presets (Optional)</label>
+              </div>
+              <div className="assetPresetGrid">
+                {VINYL_LABEL_PRESETS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`assetPresetBtn ${vinyl.labelImageDataUrl === item.src ? 'active' : ''}`}
+                    onClick={() => applyLabelPreset(item.src)}
+                    title={item.label}
+                  >
+                    <span className="assetThumb assetThumbDisk" style={{ backgroundImage: `url(${item.src})` }} />
+                    <span className="assetPresetLabel">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="controlHint">
+                Label presets render only the center label while lyrics keep the same disk layout.
+              </p>
+              <p className="controlHint">
+                On Backgrounds 7-12, Gold and Silver labels auto-apply matching text color as a soft default.
+              </p>
             </div>
             </div>
 
@@ -1226,6 +1355,12 @@ export default function VinylPage() {
                     }
                   >
                     <option value="amsterdam-four">Amsterdam Four</option>
+                    <option value="corinthia">Corinthia</option>
+                    <option value="meow-script">Meow Script</option>
+                    <option value="mrs-saint-delafield">Mrs Saint Delafield</option>
+                    <option value="windsong">WindSong</option>
+                    <option value="sacramento">Sacramento</option>
+                    <option value="montez">Montez</option>
                     <option value="jimmy-script">Jimmy Script</option>
                     <option value="cursive">Cursive</option>
                     <option value="serif">Serif</option>

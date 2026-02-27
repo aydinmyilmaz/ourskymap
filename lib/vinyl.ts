@@ -316,6 +316,18 @@ function fontFamily(k: VinylParams['titleFont'] | VinylParams['namesFont'] | Vin
       return "'Big Shoulders Display', 'Arial Narrow', 'Franklin Gothic Medium', ui-sans-serif, Arial, sans-serif";
     case 'amsterdam-four':
       return "'Amsterdam Four', 'Alex Brush', 'Great Vibes', Allura, 'Brush Script MT', cursive";
+    case 'corinthia':
+      return "Corinthia, 'Mrs Saint Delafield', 'Meow Script', 'Segoe Script', cursive";
+    case 'meow-script':
+      return "'Meow Script', Corinthia, 'Mrs Saint Delafield', 'Segoe Script', cursive";
+    case 'mrs-saint-delafield':
+      return "'Mrs Saint Delafield', 'Meow Script', Corinthia, 'Segoe Script', cursive";
+    case 'windsong':
+      return "WindSong, Sacramento, 'Meow Script', cursive";
+    case 'sacramento':
+      return "Sacramento, WindSong, 'Meow Script', cursive";
+    case 'montez':
+      return "Montez, Sacramento, WindSong, cursive";
     case 'courier-prime':
       return "'Courier Prime', 'Courier New', Courier, 'Liberation Mono', monospace";
     case 'prata':
@@ -433,7 +445,11 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const diskImage = (v.recordImageDataUrl || '').trim();
   const labelImage = (v.labelImageDataUrl || '').trim();
   const hasCustomLabelImage = showCenterLabel && labelImage.length > 0;
+  const hasCustomLabelOnDisk = hasCustomLabelImage && showDisk;
+  const usesLabelPresetImage = labelImage.startsWith('/vinyl/labels/label-');
+  const usesEmbeddedLabelImageFit = hasCustomLabelImage && !showDisk && usesLabelPresetImage;
   const usesDiskEmbeddedLabel = showCenterLabel && !hasCustomLabelImage && diskImage.length > 0;
+  const usesEmbeddedLabelLayout = usesDiskEmbeddedLabel || (hasCustomLabelImage && !showDisk);
   const showEmbeddedLabelOnly = showCenterLabel && !showDisk && usesDiskEmbeddedLabel;
   const showCenterLabelText = showCenterLabel && (showDisk || hasCustomLabelImage || usesDiskEmbeddedLabel);
   // Many uploaded record photos include a thin gray studio/background margin.
@@ -448,15 +464,18 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   // Disk presets include an embedded center label that is much larger than the old synthetic label radius.
   // Use a larger effective label radius so lyrics start outside that printed label area.
   const embeddedLabelOuterR = clamp(diskR * 0.52, labelR, Math.max(labelR, diskR - ringOuterInset - 18));
-  const effectiveLabelOuterR = usesDiskEmbeddedLabel ? embeddedLabelOuterR : labelR;
+  const effectiveLabelOuterR = usesEmbeddedLabelLayout ? embeddedLabelOuterR : labelR;
   // Visual crop for "No disk" mode: keep only center label, exclude vinyl grooves.
-  // This is intentionally smaller than `embeddedLabelOuterR` used by lyric spacing.
-  const embeddedLabelVisualClipR = clamp(diskR * 0.46, labelR, embeddedLabelOuterR);
+  // 0.478 keeps label-only mode visually aligned with disk preset center-label diameter
+  // after the 1.12 disk image zoom that trims source edge margins.
+  const embeddedLabelVisualClipR = clamp(diskR * 0.478, labelR, embeddedLabelOuterR);
+  const customLabelVisualClipR = hasCustomLabelOnDisk ? labelR : embeddedLabelVisualClipR;
+  const customLabelImageDrawR = usesEmbeddedLabelImageFit ? recordImageR : customLabelVisualClipR;
   // Keep extra clearance when a raster center label is used so lyrics don't hug its outer edge.
   const ringInnerInsetBase = ringFontSize * 0.72 + Math.max(0, ringLetterSpacing) * 0.25 + 3;
-  const ringInnerInsetBoost = hasCustomLabelImage
+  const ringInnerInsetBoost = hasCustomLabelOnDisk
     ? clamp(labelR * 0.08 + ringFontSize * 0.2, 8, 18)
-    : usesDiskEmbeddedLabel
+    : usesEmbeddedLabelLayout
       ? clamp(ringFontSize * 0.35 + Math.max(0, ringLetterSpacing) * 0.16 + 2, 6, 16)
       : 0;
   const ringInnerInset = clamp(ringInnerInsetBase + ringInnerInsetBoost, 7, 46);
@@ -534,6 +553,9 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const labelDividerY = diskCy;
   const titleFontSize = clamp(v.titleFontSize, 8, 126);
   const titleArcWidth = clamp(v.titleArcWidth, 0.45, 0.95);
+  const title = (v.title || '').trim();
+  const songTitle = (v.songTitle || '').trim();
+  const artist = (v.artist || '').trim();
   const labelOuterGuideR = labelR - labelEdgeStrokeW * 0.45;
   const labelInnerGuideR = labelR * 0.78;
   // IMPORTANT: Keep this placement stable.
@@ -551,13 +573,31 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const titleHubGuideR = labelHubR + labelHubStrokeW * 0.5;
   const titleArcCurrentR = (labelOuterGuideR + titleHubGuideR) * 0.5;
   const labelTitleArcDefaultR = (titleArcCurrentR + titleHubGuideR) * 0.5;
-  const labelTitleArcR = hasCustomLabelImage
+  const labelTitleArcR = hasCustomLabelOnDisk
     ? labelR * 0.72
-    : usesDiskEmbeddedLabel
+    : usesEmbeddedLabelLayout
       ? labelR * 0.90
       : labelTitleArcDefaultR;
   const arcWidthT = (titleArcWidth - 0.45) / (0.95 - 0.45);
-  const titleArcSpanDeg = 94 + arcWidthT * 62;
+  const baseTitleArcSpanDeg = 94 + arcWidthT * 62;
+  const centerTitleMaxSize = hasCustomLabelOnDisk
+    ? labelR * 0.46
+    : usesEmbeddedLabelLayout
+      ? labelR * 0.506
+      : labelR * 0.52;
+  // Keep title size exactly at the configured size (subject to hard layout caps).
+  const centerTitleSize = clamp(titleFontSize, 8, centerTitleMaxSize);
+  // Prevent first/last letters from being clipped in export renderers when title text is long.
+  const titleArcSpanDeg = (() => {
+    if (!title) return baseTitleArcSpanDeg;
+    const titleGlyphUnits = estimateTitleGlyphUnits(title.toUpperCase(), v.titleFont);
+    if (!Number.isFinite(titleGlyphUnits) || titleGlyphUnits <= 0) return baseTitleArcSpanDeg;
+    const spacingTotal = Math.max(0, title.length - 1) * 0.5;
+    const textLength = centerTitleSize * titleGlyphUnits + spacingTotal;
+    const requiredArcLength = textLength / 0.92;
+    const requiredSpanDeg = (requiredArcLength * 360) / (Math.PI * 2 * Math.max(1, labelTitleArcR));
+    return clamp(Math.max(baseTitleArcSpanDeg, requiredSpanDeg + 2), baseTitleArcSpanDeg, 240);
+  })();
   const titleArcHalfSpan = titleArcSpanDeg * 0.5;
   const labelTitleArcStartDeg = 270 - titleArcHalfSpan;
   const labelTitleArcEndDeg = 270 + titleArcHalfSpan;
@@ -574,9 +614,6 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
     );
   }
 
-  const title = (v.title || '').trim();
-  const songTitle = (v.songTitle || '').trim();
-  const artist = (v.artist || '').trim();
   const namesRaw = v.names || '';
   const dateLineRaw = v.dateLine || '';
   const namesUsesPlaceholder = namesRaw.trim().length === 0;
@@ -600,31 +637,15 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
   const namesFont = fontFamily(v.namesFont);
   const dateFont = fontFamily(v.dateFont);
   const centerMetaFont = fontFamily(v.metaFont);
-  const centerTitleMaxSize = hasCustomLabelImage
-    ? labelR * 0.46
-    : usesDiskEmbeddedLabel
-      ? labelR * 0.506
-      : labelR * 0.52;
-  const centerTitlePreferredSize = clamp(titleFontSize, 8, centerTitleMaxSize);
-  const centerTitleSize = fitTitleSizeToArc({
-    text: title,
-    fontKey: v.titleFont,
-    preferredSize: centerTitlePreferredSize,
-    minSize: 8,
-    maxSize: centerTitleMaxSize,
-    arcRadius: labelTitleArcR,
-    arcSpanDeg: titleArcSpanDeg,
-    letterSpacing: 0.5
-  });
   const centerSongSize = clamp(
     requestedSongSize,
     10,
-    labelR * (hasCustomLabelImage ? 0.36 : usesDiskEmbeddedLabel ? 0.255 : 0.42)
+    labelR * (hasCustomLabelOnDisk ? 0.36 : usesEmbeddedLabelLayout ? 0.255 : 0.42)
   );
   const centerArtistSize = clamp(
     requestedArtistSize,
     8,
-    labelR * (hasCustomLabelImage ? 0.27 : usesDiskEmbeddedLabel ? 0.188 : 0.3)
+    labelR * (hasCustomLabelOnDisk ? 0.27 : usesEmbeddedLabelLayout ? 0.188 : 0.3)
   );
   const defaultLabelTextRgb = hasCustomLabelImage || usesDiskEmbeddedLabel ? { r: 23, g: 17, b: 11 } : { r: 0, g: 0, b: 0 };
   const customLabelTextRgb = hexToRgb(v.labelTextColor || '');
@@ -655,15 +676,15 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
 
   const centerText: string[] = [];
   // Keep song title clear of inner hub ring with a subtle downward offset.
-  const centerSongYOffset = hasCustomLabelImage
+  const centerSongYOffset = hasCustomLabelOnDisk
     ? clamp(labelR * 0.08, 3, 10)
-    : usesDiskEmbeddedLabel
+    : usesEmbeddedLabelLayout
       ? clamp(labelR * 0.06, 4, 13)
       : clamp(labelR * 0.05, 2, 6);
-  let cy = diskCy + labelR * (hasCustomLabelImage ? 0.5 : usesDiskEmbeddedLabel ? 0.90 : 0.46) + centerSongYOffset;
-  const centerSongToArtistGap = hasCustomLabelImage
+  let cy = diskCy + labelR * (hasCustomLabelOnDisk ? 0.5 : usesEmbeddedLabelLayout ? 0.90 : 0.46) + centerSongYOffset;
+  const centerSongToArtistGap = hasCustomLabelOnDisk
     ? centerSongSize * 1.12
-    : usesDiskEmbeddedLabel
+    : usesEmbeddedLabelLayout
       ? Math.max(centerSongSize * 0.95, labelR * 0.20)
       : centerSongSize * 1.18;
   if (showCenterLabelText && title) {
@@ -828,7 +849,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
       <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${diskR.toFixed(2)}"/>
     </clipPath>
     <clipPath id="clipLabel">
-      <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${labelR.toFixed(2)}"/>
+      <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${customLabelVisualClipR.toFixed(2)}"/>
     </clipPath>
     <clipPath id="clipEmbeddedLabel">
       <circle cx="${diskCx.toFixed(2)}" cy="${diskCy.toFixed(2)}" r="${embeddedLabelVisualClipR.toFixed(2)}"/>
@@ -859,7 +880,7 @@ export function renderVinylPosterSvg(req: VinylRequest): string {
 
     ${
       showCenterLabel && hasCustomLabelImage
-        ? `<g clip-path="url(#clipLabel)"><image href="${svgEscape(labelImage)}" x="${(diskCx - labelR).toFixed(2)}" y="${(diskCy - labelR).toFixed(2)}" width="${(labelR * 2).toFixed(2)}" height="${(labelR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice"/></g>`
+        ? `<g clip-path="url(#clipLabel)"><image href="${svgEscape(labelImage)}" x="${(diskCx - customLabelImageDrawR).toFixed(2)}" y="${(diskCy - customLabelImageDrawR).toFixed(2)}" width="${(customLabelImageDrawR * 2).toFixed(2)}" height="${(customLabelImageDrawR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice"/></g>`
         : showEmbeddedLabelOnly
           ? `<g clip-path="url(#clipEmbeddedLabel)"><image href="${svgEscape(diskImage)}" x="${(diskCx - recordImageR).toFixed(2)}" y="${(diskCy - recordImageR).toFixed(2)}" width="${(recordImageR * 2).toFixed(2)}" height="${(recordImageR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" opacity="1"/></g>`
         : ''
