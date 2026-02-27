@@ -8,10 +8,29 @@ import type { DesignTemplate, TextSlot } from '../../lib/templates';
 const MAX_UPLOAD_PHOTOS = 5;
 const MAX_TOTAL_PEOPLE = 8;
 const MAX_TEXT_LAYERS = 5;
+const MAX_AI_TEXT_TARGET_LENGTH = 120;
+const GLOW_STEP = 10;
 const DESIGN_CANVAS_W = 620;
 const DESIGN_CANVAS_H = 780;
 const MIN_SELECTION_SIZE = 0.04;
 const FONT_SWATCH_COLLAPSED = 5;
+const AI_TEXT_MODEL_FALLBACKS = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview'] as const;
+const AI_TEXT_MODEL_COST_1K_USD: Record<string, number> = {
+  'gemini-3-pro-image-preview': 0.1344,
+  'gemini-3.1-flash-image-preview': 0.0672
+};
+const AI_TEXT_MODEL_TOKENS_1K: Record<string, number> = {
+  'gemini-3-pro-image-preview': 1120,
+  'gemini-3.1-flash-image-preview': 1120
+};
+const AI_COLOR_OPTION_FALLBACKS: Array<{ key: string; label: string }> = [
+  { key: 'purple_gloss', label: 'Purple Gloss' },
+  { key: 'royal_blue_gloss', label: 'Royal Blue' },
+  { key: 'crimson_red_gloss', label: 'Crimson Red' },
+  { key: 'emerald_green_gloss', label: 'Emerald Green' },
+  { key: 'gold_amber_gloss', label: 'Gold Amber' },
+  { key: 'black_silver_gloss', label: 'Black Silver' }
+];
 
 type PreviewMode = 'canvas' | 'tshirt';
 
@@ -77,6 +96,7 @@ type UploadedPhoto = {
 type PersonLayer = {
   id: string;
   name: string;
+  kind?: 'person' | 'ai-text';
   src: string;
   x: number;
   y: number;
@@ -89,6 +109,25 @@ type PersonLayer = {
   cropLeftPct: number;
   cropRightPct: number;
   glowStrength: number;
+};
+
+type GeminiGenerateConfigResponse = {
+  models?: string[];
+  defaultModel?: string;
+  colorOptions?: Array<{ key?: string; label?: string }>;
+  defaultColorKey?: string;
+  resolution?: string;
+  cost1kUsdByModel?: Record<string, number>;
+  tokens1kByModel?: Record<string, number>;
+};
+
+type CachedAiTextDesignItem = {
+  id: string;
+  imageUrl: string;
+  createdAt: string;
+  model: string;
+  targetText: string;
+  colorKey?: string;
 };
 
 type TextLayer = {
@@ -510,6 +549,30 @@ async function cropSelectionToDataUrl(input: { src: string; selection: Selection
   return canvas.toDataURL('image/png');
 }
 
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = typeof reader.result === 'string' ? reader.result : '';
+      if (!value.startsWith('data:image/')) {
+        reject(new Error('Reference file could not be converted to image data URL.'));
+        return;
+      }
+      resolve(value);
+    };
+    reader.onerror = () => reject(new Error('Could not read the selected reference image.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function countPeopleLayers(layers: PersonLayer[]): number {
+  return layers.filter((layer) => (layer.kind ?? 'person') === 'person').length;
+}
+
+function formatUsd(usd: number): string {
+  return `$${usd.toFixed(3)}`;
+}
+
 function moveLayerInStack(layers: PersonLayer[], id: string, action: 'front' | 'back' | 'forward' | 'backward'): PersonLayer[] {
   const index = layers.findIndex((layer) => layer.id === id);
   if (index === -1) return layers;
@@ -591,11 +654,30 @@ export default function ImageDesignPage() {
   const [activeTshirtId, setActiveTshirtId] = useState<string>(TSHIRT_VARIANTS[0]?.id ?? '');
   const [slotFiles, setSlotFiles] = useState<Record<number, File>>({});
   const [slotError, setSlotError] = useState('');
+  const [aiModelOptions, setAiModelOptions] = useState<string[]>([...AI_TEXT_MODEL_FALLBACKS]);
+  const [aiModel, setAiModel] = useState<string>(AI_TEXT_MODEL_FALLBACKS[1] ?? AI_TEXT_MODEL_FALLBACKS[0] ?? '');
+  const [aiColorOptions, setAiColorOptions] = useState<Array<{ key: string; label: string }>>([...AI_COLOR_OPTION_FALLBACKS]);
+  const [aiColorKey, setAiColorKey] = useState<string>(AI_COLOR_OPTION_FALLBACKS[0]?.key ?? 'purple_gloss');
+  const [aiCostByModel, setAiCostByModel] = useState<Record<string, number>>({ ...AI_TEXT_MODEL_COST_1K_USD });
+  const [aiTokensByModel, setAiTokensByModel] = useState<Record<string, number>>({ ...AI_TEXT_MODEL_TOKENS_1K });
+  const [aiTargetText, setAiTargetText] = useState('');
+  const [aiReferenceFile, setAiReferenceFile] = useState<File | null>(null);
+  const [aiReferenceFileName, setAiReferenceFileName] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGenerateLabel, setAiGenerateLabel] = useState('');
+  const [aiError, setAiError] = useState('');
+  const [aiConfigLoading, setAiConfigLoading] = useState(false);
+  const [aiCacheLoading, setAiCacheLoading] = useState(false);
+  const [aiCacheError, setAiCacheError] = useState('');
+  const [aiCachedItems, setAiCachedItems] = useState<CachedAiTextDesignItem[]>([]);
+  const [aiToolbarExpanded, setAiToolbarExpanded] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
+  const aiReferenceInputRef = useRef<HTMLInputElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
   const previewTextToolbarRef = useRef<HTMLDivElement>(null);
+  const previewAiToolbarRef = useRef<HTMLDivElement>(null);
   const previewImageToolbarRef = useRef<HTMLDivElement>(null);
   const previewBackgroundToolbarRef = useRef<HTMLDivElement>(null);
   const toolbarColorInputRef = useRef<HTMLInputElement>(null);
@@ -680,7 +762,8 @@ export default function ImageDesignPage() {
     [photos]
   );
   const remainingPhotoSlots = Math.max(0, MAX_UPLOAD_PHOTOS - photos.length);
-  const peopleUsage = layers.length + pendingSelections;
+  const personLayerCount = useMemo(() => countPeopleLayers(layers), [layers]);
+  const peopleUsage = personLayerCount + pendingSelections;
   const remainingPeopleSlots = Math.max(0, MAX_TOTAL_PEOPLE - peopleUsage);
   const queuedCount = useMemo(
     () => Object.values(slotStates).filter((s) => s === 'queued').length,
@@ -731,6 +814,12 @@ export default function ImageDesignPage() {
     [photos]
   );
   const canCheckout = layers.length > 0 || textLayers.length > 0;
+  const aiEstimatedCostUsd = aiCostByModel[aiModel] ?? null;
+  const aiEstimatedTokens = aiTokensByModel[aiModel] ?? null;
+  const aiColorLabelByKey = useMemo(
+    () => Object.fromEntries(aiColorOptions.map((option) => [option.key, option.label])),
+    [aiColorOptions]
+  );
   const draftRect = draftToRect(draft);
 
   useEffect(() => {
@@ -774,6 +863,7 @@ export default function ImageDesignPage() {
       const canvas = posterCanvasRef.current;
       const previewPanel = previewPanelRef.current;
       const toolbar = previewTextToolbarRef.current;
+      const aiToolbar = previewAiToolbarRef.current;
       const imageToolbar = previewImageToolbarRef.current;
       const backgroundToolbar = previewBackgroundToolbarRef.current;
       if (!canvas || !previewPanel) return;
@@ -782,6 +872,7 @@ export default function ImageDesignPage() {
       if (!previewPanel.contains(target)) return;
       if (canvas.contains(target)) return;
       if (toolbar?.contains(target)) return;
+      if (aiToolbar?.contains(target)) return;
       if (imageToolbar?.contains(target)) return;
       if (backgroundToolbar?.contains(target)) return;
       setActiveLayerId(null);
@@ -819,6 +910,121 @@ export default function ImageDesignPage() {
     const interval = setInterval(() => { void runHealthCheck(); }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [runHealthCheck]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadAiConfig = async () => {
+      setAiConfigLoading(true);
+      try {
+        const res = await fetch('/api/image/generate-text-design', { cache: 'no-store' });
+        if (!res.ok) return;
+        const payload = (await res.json()) as GeminiGenerateConfigResponse;
+        if (cancelled) return;
+        const models = Array.isArray(payload.models) ? payload.models.filter((item) => typeof item === 'string' && item.trim().length > 0) : [];
+        if (models.length > 0) {
+          setAiModelOptions(models);
+          const preferredDefault = typeof payload.defaultModel === 'string' ? payload.defaultModel.trim() : '';
+          const nextModel = preferredDefault && models.includes(preferredDefault) ? preferredDefault : models[0];
+          setAiModel(nextModel);
+        }
+        const colorOptions = Array.isArray(payload.colorOptions)
+          ? payload.colorOptions
+              .filter(
+                (item): item is { key?: string; label?: string } =>
+                  !!item && typeof item === 'object'
+              )
+              .map((item) => ({
+                key: typeof item.key === 'string' ? item.key.trim() : '',
+                label: typeof item.label === 'string' ? item.label.trim() : ''
+              }))
+              .filter((item) => item.key.length > 0 && item.label.length > 0)
+          : [];
+        if (colorOptions.length > 0) {
+          setAiColorOptions(colorOptions);
+          const preferredColor = typeof payload.defaultColorKey === 'string' ? payload.defaultColorKey.trim() : '';
+          const nextColor =
+            preferredColor && colorOptions.some((item) => item.key === preferredColor)
+              ? preferredColor
+              : colorOptions[0].key;
+          setAiColorKey(nextColor);
+        }
+        if (payload.cost1kUsdByModel && typeof payload.cost1kUsdByModel === 'object') {
+          setAiCostByModel(payload.cost1kUsdByModel);
+        }
+        if (payload.tokens1kByModel && typeof payload.tokens1kByModel === 'object') {
+          setAiTokensByModel(payload.tokens1kByModel);
+        }
+      } catch {
+        // Keep static fallback models if config endpoint is unavailable.
+      } finally {
+        if (!cancelled) setAiConfigLoading(false);
+      }
+    };
+    void loadAiConfig();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (aiModelOptions.length === 0) return;
+    if (!aiModelOptions.includes(aiModel)) {
+      setAiModel(aiModelOptions[0]);
+    }
+  }, [aiModel, aiModelOptions]);
+
+  useEffect(() => {
+    if (aiColorOptions.length === 0) return;
+    if (!aiColorOptions.some((option) => option.key === aiColorKey)) {
+      setAiColorKey(aiColorOptions[0].key);
+    }
+  }, [aiColorKey, aiColorOptions]);
+
+  useEffect(() => {
+    if (previewMode !== 'canvas' && aiToolbarExpanded) {
+      setAiToolbarExpanded(false);
+    }
+  }, [aiToolbarExpanded, previewMode]);
+
+  useEffect(() => {
+    const targetText = aiTargetText.trim();
+    if (!targetText || !aiModel || !aiColorKey) {
+      setAiCachedItems([]);
+      setAiCacheError('');
+      setAiCacheLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setAiCacheLoading(true);
+      setAiCacheError('');
+      try {
+        const res = await fetch(
+          `/api/image/text-design-cache?model=${encodeURIComponent(aiModel)}&targetText=${encodeURIComponent(targetText)}&colorKey=${encodeURIComponent(aiColorKey)}`,
+          { cache: 'no-store' }
+        );
+        if (!res.ok) {
+          throw new Error((await res.text()) || 'Failed to check cached designs.');
+        }
+        const payload = (await res.json()) as { items?: CachedAiTextDesignItem[] };
+        if (cancelled) return;
+        setAiCachedItems(Array.isArray(payload.items) ? payload.items : []);
+      } catch (e: unknown) {
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : 'Failed to check cached designs.';
+        setAiCacheError(message);
+        setAiCachedItems([]);
+      } finally {
+        if (!cancelled) setAiCacheLoading(false);
+      }
+    }, 320);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [aiColorKey, aiModel, aiTargetText]);
 
   const handleUploadFiles = useCallback(
     async (list: FileList | null) => {
@@ -1129,7 +1335,7 @@ export default function ImageDesignPage() {
             (sum, item) => sum + item.selections.filter((selection) => selection.status !== 'done').length,
             0
           );
-          if (layers.length + currentQueued >= MAX_TOTAL_PEOPLE) return photo;
+          if (personLayerCount + currentQueued >= MAX_TOTAL_PEOPLE) return photo;
           appended = true;
           return {
             ...photo,
@@ -1147,10 +1353,14 @@ export default function ImageDesignPage() {
       );
       if (appended) setActiveSelectionId(next.id);
     },
-    [activePhotoId, layers.length]
+    [activePhotoId, personLayerCount]
   );
 
   const processSelections = useCallback(async () => {
+    if (aiGenerating) {
+      setProcessError('AI text generation is running. Please wait.');
+      return;
+    }
     if (processingRef.current) {
       setProcessError('Processing is already running. Please wait.');
       return;
@@ -1183,7 +1393,7 @@ export default function ImageDesignPage() {
       return;
     }
 
-    if (layers.length + targets.length > MAX_TOTAL_PEOPLE) {
+    if (personLayerCount + targets.length > MAX_TOTAL_PEOPLE) {
       setProcessError(`Total people on poster cannot exceed ${MAX_TOTAL_PEOPLE}.`);
       return;
     }
@@ -1240,6 +1450,7 @@ export default function ImageDesignPage() {
           newLayers.push({
             id: layerId,
             name: `${target.photoName} #${target.localIndex + 1}`,
+            kind: 'person',
             src: payload.imageUrl,
             x,
             y,
@@ -1300,7 +1511,7 @@ export default function ImageDesignPage() {
       if (newLayers.length > 0) {
         // If a template is active, place layers into template slots in order.
         // Layers beyond the slot count keep their default grid positions.
-        const existingCount = layers.length; // how many layers existed before this batch
+        const existingCount = personLayerCount; // how many person layers existed before this batch
         const positionedLayers = newLayers.map((layer, batchIndex) => {
           const slotIndex = existingCount + batchIndex;
           const slot = activeTemplate?.slots[slotIndex];
@@ -1318,7 +1529,7 @@ export default function ImageDesignPage() {
       setProcessingLabel('');
       processingRef.current = false;
     }
-  }, [layers.length, photos]);
+  }, [activeTemplate, aiGenerating, personLayerCount, photos]);
 
   const handleSlotUpload = useCallback(
     async (slotIndex: number) => {
@@ -1363,6 +1574,7 @@ export default function ImageDesignPage() {
         const newLayer: PersonLayer = {
           id: layerId,
           name: `Slot ${slotIndex === 0 ? 'Center' : `#${slotIndex}`}`,
+          kind: 'person',
           src: payload.imageUrl,
           x: slot.x,
           y: slot.y,
@@ -1400,6 +1612,191 @@ export default function ImageDesignPage() {
       .filter((i) => (slotStates[i] ?? 'idle') === 'queued');
     await Promise.allSettled(queuedIndices.map((i) => handleSlotUpload(i)));
   }, [activeTemplate, slotStates, handleSlotUpload]);
+
+  const clearAiReferenceFile = useCallback(() => {
+    setAiReferenceFile(null);
+    setAiReferenceFileName('');
+    if (aiReferenceInputRef.current) {
+      aiReferenceInputRef.current.value = '';
+    }
+  }, []);
+
+  const handleAiReferenceChange = useCallback(
+    (file: File | null | undefined) => {
+      setAiError('');
+      if (!file) {
+        clearAiReferenceFile();
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        setAiError('Reference file must be an image.');
+        return;
+      }
+      setAiReferenceFile(file);
+      setAiReferenceFileName(file.name);
+    },
+    [clearAiReferenceFile]
+  );
+
+  const addAiImageLayer = useCallback(async (imageUrl: string, targetText: string) => {
+    const meta = await loadImageMeta(imageUrl);
+    const baseWidth = 260;
+    const baseHeight = Math.max(80, Math.round((meta.height / Math.max(1, meta.width)) * baseWidth));
+    const layerId = createId('ai-text');
+    const aiLayer: PersonLayer = {
+      id: layerId,
+      name: `AI Text: ${targetText.slice(0, 36)}`,
+      kind: 'ai-text',
+      src: imageUrl,
+      x: DESIGN_CANVAS_W / 2,
+      y: DESIGN_CANVAS_H / 2,
+      width: baseWidth,
+      height: baseHeight,
+      scale: 1,
+      rotationDeg: 0,
+      flipX: false,
+      cropTopPct: 0,
+      cropLeftPct: 0,
+      cropRightPct: 0,
+      glowStrength: 55
+    };
+    setLayers((prev) => [...prev, aiLayer]);
+    setActiveLayerId(layerId);
+    setActiveTextId(null);
+    return layerId;
+  }, []);
+
+  const handleUseCachedAiDesign = useCallback(
+    async (item: CachedAiTextDesignItem) => {
+      if (processingRef.current || processing || aiGenerating) {
+        setAiError('Another processing task is running. Please wait.');
+        return;
+      }
+      setAiError('');
+      setAiGenerating(true);
+      setAiGenerateLabel('Using cached design...');
+      try {
+        await addAiImageLayer(item.imageUrl, item.targetText || aiTargetText.trim());
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Failed to use cached design.';
+        setAiError(message);
+      } finally {
+        setAiGenerating(false);
+        setAiGenerateLabel('');
+      }
+    },
+    [addAiImageLayer, aiGenerating, aiTargetText, processing]
+  );
+
+  const generateAiTextDesign = useCallback(async () => {
+    if (processingRef.current || processing || aiGenerating) {
+      setAiError('Another processing task is running. Please wait.');
+      return;
+    }
+    setAiError('');
+    setProcessError('');
+
+    const targetText = aiTargetText.trim();
+    if (!targetText) {
+      setAiError('Please enter target text.');
+      return;
+    }
+    if (targetText.length > MAX_AI_TEXT_TARGET_LENGTH) {
+      setAiError(`Target text can be at most ${MAX_AI_TEXT_TARGET_LENGTH} characters.`);
+      return;
+    }
+    if (!aiModel) {
+      setAiError('Please select a Gemini model.');
+      return;
+    }
+    if (!aiColorKey) {
+      setAiError('Please select a color theme.');
+      return;
+    }
+    if (!aiReferenceFile) {
+      setAiError('Please upload a reference design image.');
+      return;
+    }
+
+    setAiGenerating(true);
+    setAiGenerateLabel('Preparing reference image...');
+
+    try {
+      const referenceImageDataUrl = await fileToDataUrl(aiReferenceFile);
+
+      setAiGenerateLabel('Generating with Gemini...');
+      const generateRes = await fetch('/api/image/generate-text-design', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: aiModel,
+          colorKey: aiColorKey,
+          targetText,
+          referenceImageDataUrl
+        })
+      });
+      if (!generateRes.ok) {
+        throw new Error((await generateRes.text()) || 'Gemini text design generation failed.');
+      }
+
+      const generatedPayload = (await generateRes.json()) as { imageDataUrl?: string };
+      if (!generatedPayload?.imageDataUrl) {
+        throw new Error('Gemini did not return an image output.');
+      }
+
+      setAiGenerateLabel('Running background removal...');
+      const removeBgRes = await fetch('/api/image/remove-bg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageDataUrl: generatedPayload.imageDataUrl, source: 'ai-text-design' })
+      });
+      if (!removeBgRes.ok) {
+        throw new Error((await removeBgRes.text()) || 'Background removal failed for generated image.');
+      }
+
+      const removeBgPayload = (await removeBgRes.json()) as { imageUrl?: string };
+      if (!removeBgPayload?.imageUrl) {
+        throw new Error('Background removal did not return imageUrl.');
+      }
+
+      let finalImageUrl = removeBgPayload.imageUrl;
+      try {
+        const cacheRes = await fetch('/api/image/text-design-cache', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: aiModel,
+            colorKey: aiColorKey,
+            targetText,
+            imageUrl: removeBgPayload.imageUrl
+          })
+        });
+        if (cacheRes.ok) {
+          const cachePayload = (await cacheRes.json()) as { imageUrl?: string; item?: CachedAiTextDesignItem };
+          if (cachePayload.imageUrl) {
+            finalImageUrl = cachePayload.imageUrl;
+          }
+          if (cachePayload.item) {
+            setAiCachedItems((prev) => {
+              const deduped = prev.filter((entry) => entry.id !== cachePayload.item?.id);
+              return [cachePayload.item as CachedAiTextDesignItem, ...deduped].slice(0, 8);
+            });
+          }
+        }
+      } catch {
+        // Do not block user flow if cache persistence fails.
+      }
+
+      await addAiImageLayer(finalImageUrl, targetText);
+      setAiGenerateLabel('Done');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'AI text design generation failed.';
+      setAiError(message);
+    } finally {
+      setAiGenerating(false);
+      setAiGenerateLabel('');
+    }
+  }, [addAiImageLayer, aiColorKey, aiGenerating, aiModel, aiReferenceFile, aiTargetText, processing]);
 
   const handleLayerPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>, layerId: string) => {
@@ -1732,7 +2129,8 @@ export default function ImageDesignPage() {
               </div>
             )}
           </div>
-          <div ref={previewTextToolbarRef} className="previewTextToolbar">
+          <div className="previewToolRow">
+            <div ref={previewTextToolbarRef} className="previewTextToolbar">
             <button
               type="button"
               className="toolbarBtn toolbarTextAddBtn"
@@ -1944,8 +2342,162 @@ export default function ImageDesignPage() {
                 <path d="M6 6.4v3.8M8 6.4v3.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
               </svg>
             </button>
+            </div>
+            {previewMode === 'canvas' ? (
+              <div ref={previewAiToolbarRef} className={`aiDockWrap${aiToolbarExpanded ? ' open' : ''}`}>
+                <button
+                  type="button"
+                  className={`aiDockToggle${aiToolbarExpanded ? ' open' : ''}`}
+                  aria-expanded={aiToolbarExpanded}
+                  onClick={() => setAiToolbarExpanded((prev) => !prev)}
+                  title="AI Text Design"
+                >
+                  <span>AI Text</span>
+                  <span className={`aiDockCaret${aiToolbarExpanded ? ' open' : ''}`} aria-hidden="true">
+                    ▾
+                  </span>
+                </button>
+
+                {aiToolbarExpanded ? (
+                  <div className="aiDockPanel">
+                    <div className="panelTitleRow">
+                      <h3>AI Text Design</h3>
+                      <span>1K</span>
+                    </div>
+
+                    <input
+                      ref={aiReferenceInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hiddenInput"
+                      onChange={(e) => {
+                        handleAiReferenceChange(e.target.files?.[0] ?? null);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+
+                    <div className="aiDockPanelGrid">
+                      <div className="field">
+                        <label htmlFor="ai-model-select">Gemini Model</label>
+                        <select
+                          id="ai-model-select"
+                          className="panelSelect"
+                          value={aiModel}
+                          disabled={aiGenerating || processing || aiConfigLoading}
+                          onChange={(e) => setAiModel(e.target.value)}
+                        >
+                          {aiModelOptions.map((model) => (
+                            <option key={model} value={model}>
+                              {model}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="field">
+                        <label htmlFor="ai-color-select">Color Theme</label>
+                        <select
+                          id="ai-color-select"
+                          className="panelSelect"
+                          value={aiColorKey}
+                          disabled={aiGenerating || processing || aiConfigLoading}
+                          onChange={(e) => setAiColorKey(e.target.value)}
+                        >
+                          {aiColorOptions.map((option) => (
+                            <option key={option.key} value={option.key}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="field aiDockWideField">
+                        <label htmlFor="ai-target-text">Target Text</label>
+                        <input
+                          id="ai-target-text"
+                          type="text"
+                          className="hexInput"
+                          value={aiTargetText}
+                          maxLength={MAX_AI_TEXT_TARGET_LENGTH}
+                          disabled={aiGenerating || processing}
+                          onChange={(e) => setAiTargetText(e.target.value)}
+                          placeholder="Type the text you want to generate"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="buttonRow">
+                      <button
+                        type="button"
+                        className="ghostBtn"
+                        disabled={aiGenerating || processing}
+                        onClick={() => aiReferenceInputRef.current?.click()}
+                      >
+                        {aiReferenceFileName ? 'Change Reference' : 'Upload Reference'}
+                      </button>
+                      {aiReferenceFileName ? (
+                        <button
+                          type="button"
+                          className="ghostBtn"
+                          disabled={aiGenerating || processing}
+                          onClick={clearAiReferenceFile}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="primaryBtn"
+                        disabled={aiGenerating || processing || !aiTargetText.trim() || !aiReferenceFile}
+                        onClick={() => void generateAiTextDesign()}
+                      >
+                        {aiGenerating ? aiGenerateLabel || 'Generating...' : 'Generate New'}
+                      </button>
+                    </div>
+
+                    {aiReferenceFileName ? <p className="hint">{aiReferenceFileName}</p> : null}
+                    <p className="hint">
+                      Prompt source: <code>prompts/gemini_text_design.txt</code>
+                    </p>
+                    <p className="hint">
+                      Estimated single generation cost:{' '}
+                      {aiEstimatedCostUsd !== null ? `${formatUsd(aiEstimatedCostUsd)} (${aiEstimatedTokens ?? '?'} tokens)` : 'N/A'}
+                    </p>
+
+                    {aiCacheLoading ? <p className="hint">Checking cached designs...</p> : null}
+                    {aiCacheError ? <p className="error">{aiCacheError}</p> : null}
+                    {aiCachedItems.length > 0 ? (
+                      <div className="aiCacheGrid">
+                        {aiCachedItems.map((item) => (
+                          <div key={item.id} className="aiCacheItem">
+                            <img src={item.imageUrl} alt={`${item.targetText} cached design`} className="aiCacheThumb" />
+                            <div className="aiCacheMeta">
+                              <span className="aiCacheText">{item.targetText}</span>
+                              <span>
+                                {aiColorLabelByKey[item.colorKey ?? ''] ?? (item.colorKey || 'Color')} •{' '}
+                                {new Date(item.createdAt).toLocaleDateString()}
+                              </span>
+                              <button
+                                type="button"
+                                className="ghostBtn"
+                                disabled={aiGenerating || processing}
+                                onClick={() => void handleUseCachedAiDesign(item)}
+                              >
+                                Use Cached
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {aiError ? <p className="error">{aiError}</p> : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-          <div className="canvasShell">
+	          <div className="canvasShell">
             <div ref={previewImageToolbarRef} className="imageControlRail">
               <div className="imageRailHeader" title="Image tools" aria-label="Image tools">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -1968,6 +2520,40 @@ export default function ImageDesignPage() {
               </button>
               <button type="button" className={`imageRailBtn${activeLayer?.flipX ? ' active' : ''}`} disabled={!activeLayer} onClick={() => activeLayer && updateActiveLayer({ flipX: !activeLayer.flipX })} title="Flip Horizontal">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 4.5l3 2.5-3 2.5M12 4.5l-3 2.5 3 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button
+                type="button"
+                className="imageRailBtn"
+                disabled={!activeLayer || (activeLayer.glowStrength ?? 55) <= 0}
+                onClick={() => {
+                  if (!activeLayer) return;
+                  const currentGlow = activeLayer.glowStrength ?? 55;
+                  updateActiveLayer({ glowStrength: clamp(currentGlow - GLOW_STEP, 0, 100) });
+                }}
+                title="Decrease Glow"
+                aria-label="Decrease Glow"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 1.8L8.2 4.8L11.2 6L8.2 7.2L7 10.2L5.8 7.2L2.8 6L5.8 4.8L7 1.8Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                  <path d="M4 11.2H10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="imageRailBtn"
+                disabled={!activeLayer || (activeLayer.glowStrength ?? 55) >= 100}
+                onClick={() => {
+                  if (!activeLayer) return;
+                  const currentGlow = activeLayer.glowStrength ?? 55;
+                  updateActiveLayer({ glowStrength: clamp(currentGlow + GLOW_STEP, 0, 100) });
+                }}
+                title="Increase Glow"
+                aria-label="Increase Glow"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M7 1.8L8.2 4.8L11.2 6L8.2 7.2L7 10.2L5.8 7.2L2.8 6L5.8 4.8L7 1.8Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                  <path d="M7 9.6V12.4M5.6 11H8.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
               </button>
               <button
                 type="button"
@@ -2634,7 +3220,7 @@ export default function ImageDesignPage() {
               </section>
             )}
 
-            {designMode === 'custom' && (
+	            {designMode === 'custom' && (
             <section className="panelBlock">
               <div className="panelTitleRow">
                 <h3>Frame People</h3>
@@ -3158,7 +3744,9 @@ export default function ImageDesignPage() {
         }
 
         .previewTextToolbar {
-          width: min(100%, 760px);
+          flex: 1;
+          width: auto;
+          min-width: 0;
           min-height: 52px;
           display: flex;
           align-items: center;
@@ -3177,6 +3765,85 @@ export default function ImageDesignPage() {
         .previewTextToolbar > * {
           flex: 0 1 auto;
           min-width: 0;
+        }
+
+        .previewToolRow {
+          width: min(100%, 1160px);
+          display: grid;
+          grid-template-columns: minmax(0, 760px) auto;
+          justify-content: center;
+          align-items: start;
+          gap: 10px;
+        }
+
+        .aiDockWrap {
+          position: relative;
+          display: inline-block;
+        }
+
+        .aiDockWrap.open {
+          z-index: 18;
+        }
+
+        .aiDockToggle {
+          min-height: 40px;
+          border-radius: 10px;
+          border: 1px solid #c6d1e1;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          color: #1f2e46;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.02em;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          cursor: pointer;
+          padding: 0 12px;
+          box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+        }
+
+        .aiDockToggle.open {
+          background: linear-gradient(180deg, #e8f0ff 0%, #dce8ff 100%);
+          border-color: #6f94ea;
+          color: #1e3a8a;
+          box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+        }
+
+        .aiDockCaret {
+          font-size: 12px;
+          line-height: 1;
+          transition: transform 0.18s ease;
+        }
+
+        .aiDockCaret.open {
+          transform: rotate(180deg);
+        }
+
+        .aiDockPanel {
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          width: min(360px, calc(100vw - 420px));
+          border: 1px solid #cad4e4;
+          border-radius: 14px;
+          background: #f9fbff;
+          box-shadow: 0 14px 36px rgba(15, 23, 42, 0.18);
+          padding: 12px;
+          display: grid;
+          gap: 10px;
+          max-height: min(74vh, 680px);
+          overflow: auto;
+        }
+
+        .aiDockPanelGrid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .aiDockWideField {
+          grid-column: 1 / -1;
         }
 
         .toolbarTextInput {
@@ -4271,6 +4938,7 @@ export default function ImageDesignPage() {
         }
 
         .hexInput {
+          width: 100%;
           height: 38px;
           border: 1px solid #cbd5e1;
           border-radius: 9px;
@@ -4279,6 +4947,67 @@ export default function ImageDesignPage() {
           font-size: 13px;
           padding: 0 10px;
           font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+
+        .panelSelect {
+          width: 100%;
+          height: 38px;
+          border: 1px solid #cbd5e1;
+          border-radius: 9px;
+          background: #fff;
+          color: #0f172a;
+          font-size: 13px;
+          padding: 0 10px;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+
+        .aiCacheGrid {
+          display: grid;
+          gap: 8px;
+          max-height: 230px;
+          overflow: auto;
+          padding-right: 2px;
+        }
+
+        .aiCacheItem {
+          border: 1px solid #d8e1ee;
+          border-radius: 10px;
+          background: #fff;
+          display: grid;
+          grid-template-columns: 70px minmax(0, 1fr);
+          gap: 8px;
+          align-items: center;
+          padding: 6px;
+        }
+
+        .aiCacheThumb {
+          width: 70px;
+          height: 70px;
+          object-fit: contain;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+        }
+
+        .aiCacheMeta {
+          display: grid;
+          gap: 6px;
+        }
+
+        .aiCacheText {
+          font-size: 12px;
+          font-weight: 700;
+          color: #0f172a;
+          line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .aiCacheMeta span {
+          font-size: 11px;
+          color: #64748b;
+          line-height: 1.2;
         }
 
         .textInput {
@@ -4463,6 +5192,37 @@ export default function ImageDesignPage() {
 
           .previewTextToolbar {
             gap: 4px;
+          }
+
+          .previewToolRow {
+            width: min(100%, 760px);
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+          }
+
+          .aiDockWrap {
+            width: 100%;
+          }
+
+          .aiDockToggle {
+            width: 100%;
+            min-height: 38px;
+            font-size: 12px;
+            padding: 0 10px;
+          }
+
+          .aiDockPanel {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            width: min(360px, calc(100vw - 28px));
+            max-height: min(65vh, 560px);
+            margin-top: 0;
+          }
+
+          .aiDockPanelGrid {
+            grid-template-columns: 1fr;
           }
 
           .toolbarTextInput {
