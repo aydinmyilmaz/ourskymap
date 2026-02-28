@@ -10,7 +10,8 @@ import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 import JSZip from 'jszip';
 import sharp from 'sharp';
 import { PDFDocument } from 'pdf-lib';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export const runtime = 'nodejs';
@@ -62,9 +63,15 @@ function listMoonAssetPaths(svg: string): string[] {
 }
 
 function resolveAssetBaseUrl(req: Request): string {
+  const requestBase = new URL(req.url).origin.replace(/\/+$/, '');
+  if (requestBase) return requestBase;
+  return (process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
+}
+
+function getAssetBaseCandidates(req: Request): string[] {
   const configuredBase = (process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
-  const requestBase = new URL(req.url).origin;
-  return configuredBase || requestBase;
+  const requestBase = new URL(req.url).origin.replace(/\/+$/, '');
+  return [...new Set([requestBase, configuredBase].filter(Boolean))];
 }
 
 function withAbsoluteMoonUrls(svg: string, req: Request): string {
@@ -79,23 +86,50 @@ function withAbsoluteMoonUrls(svg: string, req: Request): string {
 
 const moonDataUriCache: Record<string, string | null> = {};
 const vinylDataUriCache: Record<string, string | null> = {};
+const publicAssetBytesCache: Record<string, Buffer | null> = {};
+
+async function loadPublicAssetBytes(relPath: string, req: Request): Promise<Buffer | null> {
+  const normalizedRelPath = relPath.replace(/^\/+/, '');
+  const cacheKey = normalizedRelPath.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(publicAssetBytesCache, cacheKey)) {
+    return publicAssetBytesCache[cacheKey];
+  }
+
+  const localAbsPath = path.join(process.cwd(), 'public', normalizedRelPath);
+  try {
+    const localBytes = await readFile(localAbsPath);
+    publicAssetBytesCache[cacheKey] = localBytes;
+    return localBytes;
+  } catch {
+    // Fall through to URL fetch.
+  }
+
+  for (const base of getAssetBaseCandidates(req)) {
+    try {
+      const res = await fetch(`${base}/${normalizedRelPath}`, { cache: 'force-cache' });
+      if (!res.ok) continue;
+      const remoteBytes = Buffer.from(await res.arrayBuffer());
+      publicAssetBytesCache[cacheKey] = remoteBytes;
+      return remoteBytes;
+    } catch {
+      // Try next base candidate.
+    }
+  }
+
+  publicAssetBytesCache[cacheKey] = null;
+  return null;
+}
 
 async function getMoonImageDataUri(assetPath: string, req: Request): Promise<string | null> {
   const relPath = assetPath.replace(/^\/+/, '');
   if (!SAFE_MOON_ASSET_REL_PATH_REGEX.test(relPath)) return null;
   if (Object.prototype.hasOwnProperty.call(moonDataUriCache, relPath)) return moonDataUriCache[relPath];
-  try {
-    const base = resolveAssetBaseUrl(req);
-    const res = await fetch(`${base}/${relPath}`, { cache: 'force-cache' });
-    if (!res.ok) {
-      moonDataUriCache[relPath] = null;
-      return null;
-    }
-    const raw = Buffer.from(await res.arrayBuffer());
-    moonDataUriCache[relPath] = `data:image/png;base64,${raw.toString('base64')}`;
-  } catch {
+  const raw = await loadPublicAssetBytes(relPath, req);
+  if (!raw) {
     moonDataUriCache[relPath] = null;
+    return null;
   }
+  moonDataUriCache[relPath] = `data:image/png;base64,${raw.toString('base64')}`;
   return moonDataUriCache[relPath];
 }
 
@@ -135,21 +169,14 @@ async function getVinylImageDataUri(assetPath: string, req: Request): Promise<st
   const cacheKey = relPath.toLowerCase();
   if (Object.prototype.hasOwnProperty.call(vinylDataUriCache, cacheKey)) return vinylDataUriCache[cacheKey];
   const mime = inferImageMime(relPath.toLowerCase());
-  try {
-    const base = resolveAssetBaseUrl(req);
-    const res = await fetch(`${base}/${relPath}`, { cache: 'force-cache' });
-    if (!res.ok) {
-      vinylDataUriCache[cacheKey] = null;
-      return null;
-    }
-    const raw = Buffer.from(await res.arrayBuffer());
-    const dataUri = `data:${mime};base64,${raw.toString('base64')}`;
-    vinylDataUriCache[cacheKey] = dataUri;
-    return dataUri;
-  } catch {
+  const raw = await loadPublicAssetBytes(relPath, req);
+  if (!raw) {
     vinylDataUriCache[cacheKey] = null;
     return null;
   }
+  const dataUri = `data:${mime};base64,${raw.toString('base64')}`;
+  vinylDataUriCache[cacheKey] = dataUri;
+  return dataUri;
 }
 
 async function withEmbeddedVinylUrls(svg: string, req: Request): Promise<string> {
@@ -245,23 +272,29 @@ async function renderSvgToPng(
 
 let embeddedPosterFontsCssCache: string | null | undefined;
 
-function getEmbeddedPosterFontsCss(): string {
+async function getEmbeddedPosterFontsCss(req: Request): Promise<string> {
   if (embeddedPosterFontsCssCache !== undefined) return embeddedPosterFontsCssCache || '';
-  try {
-    const blocks: string[] = [];
-    for (const asset of LOCAL_FONT_ASSETS) {
-      const absPath = getPosterFontAbsolutePath(asset.fileName);
-      if (!existsSync(absPath)) continue;
-      const raw = readFileSync(absPath);
-      const dataUri = `data:font/ttf;base64,${raw.toString('base64')}`;
-      blocks.push(
-        `@font-face{font-family:'${asset.family}';font-style:${asset.style};font-weight:${asset.weight};font-display:swap;src:url(${dataUri}) format('truetype');}`
-      );
+  const fontRawByFile = new Map<string, Buffer>();
+  const uniqueFontFiles = [...new Set(LOCAL_FONT_ASSETS.map((asset) => asset.fileName))];
+
+  for (const fileName of uniqueFontFiles) {
+    const raw = await loadPublicAssetBytes(`fonts/${fileName}`, req);
+    if (raw?.length) {
+      fontRawByFile.set(fileName, raw);
     }
-    embeddedPosterFontsCssCache = blocks.join('\n');
-  } catch {
-    embeddedPosterFontsCssCache = '';
   }
+
+  const blocks: string[] = [];
+  for (const asset of LOCAL_FONT_ASSETS) {
+    const raw = fontRawByFile.get(asset.fileName);
+    if (!raw) continue;
+    const dataUri = `data:font/ttf;base64,${raw.toString('base64')}`;
+    blocks.push(
+      `@font-face{font-family:'${asset.family}';font-style:${asset.style};font-weight:${asset.weight};font-display:swap;src:url(${dataUri}) format('truetype');}`
+    );
+  }
+
+  embeddedPosterFontsCssCache = blocks.join('\n');
   return embeddedPosterFontsCssCache || '';
 }
 
@@ -506,7 +539,7 @@ export async function POST(req: Request) {
       svg = embeddedMoonSvg !== svg ? embeddedMoonSvg : withAbsoluteMoonUrls(svg, req);
     }
 
-    const embeddedFontsCss = getEmbeddedPosterFontsCss();
+    const embeddedFontsCss = await getEmbeddedPosterFontsCss(req);
     if (embeddedFontsCss) {
       svg = injectFontCssIntoSvg(svg, embeddedFontsCss);
     }
