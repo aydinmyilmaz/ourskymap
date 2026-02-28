@@ -10,9 +10,6 @@ import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 import JSZip from 'jszip';
 import sharp from 'sharp';
 import { PDFDocument } from 'pdf-lib';
-import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 
 export const runtime = 'nodejs';
 
@@ -93,15 +90,6 @@ async function loadPublicAssetBytes(relPath: string, req: Request): Promise<Buff
   const cacheKey = normalizedRelPath.toLowerCase();
   if (Object.prototype.hasOwnProperty.call(publicAssetBytesCache, cacheKey)) {
     return publicAssetBytesCache[cacheKey];
-  }
-
-  const localAbsPath = path.join(process.cwd(), 'public', normalizedRelPath);
-  try {
-    const localBytes = await readFile(localAbsPath);
-    publicAssetBytesCache[cacheKey] = localBytes;
-    return localBytes;
-  } catch {
-    // Fall through to URL fetch.
   }
 
   for (const base of getAssetBaseCandidates(req)) {
@@ -189,18 +177,6 @@ async function withEmbeddedVinylUrls(svg: string, req: Request): Promise<string>
   return result;
 }
 
-function getPosterFontAbsolutePath(fileName: string): string {
-  return path.join(process.cwd(), 'public', 'fonts', fileName);
-}
-
-function getPosterFontFilePaths(): string[] {
-  return [...new Set(
-    LOCAL_FONT_ASSETS
-      .map((asset) => getPosterFontAbsolutePath(asset.fileName))
-      .filter((absPath) => existsSync(absPath))
-  )];
-}
-
 type ResvgCtor = new (
   svg: string,
   options?: {
@@ -250,7 +226,6 @@ async function renderSvgToPng(
       const resvg = new Resvg(svg, {
         fitTo: { mode: 'zoom', value: scale },
         font: {
-          fontFiles: getPosterFontFilePaths(),
           loadSystemFonts: true
         }
       });
