@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
 const DEFAULT_MODELS = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview'] as const;
 const DEFAULT_MODEL = 'gemini-3.1-flash-image-preview';
-const DEFAULT_PROMPT_FILE = 'prompts/gemini_text_design.txt';
+const PROMPT_FILE_URL = new URL('../../../../prompts/gemini_text_design.txt', import.meta.url);
+const PROMPT_SOURCE = 'prompts/gemini_text_design.txt';
 const MAX_DATA_URL_LENGTH = 15_000_000;
 const DEFAULT_COLOR_KEY = 'purple_gloss';
 
@@ -165,9 +165,7 @@ function extractGeneratedImageDataUrl(payload: unknown): string | null {
 }
 
 async function loadPromptTemplate(): Promise<string> {
-  const promptPathRaw = (process.env.GEMINI_TEXT_DESIGN_PROMPT_FILE ?? DEFAULT_PROMPT_FILE).trim();
-  const promptPath = path.isAbsolute(promptPathRaw) ? promptPathRaw : path.join(process.cwd(), promptPathRaw);
-  return readFile(promptPath, 'utf8');
+  return readFile(PROMPT_FILE_URL, 'utf8');
 }
 
 function buildPrompt(template: string, targetText: string, colorPrompt: string): string {
@@ -304,6 +302,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       modelUsed: model,
       colorKeyUsed: colorOption.key,
+      promptSource: PROMPT_SOURCE,
       resolution: '1024x1024',
       estimatedCostUsd: MODEL_COST_1K_USD[model] ?? null,
       estimatedTokens: MODEL_TOKENS_1K[model] ?? null,
