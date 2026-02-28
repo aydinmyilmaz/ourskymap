@@ -128,6 +128,7 @@ type CachedAiTextDesignItem = {
   model: string;
   targetText: string;
   colorKey?: string;
+  designName?: string | null;
 };
 
 type TextLayer = {
@@ -1768,6 +1769,7 @@ export default function ImageDesignPage() {
             model: aiModel,
             colorKey: aiColorKey,
             targetText,
+            designName: targetText,
             imageUrl: removeBgPayload.imageUrl
           })
         });

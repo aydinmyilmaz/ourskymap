@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "simulate:etsy": "node scripts/simulate_etsy_orders.mjs"
+    "simulate:etsy": "node scripts/simulate_etsy_orders.mjs",
+    "import:ai-text-cache": "node scripts/import_ai_text_design_cache.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

@@ -14,6 +14,7 @@ type CacheRow = {
   model: string;
   target_text: string;
   color_key?: string | null;
+  design_name?: string | null;
   image_url: string;
   created_at: string;
 };
@@ -22,6 +23,7 @@ type CacheRequestBody = {
   model?: string;
   targetText?: string;
   colorKey?: string;
+  designName?: string;
   imageUrl?: string;
 };
 
@@ -75,6 +77,7 @@ function mapRow(row: CacheRow) {
     model: row.model,
     targetText: row.target_text,
     colorKey: row.color_key ?? 'purple_gloss',
+    designName: row.design_name ?? null,
     imageUrl: row.image_url,
     createdAt: row.created_at
   };
@@ -146,7 +149,7 @@ export async function GET(req: Request) {
     const supabase = getSupabaseAdminClient();
     const { data, error } = await supabase
       .from(table)
-      .select('id,model,target_text,color_key,image_url,created_at')
+      .select('id,model,target_text,color_key,design_name,image_url,created_at')
       .eq('cache_key', cacheKey)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -156,7 +159,7 @@ export async function GET(req: Request) {
         return NextResponse.json({ items: [] });
       }
       if (isMissingColumnError(error.message)) {
-        return new NextResponse('Cache schema is outdated. Run the Supabase schema migration for color metadata.', { status: 503 });
+        return new NextResponse('Cache schema is outdated. Run the latest Supabase schema migration for AI text cache metadata.', { status: 503 });
       }
       throw new Error(error.message);
     }
@@ -176,6 +179,7 @@ export async function POST(req: Request) {
     const model = (body.model ?? '').trim();
     const targetText = (body.targetText ?? '').trim();
     const colorKey = (body.colorKey ?? 'purple_gloss').trim() || 'purple_gloss';
+    const designName = (body.designName ?? '').trim();
     const imageUrl = (body.imageUrl ?? '').trim();
 
     if (!model) return new NextResponse('model is required.', { status: 400 });
@@ -195,7 +199,7 @@ export async function POST(req: Request) {
         return new NextResponse('Cache table is not configured yet. Run the Supabase schema migration first.', { status: 503 });
       }
       if (isMissingColumnError(probe.error.message)) {
-        return new NextResponse('Cache schema is outdated. Run the Supabase schema migration for color metadata.', { status: 503 });
+        return new NextResponse('Cache schema is outdated. Run the latest Supabase schema migration for AI text cache metadata.', { status: 503 });
       }
       throw new Error(probe.error.message);
     }
@@ -205,7 +209,7 @@ export async function POST(req: Request) {
 
     const existing = await supabase
       .from(table)
-      .select('id,model,target_text,color_key,image_url,created_at')
+      .select('id,model,target_text,color_key,design_name,image_url,created_at')
       .eq('cache_key', cacheKey)
       .eq('image_hash', imageHash)
       .maybeSingle();
@@ -215,7 +219,7 @@ export async function POST(req: Request) {
         return new NextResponse('Cache table is not configured yet. Run the Supabase schema migration first.', { status: 503 });
       }
       if (isMissingColumnError(existing.error.message)) {
-        return new NextResponse('Cache schema is outdated. Run the Supabase schema migration for color metadata.', { status: 503 });
+        return new NextResponse('Cache schema is outdated. Run the latest Supabase schema migration for AI text cache metadata.', { status: 503 });
       }
       throw new Error(existing.error.message);
     }
@@ -231,8 +235,9 @@ export async function POST(req: Request) {
     const keyHash = createHash('sha256').update(cacheKey).digest('hex').slice(0, 16);
     const colorSegment = normalizeColorKey(colorKey).replace(/[^a-z0-9_-]/g, '-').slice(0, 32) || 'color';
     const textSegment = toSlug(targetText, 'text');
+    const designSegment = toSlug(designName, 'design');
     const ext = toExtFromContentType(downloaded.contentType);
-    const storagePath = `${storageFolder}/${colorSegment}/${textSegment}-${keyHash}/${imageHash}.${ext}`;
+    const storagePath = `${storageFolder}/${designSegment}/${colorSegment}/${textSegment}-${keyHash}/${imageHash}.${ext}`;
 
     const upload = await supabase.storage.from(storageBucket).upload(storagePath, downloaded.bytes, {
       contentType: downloaded.contentType,
@@ -251,6 +256,7 @@ export async function POST(req: Request) {
         model,
         target_text: targetText,
         color_key: colorKey,
+        design_name: designName || null,
         normalized_text: normalizeTargetText(targetText),
         cache_key: cacheKey,
         image_url: publicUrl,
@@ -259,7 +265,7 @@ export async function POST(req: Request) {
         use_count: 1,
         last_used_at: new Date().toISOString()
       })
-      .select('id,model,target_text,color_key,image_url,created_at')
+      .select('id,model,target_text,color_key,design_name,image_url,created_at')
       .single();
 
     if (insert.error) {
@@ -267,7 +273,7 @@ export async function POST(req: Request) {
         return new NextResponse('Cache table is not configured yet. Run the Supabase schema migration first.', { status: 503 });
       }
       if (isMissingColumnError(insert.error.message)) {
-        return new NextResponse('Cache schema is outdated. Run the Supabase schema migration for color metadata.', { status: 503 });
+        return new NextResponse('Cache schema is outdated. Run the latest Supabase schema migration for AI text cache metadata.', { status: 503 });
       }
       throw new Error(insert.error.message);
     }
