@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
+import { LOCAL_FONT_ASSETS } from '../../lib/local-font-assets';
 
 type PaymentMethod = 'coupon' | 'paypal';
 type ExportEngine = 'browser' | 'server';
@@ -97,6 +98,22 @@ function withAbsoluteVinylUrls(svg: string): string {
   return result;
 }
 
+async function withEmbeddedMoonUrls(svg: string): Promise<string> {
+  let result = svg;
+  for (const assetPath of listAssetPaths(svg, MOON_ASSET_PATH_REGEX)) {
+    try {
+      const res = await fetch(`${window.location.origin}${assetPath}`, { cache: 'force-cache' });
+      if (!res.ok) continue;
+      const raw = new Uint8Array(await res.arrayBuffer());
+      const dataUri = `data:image/png;base64,${base64Encode(raw)}`;
+      result = replaceAssetUrlRefs(result, assetPath, dataUri);
+    } catch {
+      // Keep original URL and let absolute fallback handle it.
+    }
+  }
+  return result;
+}
+
 async function withEmbeddedVinylUrls(svg: string): Promise<string> {
   let result = svg;
   for (const assetPath of listAssetPaths(svg, VINYL_ASSET_PATH_REGEX)) {
@@ -112,6 +129,50 @@ async function withEmbeddedVinylUrls(svg: string): Promise<string> {
     }
   }
   return result;
+}
+
+function injectFontCssIntoSvg(svg: string, css: string): string {
+  const trimmed = css.trim();
+  if (!trimmed) return svg;
+  const styleNode = `<style><![CDATA[\n${trimmed}\n]]></style>`;
+  if (svg.includes('<defs>')) {
+    return svg.replace('<defs>', `<defs>\n${styleNode}`);
+  }
+  const svgOpenTag = svg.match(/<svg[^>]*>/i)?.[0];
+  if (!svgOpenTag) return svg;
+  return svg.replace(svgOpenTag, `${svgOpenTag}\n<defs>\n${styleNode}\n</defs>`);
+}
+
+async function withEmbeddedPosterFonts(svg: string): Promise<string> {
+  const uniqueFontFiles = [...new Set(LOCAL_FONT_ASSETS.map((asset) => asset.fileName))];
+  const fontDataUriByFile = new Map<string, string>();
+
+  await Promise.all(
+    uniqueFontFiles.map(async (fileName) => {
+      try {
+        const res = await fetch(`${window.location.origin}/fonts/${encodeURIComponent(fileName)}`, { cache: 'force-cache' });
+        if (!res.ok) return;
+        const raw = new Uint8Array(await res.arrayBuffer());
+        if (!raw.length) return;
+        fontDataUriByFile.set(fileName, `data:font/ttf;base64,${base64Encode(raw)}`);
+      } catch {
+        // Ignore missing font files.
+      }
+    })
+  );
+
+  if (fontDataUriByFile.size === 0) return svg;
+
+  const blocks: string[] = [];
+  for (const asset of LOCAL_FONT_ASSETS) {
+    const dataUri = fontDataUriByFile.get(asset.fileName);
+    if (!dataUri) continue;
+    blocks.push(
+      `@font-face{font-family:'${asset.family}';font-style:${asset.style};font-weight:${asset.weight};font-display:swap;src:url(${dataUri}) format('truetype');}`
+    );
+  }
+
+  return injectFontCssIntoSvg(svg, blocks.join('\n'));
 }
 
 /** CRC32 for PNG chunk integrity verification */
@@ -204,6 +265,8 @@ async function downloadFlatBrowserZip(args: { svg: string; filePrefix: string; f
   const [{ PDFDocument }, zipMod] = await Promise.all([import('pdf-lib'), import('jszip')]);
   const JSZipCtor = zipMod.default;
   let svg = await withEmbeddedVinylUrls(args.svg);
+  svg = await withEmbeddedMoonUrls(svg);
+  svg = await withEmbeddedPosterFonts(svg);
   svg = withAbsoluteVinylUrls(svg);
   svg = withAbsoluteMoonUrls(svg);
   const { width, height } = parseSvgSize(svg);
