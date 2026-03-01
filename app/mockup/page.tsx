@@ -662,6 +662,8 @@ export default function MockupPage() {
   const [editorMode, setEditorMode] = useState<EditorMode>('auto_mockup');
   const [sidebarPanelTab, setSidebarPanelTab] = useState<SidebarPanelTab>('editor');
   const [helpLanguage, setHelpLanguage] = useState<HelpLanguage>('en');
+  const [autoHelpExpanded, setAutoHelpExpanded] = useState(true);
+  const [sceneHelpExpanded, setSceneHelpExpanded] = useState(false);
 
   const [autoProviderOptions, setAutoProviderOptions] = useState<SceneProviderKey[]>([...FALLBACK_AUTO_PROVIDER_OPTIONS]);
   const [autoProvider, setAutoProvider] = useState<SceneProviderKey>('gemini');
@@ -1970,47 +1972,6 @@ export default function MockupPage() {
               >
                 Auto Mockup
               </button>
-              <div className="tabHelp" tabIndex={0} aria-label="Auto Mockup bilgi">
-                <span className="infoIconBtn" aria-hidden>
-                  i
-                </span>
-                <div className="tabInfoPopup" role="tooltip">
-                  <p className="tabInfoTitle">Auto Mockup</p>
-                  <p className="infoText">
-                    Bu mod tek adimda otomatik mockup uretir. Tasarim, prompt ve opsiyonel sahneyi AI modeline gonderir;
-                    model tasarimi sahneye yerlestirip final gorseli olusturur.
-                  </p>
-                  <p className="infoTitle">Ne zaman kullanilir?</p>
-                  <ul className="infoList">
-                    <li>Hizli sekilde tek cikti almak istiyorsan.</li>
-                    <li>Yerlesimi elle yapmak yerine AI karar versin istiyorsan.</li>
-                    <li>Bir urun icin farkli promptlarla hizli deneme yapmak istiyorsan.</li>
-                  </ul>
-                  <p className="infoTitle">Scene Canvas ile farki</p>
-                  <ul className="infoList">
-                    <li>Auto Mockup tam otomatik birlestirme yapar.</li>
-                    <li>Scene Canvas sahneyi uretir ama yerlestirmeyi sen yaparsin.</li>
-                  </ul>
-                  <p className="infoTitle">Inputlar ne ise yarar?</p>
-                  <ul className="infoList">
-                    <li>Upload Design: ana tasarim gorseli (zorunlu).</li>
-                    <li>Upload Scene: modelin sadik kalacagi arka plan referansi (opsiyonel).</li>
-                    <li>Prompt: sahne stili, urun tipi, kamera, isik gibi talimatlar.</li>
-                    <li>Provider / Model: uretim motoru ve kalite-hiz tercihi.</li>
-                    <li>Placement: preset veya custom rect ile hedef bolge secimi.</li>
-                    <li>Aspect Ratio / Image Size: kompozisyon orani ve cikti boyutu.</li>
-                    <li>Clean Design Background: tasarim arka planini temizleyip daha net baski etkisi verir.</li>
-                  </ul>
-                  <p className="infoTitle">Hizli kullanim akisi</p>
-                  <ul className="infoList">
-                    <li>1) Design yukle.</li>
-                    <li>2) Prompt yaz.</li>
-                    <li>3) Gerekirse scene yukle ve placement sec.</li>
-                    <li>4) Model ayarlarini secip Generate Mockup bas.</li>
-                    <li>5) Sonucu PNG/JPG indir.</li>
-                  </ul>
-                </div>
-              </div>
             </div>
             <div className="editorTabWrap">
               <button
@@ -2020,48 +1981,6 @@ export default function MockupPage() {
               >
                 Scene Canvas
               </button>
-              <div className="tabHelp" tabIndex={0} aria-label="Scene Canvas bilgi">
-                <span className="infoIconBtn" aria-hidden>
-                  i
-                </span>
-                <div className="tabInfoPopup" role="tooltip">
-                  <p className="tabInfoTitle">Scene Canvas</p>
-                  <p className="infoText">
-                    Bu mod once sadece sahne uretir veya sahne yukler. Sonra tasarimi kanvas ustunde elle surukleyip
-                    yerlestirirsin. Konum, olcek ve rotasyon uzerinde tam kontrol verir.
-                  </p>
-                  <p className="infoTitle">Ne zaman kullanilir?</p>
-                  <ul className="infoList">
-                    <li>Tasarim yerlesimini manuel yonetmek istiyorsan.</li>
-                    <li>Ayni sahnede farkli varyasyonlar deneyeceksen.</li>
-                    <li>AI yerlesimi yerine goz karari final istiyorsan.</li>
-                  </ul>
-                  <p className="infoTitle">Auto Mockup ile farki</p>
-                  <ul className="infoList">
-                    <li>Scene Canvas sahneyi uretir, yerlestirmeyi kullanici yapar.</li>
-                    <li>Auto Mockup tek API adiminda sahne + tasarim birlestirir.</li>
-                  </ul>
-                  <p className="infoTitle">Inputlar ne ise yarar?</p>
-                  <ul className="infoList">
-                    <li>Scene Prompt: arka planin mekan/stil/isik tanimi.</li>
-                    <li>Provider / Model: sahne uretim motoru.</li>
-                    <li>Aspect Ratio / Image Size: sahne cikti ayarlari.</li>
-                    <li>Upload Scene: disaridan hazir arka plan kullanmak icin.</li>
-                    <li>Upload Design: sahneye yerlestirilecek tasarim.</li>
-                    <li>Scale / Rotation: manuel transform ayarlari.</li>
-                    <li>Drag on canvas: tasarimi istedigin noktaya tasima.</li>
-                    <li>Use frame area: istersen yerlestirmeyi belirli bolgeye kilitleme.</li>
-                  </ul>
-                  <p className="infoTitle">Hizli kullanim akisi</p>
-                  <ul className="infoList">
-                    <li>1) Scene prompt ile sahne uret veya scene yukle.</li>
-                    <li>2) Design yukle.</li>
-                    <li>3) Kanvas ustunde designi surukle; scale/rotation ayarla.</li>
-                    <li>4) Gerekirse frame mode ac.</li>
-                    <li>5) Sonucu PNG/JPG indir.</li>
-                  </ul>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -2088,6 +2007,111 @@ export default function MockupPage() {
               Learning
             </button>
           </div>
+
+          {editorMode === 'auto_mockup' ? (
+            <div className="helpExpander">
+              <button
+                type="button"
+                className="helpExpanderToggle"
+                onClick={() => setAutoHelpExpanded((prev) => !prev)}
+                aria-expanded={autoHelpExpanded}
+              >
+                <span className="helpExpanderIcon" aria-hidden>
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 16v-4" />
+                    <circle cx="12" cy="8" r="0.9" className="dot" />
+                  </svg>
+                </span>
+                <span>Auto Mockup Rehberi</span>
+                <span className={`helpChevron${autoHelpExpanded ? ' open' : ''}`} aria-hidden>
+                  ▾
+                </span>
+              </button>
+              {autoHelpExpanded ? (
+                <div className="helpExpanderBody">
+                  <p className="infoText">
+                    Bu mod tek adimda otomatik mockup uretir. Tasarim, prompt ve opsiyonel sahneyi AI modeline gonderir;
+                    model tasarimi sahneye yerlestirip final gorseli olusturur.
+                  </p>
+                  <p className="infoTitle">Ne zaman kullanilir?</p>
+                  <ul className="infoList">
+                    <li>Hizli sekilde tek cikti almak istiyorsan.</li>
+                    <li>Yerlesimi elle yapmak yerine AI karar versin istiyorsan.</li>
+                    <li>Bir urun icin farkli promptlarla hizli deneme yapmak istiyorsan.</li>
+                  </ul>
+                  <p className="infoTitle">Scene Canvas ile farki</p>
+                  <ul className="infoList">
+                    <li>Auto Mockup tam otomatik birlestirme yapar.</li>
+                    <li>Scene Canvas sahneyi uretir ama yerlestirmeyi sen yaparsin.</li>
+                  </ul>
+                  <p className="infoTitle">Inputlar ne ise yarar?</p>
+                  <ul className="infoList">
+                    <li>Upload Design: ana tasarim gorseli (zorunlu).</li>
+                    <li>Upload Scene: modelin sadik kalacagi arka plan referansi (opsiyonel).</li>
+                    <li>Prompt: sahne stili, urun tipi, kamera, isik gibi talimatlar.</li>
+                    <li>Provider / Model: uretim motoru ve kalite-hiz tercihi.</li>
+                    <li>Placement: preset veya custom rect ile hedef bolge secimi.</li>
+                    <li>Aspect Ratio / Image Size: kompozisyon orani ve cikti boyutu.</li>
+                    <li>Clean Design Background: tasarim arka planini temizleyip daha net baski etkisi verir.</li>
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {editorMode === 'scene_canvas' ? (
+            <div className="helpExpander">
+              <button
+                type="button"
+                className="helpExpanderToggle"
+                onClick={() => setSceneHelpExpanded((prev) => !prev)}
+                aria-expanded={sceneHelpExpanded}
+              >
+                <span className="helpExpanderIcon" aria-hidden>
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 16v-4" />
+                    <circle cx="12" cy="8" r="0.9" className="dot" />
+                  </svg>
+                </span>
+                <span>Scene Canvas Rehberi</span>
+                <span className={`helpChevron${sceneHelpExpanded ? ' open' : ''}`} aria-hidden>
+                  ▾
+                </span>
+              </button>
+              {sceneHelpExpanded ? (
+                <div className="helpExpanderBody">
+                  <p className="infoText">
+                    Bu mod once sadece sahne uretir veya sahne yukler. Sonra tasarimi kanvas ustunde elle surukleyip
+                    yerlestirirsin. Konum, olcek ve rotasyon uzerinde tam kontrol verir.
+                  </p>
+                  <p className="infoTitle">Ne zaman kullanilir?</p>
+                  <ul className="infoList">
+                    <li>Tasarim yerlesimini manuel yonetmek istiyorsan.</li>
+                    <li>Ayni sahnede farkli varyasyonlar deneyeceksen.</li>
+                    <li>AI yerlesimi yerine goz karari final istiyorsan.</li>
+                  </ul>
+                  <p className="infoTitle">Auto Mockup ile farki</p>
+                  <ul className="infoList">
+                    <li>Scene Canvas sahneyi uretir, yerlestirmeyi kullanici yapar.</li>
+                    <li>Auto Mockup tek API adiminda sahne + tasarim birlestirir.</li>
+                  </ul>
+                  <p className="infoTitle">Inputlar ne ise yarar?</p>
+                  <ul className="infoList">
+                    <li>Scene Prompt: arka planin mekan/stil/isik tanimi.</li>
+                    <li>Provider / Model: sahne uretim motoru.</li>
+                    <li>Aspect Ratio / Image Size: sahne cikti ayarlari.</li>
+                    <li>Upload Scene: disaridan hazir arka plan kullanmak icin.</li>
+                    <li>Upload Design: sahneye yerlestirilecek tasarim.</li>
+                    <li>Scale / Rotation: manuel transform ayarlari.</li>
+                    <li>Drag on canvas: tasarimi istedigin noktaya tasima.</li>
+                    <li>Use frame area: istersen yerlestirmeyi belirli bolgeye kilitleme.</li>
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {sidebarPanelTab === 'editor' ? (
             <div className="panelBlock">
@@ -2933,7 +2957,9 @@ export default function MockupPage() {
           border-radius: 16px;
           background: rgba(255, 255, 255, 0.9);
           padding: 12px;
-          display: grid;
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
           gap: 10px;
           height: 100%;
           max-height: 100%;
@@ -2950,10 +2976,8 @@ export default function MockupPage() {
         }
 
         .editorTabWrap {
-          position: relative;
           display: block;
           min-width: 0;
-          overflow: visible;
         }
 
         .editorTab {
@@ -2974,83 +2998,78 @@ export default function MockupPage() {
           border-color: #20578d;
         }
 
-        .tabHelp {
-          position: absolute;
-          right: 8px;
-          top: -8px;
-          z-index: 40;
-          display: inline-block;
-          outline: none;
+        .helpExpander {
+          border: 1px solid #d2deef;
+          border-radius: 12px;
+          background: #f8fbff;
+          overflow: hidden;
+          min-height: 0;
         }
 
-        .infoIconBtn {
-          width: 22px;
-          height: 22px;
-          min-width: 22px;
-          border-radius: 999px;
-          border: 1px solid #2f6eaa;
-          background: #f5faff;
-          color: #1f5a93;
-          font-size: 12px;
-          font-weight: 800;
-          line-height: 1;
+        .helpExpanderToggle {
+          width: 100%;
+          border: 0;
+          border-bottom: 1px solid #d9e4f2;
+          background: #f2f8ff;
+          color: #1e4770;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 9px 10px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          text-align: left;
+        }
+
+        .helpExpanderIcon {
+          width: 18px;
+          height: 18px;
+          min-width: 18px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          cursor: default;
-          box-shadow: 0 2px 8px rgba(20, 53, 89, 0.18);
+          color: #2a669f;
         }
 
-        .tabInfoPopup {
-          position: absolute;
-          top: 14px;
-          right: 0;
-          width: min(430px, calc(100vw - 28px));
-          max-height: none;
-          overflow: visible;
-          border: 1px solid #bed2ea;
-          border-radius: 12px;
-          background: #fdfefe;
-          box-shadow: 0 18px 38px rgba(16, 41, 73, 0.28);
-          padding: 12px 12px 11px 12px;
+        .helpExpanderIcon svg {
+          width: 18px;
+          height: 18px;
+          stroke: currentColor;
+          fill: none;
+          stroke-width: 1.8;
+        }
+
+        .helpExpanderIcon svg .dot {
+          fill: currentColor;
+          stroke: none;
+        }
+
+        .helpChevron {
+          margin-left: auto;
+          color: #2f5f90;
+          transition: transform 0.16s ease;
+        }
+
+        .helpChevron.open {
+          transform: rotate(180deg);
+        }
+
+        .helpExpanderBody {
+          padding: 10px 10px 11px 10px;
           display: grid;
           gap: 8px;
-          opacity: 0;
-          visibility: hidden;
-          transform: translateY(-2px);
-          transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
-          pointer-events: none;
-        }
-
-        .editorTabWrap:first-child .tabHelp .tabInfoPopup {
-          left: 0;
-          right: auto;
-        }
-
-        .editorTabWrap:last-child .tabHelp .tabInfoPopup {
-          right: 0;
-          left: auto;
-        }
-
-        .tabHelp:hover .tabInfoPopup,
-        .tabHelp:focus-within .tabInfoPopup {
-          opacity: 1;
-          visibility: visible;
-          transform: translateY(0);
-          pointer-events: auto;
-        }
-
-        .tabInfoTitle {
-          margin: 0;
-          font-size: 14px;
-          font-weight: 800;
-          color: #123f6a;
+          max-height: min(44vh, 420px);
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
         }
 
         .sidebarTabs {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 8px;
+          align-items: stretch;
         }
 
         .sidebarTab {
@@ -3061,7 +3080,14 @@ export default function MockupPage() {
           font-size: 12px;
           font-weight: 700;
           letter-spacing: 0.03em;
-          padding: 7px 8px;
+          padding: 0 8px;
+          height: 40px;
+          min-height: 40px;
+          line-height: 1;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
           cursor: pointer;
         }
 
