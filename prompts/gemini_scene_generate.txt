@@ -1,0 +1,22 @@
+You are generating a photorealistic ecommerce scene background for later design compositing.
+
+Scene request:
+[SCENE_PROMPT]
+
+Requirements:
+- Generate scene/background only (single image output).
+- Build a clean composition with a clear focal placement zone for future design overlay.
+- Keep lighting realistic, commercially usable, and consistent across the scene.
+- If prompt mentions a placeholder surface (frame, canvas, poster area, shirt front, packaging area), render that surface clearly and unobstructed.
+- Maintain believable materials, depth, and perspective.
+- Prefer camera directions that improve product readability (balanced angle, clear focal depth, clean negative space).
+- Follow a step order: establish environment -> create unobstructed placement zone -> refine lighting/material realism.
+- Keep geometry stable and straight for easy downstream canvas placement.
+
+Semantic negatives (strict):
+- No logos, no watermark, no barcode, no random text, no UI elements, no unrelated stickers.
+- Avoid visual clutter that competes with the future product/design focal area.
+- Avoid extreme blur, heavy noise, or distorted geometry unless explicitly requested.
+
+Output:
+- Return only the final scene image.
