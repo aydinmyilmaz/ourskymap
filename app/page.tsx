@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: '/soundwave', label: 'Soundwave' },
   { href: '/vinyl', label: 'Vinyl' },
   { href: '/image', label: 'T-Shirt Design' },
+  { href: '/mockup', label: 'Mockup Studio' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/blog', label: 'Blog' },
   { href: '/faq', label: 'FAQ' },
@@ -69,6 +70,14 @@ const PRODUCTS = [
     description: 'Build custom T-shirt compositions with multi-layer photo editing, text effects, and print-area controls.',
     image: '/home/product-image-studio.jpg',
     cta: 'Open Image Studio'
+  },
+  {
+    href: '/mockup',
+    title: 'Mockup Studio',
+    tag: 'AI Mockup',
+    description: 'Generate product mockups from your design + prompt with optional background input and placement control.',
+    image: '/home/product-image-studio.jpg',
+    cta: 'Open Mockup Studio'
   }
 ] as const;
 
@@ -176,7 +185,8 @@ const FOOTER_COLUMNS = [
       { href: '/citymap', label: 'CityMap' },
       { href: '/soundwave', label: 'Soundwave' },
       { href: '/vinyl', label: 'Vinyl Studio' },
-      { href: '/image', label: 'Image Studio' }
+      { href: '/image', label: 'Image Studio' },
+      { href: '/mockup', label: 'Mockup Studio' }
     ]
   },
   {
