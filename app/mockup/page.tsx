@@ -181,6 +181,10 @@ const DEFAULT_MAX_PROMPT = 1500;
 const TOTAL_TSHIRT_PROMPT_TARGET = 100;
 const EXISTING_CURATED_TSHIRT_PROMPT_COUNT = 21;
 const ETSY_INSPIRED_TSHIRT_PROMPT_COUNT = TOTAL_TSHIRT_PROMPT_TARGET - EXISTING_CURATED_TSHIRT_PROMPT_COUNT;
+const TOTAL_SCENE_CANVAS_TSHIRT_PROMPT_TARGET = 60;
+const EXISTING_CURATED_SCENE_CANVAS_TSHIRT_PROMPT_COUNT = 9;
+const ETSY_INSPIRED_SCENE_CANVAS_TSHIRT_PROMPT_COUNT =
+  TOTAL_SCENE_CANVAS_TSHIRT_PROMPT_TARGET - EXISTING_CURATED_SCENE_CANVAS_TSHIRT_PROMPT_COUNT;
 
 type EtsyInspiredTshirtStyle = {
   styleTag: string;
@@ -294,6 +298,38 @@ const ETSY_INSPIRED_TSHIRT_PROMPTS: PromptLibraryItem[] = buildEtsyInspiredTshir
   ETSY_INSPIRED_TSHIRT_PROMPT_COUNT
 );
 
+function buildEtsyInspiredSceneCanvasTshirtPrompts(count: number): PromptLibraryItem[] {
+  return Array.from({ length: count }, (_, idx) => {
+    const scene = ETSY_INSPIRED_TSHIRT_SCENES[idx % ETSY_INSPIRED_TSHIRT_SCENES.length];
+    const style = ETSY_INSPIRED_TSHIRT_STYLES[(idx * 7 + 2) % ETSY_INSPIRED_TSHIRT_STYLES.length];
+    const weatherPool = scene.settingTag === 'indoor' ? ETSY_INSPIRED_INDOOR_WEATHERS : ETSY_INSPIRED_OUTDOOR_WEATHERS;
+    const weather = weatherPool[(idx * 3 + Math.floor(idx / 5)) % weatherPool.length];
+    const idSerial = `${idx + 1}`.padStart(3, '0');
+
+    return {
+      id: `scene-tshirt-etsy-pack-${idSerial}`,
+      mode: 'scene_canvas',
+      category: scene.settingTag === 'indoor' ? 'Scene-Only T-Shirt | Indoor' : 'Scene-Only T-Shirt | Outdoor',
+      title: `${style.title} ${scene.title} Scene ${idSerial}`,
+      prompt: [
+        `Generate a photorealistic commercial scene for t-shirt mockup compositing in a ${scene.sceneDirection}.`,
+        `Apply ${style.styleDirection} and ${weather.weatherDirection}, with realistic depth and lens behavior.`,
+        'Include one clear front-facing oversized black t-shirt placement target area for later manual design overlay in Scene Canvas. Keep the area unobstructed and readable.',
+        'No logos, no random text, no watermark, no additional design prints on the shirt.'
+      ].join(' '),
+      productType: 'tshirt',
+      styleTag: style.styleTag,
+      sceneTag: scene.sceneTag,
+      weatherTag: weather.weatherTag,
+      settingTag: scene.settingTag
+    };
+  });
+}
+
+const ETSY_INSPIRED_SCENE_CANVAS_TSHIRT_PROMPTS: PromptLibraryItem[] = buildEtsyInspiredSceneCanvasTshirtPrompts(
+  ETSY_INSPIRED_SCENE_CANVAS_TSHIRT_PROMPT_COUNT
+);
+
 const ETSY_STYLE_TITLE_TR: Record<string, string> = {
   streetwear_oversized: 'Oversized Streetwear',
   vintage_retro: 'Vintage Retro',
@@ -380,6 +416,37 @@ function buildEtsyInspiredTshirtPromptTranslations(prompts: PromptLibraryItem[])
 
 const ETSY_INSPIRED_TSHIRT_PROMPTS_TR: Record<string, PromptLibraryTranslation> =
   buildEtsyInspiredTshirtPromptTranslations(ETSY_INSPIRED_TSHIRT_PROMPTS);
+
+function buildEtsyInspiredSceneCanvasPromptTranslations(
+  prompts: PromptLibraryItem[]
+): Record<string, PromptLibraryTranslation> {
+  const result: Record<string, PromptLibraryTranslation> = {};
+
+  for (const item of prompts) {
+    const serialMatch = item.id.match(/(\d+)$/);
+    const serial = serialMatch ? serialMatch[1] : '';
+    const styleTitle = ETSY_STYLE_TITLE_TR[item.styleTag ?? ''] ?? formatFilterTagLabel(item.styleTag ?? '');
+    const sceneTitle = ETSY_SCENE_TITLE_TR[item.sceneTag ?? ''] ?? formatFilterTagLabel(item.sceneTag ?? '');
+    const weatherTitle = ETSY_WEATHER_TITLE_TR[item.weatherTag ?? ''] ?? formatFilterTagLabel(item.weatherTag ?? '');
+    const category = item.settingTag === 'indoor' ? 'Sadece Sahne | T-Shirt | Ic Mekan' : 'Sadece Sahne | T-Shirt | Dis Mekan';
+
+    result[item.id] = {
+      category,
+      title: `${styleTitle} ${sceneTitle} Sahne${serial ? ` ${serial}` : ''}`.trim(),
+      prompt: [
+        `${sceneTitle.toLowerCase()} ortaminda t-shirt mockup birlestirmesi icin fotogercekci ticari bir sahne uret.`,
+        `${styleTitle.toLowerCase()} sanat yonu ve ${weatherTitle.toLowerCase()} isik/hava karakterini uygula; derinlik ve lens davranisi gercekci olsun.`,
+        'Scene Canvas icin daha sonra manuel tasarim overlay yapilabilecek, onde net gorunen oversized siyah t-shirt hedef alani birak.',
+        'Tisort uzerinde logo, rastgele yazi, watermark veya ekstra baski olmasin.'
+      ].join(' ')
+    };
+  }
+
+  return result;
+}
+
+const ETSY_INSPIRED_SCENE_CANVAS_TSHIRT_PROMPTS_TR: Record<string, PromptLibraryTranslation> =
+  buildEtsyInspiredSceneCanvasPromptTranslations(ETSY_INSPIRED_SCENE_CANVAS_TSHIRT_PROMPTS);
 
 const PROMPT_LIBRARY: PromptLibraryItem[] = [
   {
@@ -752,6 +819,7 @@ const PROMPT_LIBRARY: PromptLibraryItem[] = [
     prompt:
       'Generate a photorealistic commercial shot using a 45-degree camera angle, medium focal length look, shallow depth of field, and soft three-point lighting. Keep the main product centered and crisp, with clean negative space.'
   },
+  ...ETSY_INSPIRED_SCENE_CANVAS_TSHIRT_PROMPTS,
   {
     id: 'scene-living-room-wall',
     mode: 'scene_canvas',
@@ -860,6 +928,7 @@ const PROMPT_LIBRARY: PromptLibraryItem[] = [
 
 const PROMPT_LIBRARY_TR: Record<string, PromptLibraryTranslation> = {
   ...ETSY_INSPIRED_TSHIRT_PROMPTS_TR,
+  ...ETSY_INSPIRED_SCENE_CANVAS_TSHIRT_PROMPTS_TR,
   'auto-studio-product': {
     category: 'Ticari Urun Cekimi',
     title: 'Studyo Urun Fotografi',
@@ -1420,8 +1489,6 @@ export default function MockupPage() {
     [activePromptTemplates]
   );
   const filteredPromptTemplates = useMemo(() => {
-    if (editorMode !== 'auto_mockup') return localizedPromptTemplates;
-
     return localizedPromptTemplates.filter(({ item }) => {
       if (promptTypeFilter === 'tshirt' && item.productType !== 'tshirt') return false;
       if (promptSettingFilter !== 'all' && item.settingTag !== promptSettingFilter) return false;
@@ -1431,7 +1498,6 @@ export default function MockupPage() {
       return true;
     });
   }, [
-    editorMode,
     localizedPromptTemplates,
     promptSceneFilter,
     promptSettingFilter,
@@ -2672,7 +2738,7 @@ export default function MockupPage() {
             </button>
           </div>
 
-          {editorMode === 'auto_mockup' ? (
+          {sidebarPanelTab === 'learning' && editorMode === 'auto_mockup' ? (
             <div className="helpExpander">
               <button
                 type="button"
@@ -2724,7 +2790,7 @@ export default function MockupPage() {
             </div>
           ) : null}
 
-          {editorMode === 'scene_canvas' ? (
+          {sidebarPanelTab === 'learning' && editorMode === 'scene_canvas' ? (
             <div className="helpExpander">
               <button
                 type="button"
@@ -2830,7 +2896,7 @@ export default function MockupPage() {
           ) : null}
 
           {sidebarPanelTab === 'prompts' ? (
-            <div className="panelBlock">
+            <div className="panelBlock scrollPanel">
             <div className="promptLibraryHead">
               <h3>{helpLanguage === 'tr' ? 'Prompt Kutuphanesi' : 'Prompt Library'}</h3>
               <span>{editorMode === 'auto_mockup' ? 'Auto Mockup' : 'Scene Canvas'}</span>
@@ -2858,61 +2924,59 @@ export default function MockupPage() {
                 ? 'Bir sablon sec, gerekirse prompt alaninda duzenle.'
                 : 'Pick a template, then edit in the prompt box if needed.'}
             </p>
-            {editorMode === 'auto_mockup' ? (
-              <div className="promptFilterGrid">
-                <div className="filterField">
-                  <label>{helpLanguage === 'tr' ? 'Urun' : 'Product'}</label>
-                  <select value={promptTypeFilter} onChange={(e) => setPromptTypeFilter(e.target.value as PromptTypeFilter)}>
-                    <option value="all">{helpLanguage === 'tr' ? 'Tum Promptlar' : 'All prompts'}</option>
-                    <option value="tshirt">{helpLanguage === 'tr' ? 'Sadece T-Shirt' : 'T-Shirt only'}</option>
-                  </select>
-                </div>
-                <div className="filterField">
-                  <label>{helpLanguage === 'tr' ? 'Mekan' : 'Setting'}</label>
-                  <select
-                    value={promptSettingFilter}
-                    onChange={(e) => setPromptSettingFilter(e.target.value as PromptSettingFilter)}
-                  >
-                    <option value="all">{helpLanguage === 'tr' ? 'Tum Mekanlar' : 'All settings'}</option>
-                    <option value="indoor">{helpLanguage === 'tr' ? 'Ic Mekan' : 'Indoor'}</option>
-                    <option value="outdoor">{helpLanguage === 'tr' ? 'Dis Mekan' : 'Outdoor'}</option>
-                  </select>
-                </div>
-                <div className="filterField">
-                  <label>{helpLanguage === 'tr' ? 'Stil' : 'Style'}</label>
-                  <select value={promptStyleFilter} onChange={(e) => setPromptStyleFilter(e.target.value)}>
-                    <option value="all">{helpLanguage === 'tr' ? 'Tum Stiller' : 'All styles'}</option>
-                    {promptStyleOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {formatFilterTagLabel(option)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="filterField">
-                  <label>{helpLanguage === 'tr' ? 'Sahne' : 'Scene'}</label>
-                  <select value={promptSceneFilter} onChange={(e) => setPromptSceneFilter(e.target.value)}>
-                    <option value="all">{helpLanguage === 'tr' ? 'Tum Sahneler' : 'All scenes'}</option>
-                    {promptSceneOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {formatFilterTagLabel(option)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="filterField">
-                  <label>{helpLanguage === 'tr' ? 'Hava' : 'Weather'}</label>
-                  <select value={promptWeatherFilter} onChange={(e) => setPromptWeatherFilter(e.target.value)}>
-                    <option value="all">{helpLanguage === 'tr' ? 'Tum Hava Kosullari' : 'All weather'}</option>
-                    {promptWeatherOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {formatFilterTagLabel(option)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="promptFilterGrid">
+              <div className="filterField">
+                <label>{helpLanguage === 'tr' ? 'Urun' : 'Product'}</label>
+                <select value={promptTypeFilter} onChange={(e) => setPromptTypeFilter(e.target.value as PromptTypeFilter)}>
+                  <option value="all">{helpLanguage === 'tr' ? 'Tum Promptlar' : 'All prompts'}</option>
+                  <option value="tshirt">{helpLanguage === 'tr' ? 'Sadece T-Shirt' : 'T-Shirt only'}</option>
+                </select>
               </div>
-            ) : null}
+              <div className="filterField">
+                <label>{helpLanguage === 'tr' ? 'Mekan' : 'Setting'}</label>
+                <select
+                  value={promptSettingFilter}
+                  onChange={(e) => setPromptSettingFilter(e.target.value as PromptSettingFilter)}
+                >
+                  <option value="all">{helpLanguage === 'tr' ? 'Tum Mekanlar' : 'All settings'}</option>
+                  <option value="indoor">{helpLanguage === 'tr' ? 'Ic Mekan' : 'Indoor'}</option>
+                  <option value="outdoor">{helpLanguage === 'tr' ? 'Dis Mekan' : 'Outdoor'}</option>
+                </select>
+              </div>
+              <div className="filterField">
+                <label>{helpLanguage === 'tr' ? 'Stil' : 'Style'}</label>
+                <select value={promptStyleFilter} onChange={(e) => setPromptStyleFilter(e.target.value)}>
+                  <option value="all">{helpLanguage === 'tr' ? 'Tum Stiller' : 'All styles'}</option>
+                  {promptStyleOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {formatFilterTagLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filterField">
+                <label>{helpLanguage === 'tr' ? 'Sahne' : 'Scene'}</label>
+                <select value={promptSceneFilter} onChange={(e) => setPromptSceneFilter(e.target.value)}>
+                  <option value="all">{helpLanguage === 'tr' ? 'Tum Sahneler' : 'All scenes'}</option>
+                  {promptSceneOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {formatFilterTagLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filterField">
+                <label>{helpLanguage === 'tr' ? 'Hava' : 'Weather'}</label>
+                <select value={promptWeatherFilter} onChange={(e) => setPromptWeatherFilter(e.target.value)}>
+                  <option value="all">{helpLanguage === 'tr' ? 'Tum Hava Kosullari' : 'All weather'}</option>
+                  {promptWeatherOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {formatFilterTagLabel(option)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <p className="hint">
               {helpLanguage === 'tr'
                 ? `${filteredPromptTemplates.length} sablon listeleniyor.`
@@ -2991,7 +3055,7 @@ export default function MockupPage() {
           ) : null}
 
           {sidebarPanelTab === 'learning' ? (
-            <div className="panelBlock">
+            <div className="panelBlock scrollPanel">
             <div className="promptLibraryHead">
               <h3>{helpLanguage === 'tr' ? 'Kisa Ogrenme' : 'Short Learning'}</h3>
               <div className="languageToggle">
@@ -3720,7 +3784,7 @@ export default function MockupPage() {
           border: 1px solid #cad8ec;
           border-radius: 16px;
           background: rgba(255, 255, 255, 0.9);
-          padding: 12px;
+          padding: 12px 12px 28px 12px;
           display: flex;
           flex-direction: column;
           align-items: stretch;
@@ -3729,8 +3793,16 @@ export default function MockupPage() {
           max-height: 100%;
           overflow-y: auto;
           overflow-x: visible;
+          scroll-padding-bottom: 36px;
           position: relative;
           z-index: 30;
+        }
+
+        .controlPanel::after {
+          content: '';
+          display: block;
+          min-height: 16px;
+          flex-shrink: 0;
         }
 
         .editorTabs {
@@ -3823,10 +3895,9 @@ export default function MockupPage() {
           padding: 10px 10px 11px 10px;
           display: grid;
           gap: 8px;
-          max-height: min(44vh, 420px);
-          overflow-y: auto;
-          overscroll-behavior: contain;
-          -webkit-overflow-scrolling: touch;
+          max-height: none;
+          overflow: visible;
+          padding-bottom: 18px;
         }
 
         .sidebarTabs {
@@ -3868,6 +3939,15 @@ export default function MockupPage() {
           background: #f8fbff;
           display: grid;
           gap: 8px;
+        }
+
+        .scrollPanel {
+          max-height: min(70vh, 700px);
+          overflow-y: auto;
+          overscroll-behavior: auto;
+          -webkit-overflow-scrolling: touch;
+          padding-right: 8px;
+          padding-bottom: 12px;
         }
 
         .panelBlock h3 {
@@ -3978,8 +4058,8 @@ export default function MockupPage() {
         .promptLibraryList {
           display: grid;
           gap: 8px;
-          max-height: 340px;
-          overflow: auto;
+          max-height: none;
+          overflow: visible;
           padding-right: 2px;
         }
 
@@ -4107,6 +4187,7 @@ export default function MockupPage() {
 
         .actionRow {
           display: grid;
+          padding-bottom: 10px;
         }
 
         .primaryBtn,
@@ -4326,8 +4407,9 @@ export default function MockupPage() {
 
           .controlPanel {
             height: auto;
-            max-height: 56vh;
+            max-height: 68vh;
             overflow-y: auto;
+            padding-bottom: 24px;
           }
 
           .promptFilterGrid {
