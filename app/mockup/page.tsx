@@ -83,6 +83,11 @@ type PromptLibraryItem = {
   category: string;
   title: string;
   prompt: string;
+  productType?: 'tshirt';
+  styleTag?: string;
+  sceneTag?: string;
+  weatherTag?: string;
+  settingTag?: 'indoor' | 'outdoor';
 };
 
 type PromptLibraryTranslation = {
@@ -90,6 +95,16 @@ type PromptLibraryTranslation = {
   title: string;
   prompt: string;
 };
+
+type LocalizedPromptTemplate = {
+  item: PromptLibraryItem;
+  category: string;
+  title: string;
+  prompt: string;
+};
+
+type PromptTypeFilter = 'all' | 'tshirt';
+type PromptSettingFilter = 'all' | 'indoor' | 'outdoor';
 
 const FALLBACK_MODELS = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview'];
 const FALLBACK_AUTO_PROVIDER_OPTIONS: SceneProviderKey[] = ['gemini', 'replicate'];
@@ -179,7 +194,272 @@ const PROMPT_LIBRARY: PromptLibraryItem[] = [
     category: 'T-Shirt On-Model',
     title: 'Streetwear Lifestyle',
     prompt:
-      'Create a photorealistic streetwear mockup: oversized black t-shirt on a standing model in an urban outdoor scene. Place the uploaded design naturally on the chest area, keep fabric folds realistic, preserve design readability, avoid extra text or logos.'
+      'Create a photorealistic streetwear mockup: oversized black t-shirt on a standing model in an urban outdoor scene. Place the uploaded design naturally on the chest area, keep fabric folds realistic, preserve design readability, avoid extra text or logos.',
+    productType: 'tshirt',
+    styleTag: 'streetwear',
+    sceneTag: 'urban',
+    weatherTag: 'neutral_daylight',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-urban-golden-hour',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Urban Golden Hour',
+    prompt:
+      'Create a photorealistic oversized black t-shirt mockup on a standing model at a downtown crosswalk during golden hour. Place the uploaded design naturally on the chest print area, keep fabric folds and shadows physically realistic, preserve full readability, and do not add extra text or logos.',
+    productType: 'tshirt',
+    styleTag: 'streetwear',
+    sceneTag: 'urban',
+    weatherTag: 'golden_hour',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-neon-rain',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Neon Rain Night',
+    prompt:
+      'Generate a photorealistic oversized black t-shirt mockup on a model in a rainy night street scene with reflected neon lights. Integrate the uploaded design on the chest area with realistic wet-fabric behavior, perspective, and lighting while keeping the design readable. No extra text, no added logos.',
+    productType: 'tshirt',
+    styleTag: 'night_streetwear',
+    sceneTag: 'urban_night',
+    weatherTag: 'rainy',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-skate-overcast',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Skatepark Overcast',
+    prompt:
+      'Create a photorealistic skater-style mockup: model standing at a concrete skatepark under overcast daylight wearing an oversized black t-shirt. Apply the uploaded design naturally to the chest print zone, keep cloth wrinkles realistic, maintain sharp readability, and avoid extra graphics or logos.',
+    productType: 'tshirt',
+    styleTag: 'skater',
+    sceneTag: 'skatepark',
+    weatherTag: 'overcast',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-rooftop-windy',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Rooftop Windy Dusk',
+    prompt:
+      'Create a photorealistic mockup of a model on a city rooftop at windy dusk wearing an oversized black t-shirt. Place the uploaded design on the chest area with natural perspective and subtle fabric tension from wind, preserve design clarity, and do not introduce additional text or logos.',
+    productType: 'tshirt',
+    styleTag: 'techwear',
+    sceneTag: 'rooftop',
+    weatherTag: 'windy_dusk',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-winter-snow',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Winter City Snow',
+    prompt:
+      'Generate a photorealistic winter streetwear mockup with a standing model in a snowy city sidewalk scene, wearing an oversized black t-shirt layered for cold weather. Keep the uploaded design naturally placed on chest level, protect readability, preserve realistic folds, and add no extra text or logos.',
+    productType: 'tshirt',
+    styleTag: 'winter_streetwear',
+    sceneTag: 'city_sidewalk',
+    weatherTag: 'snowy',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-beach-boardwalk',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Beach Boardwalk Sunny',
+    prompt:
+      'Create a photorealistic lifestyle mockup on a model standing on a sunny beach boardwalk, wearing an oversized black t-shirt. Apply the uploaded design naturally on the chest print area with realistic fabric drape and sunlight shadows, keep the artwork readable, and avoid extra logos or text.',
+    productType: 'tshirt',
+    styleTag: 'coastal',
+    sceneTag: 'boardwalk',
+    weatherTag: 'sunny',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-desert-festival',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Desert Festival Sunset',
+    prompt:
+      'Create a photorealistic oversized black t-shirt mockup with a standing model in an open desert festival environment at sunset. Place the uploaded design naturally on chest position with realistic dust-light interaction and fabric texture, preserve print readability, and do not add any extra text or branding.',
+    productType: 'tshirt',
+    styleTag: 'festival',
+    sceneTag: 'desert',
+    weatherTag: 'sunset',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-forest-mist',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Forest Trail Misty Morning',
+    prompt:
+      'Generate a photorealistic mockup of a model standing on a forest trail in misty morning light, wearing an oversized black t-shirt. Embed the uploaded chest design naturally with realistic folds and moisture-softened lighting, keep design details readable, and include no extra text or logos.',
+    productType: 'tshirt',
+    styleTag: 'outdoor_minimal',
+    sceneTag: 'forest_trail',
+    weatherTag: 'misty_morning',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-mountain-clear',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Mountain Lookout Clear Noon',
+    prompt:
+      'Create a photorealistic t-shirt mockup with a standing model on a mountain lookout under clear noon light. Keep the oversized black t-shirt realistic, place the uploaded design on chest area with accurate perspective and folds, preserve readability, and avoid additional text, logos, or watermarks.',
+    productType: 'tshirt',
+    styleTag: 'adventure',
+    sceneTag: 'mountain',
+    weatherTag: 'clear_noon',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-lakeside-cloudy',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Outdoor',
+    title: 'Lakeside Cloudy Breeze',
+    prompt:
+      'Generate a photorealistic oversized black t-shirt mockup on a model standing by a lakeside path in cool cloudy weather. Integrate the uploaded design naturally on the chest print zone, keep fabric behavior realistic in light breeze, preserve artwork legibility, and do not add any extra logos or text.',
+    productType: 'tshirt',
+    styleTag: 'minimal',
+    sceneTag: 'lakeside',
+    weatherTag: 'cloudy',
+    settingTag: 'outdoor'
+  },
+  {
+    id: 'auto-tshirt-cyclorama-softbox',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'Cyclorama Softbox Studio',
+    prompt:
+      'Create a photorealistic oversized black t-shirt mockup in a white cyclorama studio with softbox lighting and a standing model facing camera. Place the uploaded design naturally on chest level, keep cotton wrinkles realistic, maintain high readability, and add no extra text or logos.',
+    productType: 'tshirt',
+    styleTag: 'studio_clean',
+    sceneTag: 'cyclorama',
+    weatherTag: 'controlled_softbox',
+    settingTag: 'indoor'
+  },
+  {
+    id: 'auto-tshirt-dark-studio-rim',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'Dark Studio Rim Light',
+    prompt:
+      'Generate a photorealistic mockup in a dark photo studio with controlled rim lighting, featuring a standing model wearing an oversized black t-shirt. Apply the uploaded design to the chest area with realistic shading and cloth depth, keep the design readable, and avoid extra branding or text.',
+    productType: 'tshirt',
+    styleTag: 'editorial_dark',
+    sceneTag: 'dark_studio',
+    weatherTag: 'controlled_rim_light',
+    settingTag: 'indoor'
+  },
+  {
+    id: 'auto-tshirt-concrete-loft-editorial',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'Concrete Loft Editorial',
+    prompt:
+      'Create a photorealistic editorial fashion mockup in an industrial concrete loft interior with side daylight. The standing model wears an oversized black t-shirt; place the uploaded design naturally on the chest print area, keep folds authentic, preserve readability, and include no extra text or logos.',
+    productType: 'tshirt',
+    styleTag: 'editorial',
+    sceneTag: 'loft',
+    weatherTag: 'window_daylight',
+    settingTag: 'indoor'
+  },
+  {
+    id: 'auto-tshirt-warehouse-tungsten',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'Warehouse Tungsten Mood',
+    prompt:
+      'Generate a photorealistic oversized black t-shirt mockup in a warehouse interior with warm tungsten practical lights. Keep the model standing naturally, place the uploaded design on chest area with accurate perspective and textile shadows, maintain readability, and avoid extra text or logos.',
+    productType: 'tshirt',
+    styleTag: 'grunge',
+    sceneTag: 'warehouse',
+    weatherTag: 'warm_tungsten',
+    settingTag: 'indoor'
+  },
+  {
+    id: 'auto-tshirt-highkey-ecom',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'High-Key Ecommerce',
+    prompt:
+      'Create a high-key ecommerce mockup with a front-facing standing model in an evenly lit indoor studio, wearing an oversized black t-shirt. Integrate the uploaded chest design naturally with clean fabric detail, keep proportions true and readable, and add no extra logos or text.',
+    productType: 'tshirt',
+    styleTag: 'ecommerce',
+    sceneTag: 'studio_ecommerce',
+    weatherTag: 'controlled_high_key',
+    settingTag: 'indoor'
+  },
+  {
+    id: 'auto-tshirt-cafe-window',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'Cafe Window Light',
+    prompt:
+      'Generate a photorealistic lifestyle mockup in a cozy cafe interior with soft window light. The model stands naturally wearing an oversized black t-shirt; place the uploaded design on chest position with believable folds and shadows, keep artwork readable, and avoid any extra text or logos.',
+    productType: 'tshirt',
+    styleTag: 'casual_lifestyle',
+    sceneTag: 'cafe',
+    weatherTag: 'window_soft_light',
+    settingTag: 'indoor'
+  },
+  {
+    id: 'auto-tshirt-record-store',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'Record Store Aisle',
+    prompt:
+      'Create a photorealistic street-culture mockup inside a record store aisle with moody ambient lighting. Show a standing model in an oversized black t-shirt, apply the uploaded design naturally on the chest area, preserve print readability, keep fabric realism, and add no extra logos or text.',
+    productType: 'tshirt',
+    styleTag: 'street_culture',
+    sceneTag: 'record_store',
+    weatherTag: 'indoor_ambient',
+    settingTag: 'indoor'
+  },
+  {
+    id: 'auto-tshirt-apartment-mirror',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'Apartment Mirror Casual',
+    prompt:
+      'Generate a photorealistic casual indoor mockup in a modern apartment mirror setup, with a standing model wearing an oversized black t-shirt. Place the uploaded design on the chest print zone naturally with realistic cloth tension and perspective, maintain legibility, and avoid extra text or logos.',
+    productType: 'tshirt',
+    styleTag: 'casual',
+    sceneTag: 'apartment',
+    weatherTag: 'indoor_daylight',
+    settingTag: 'indoor'
+  },
+  {
+    id: 'auto-tshirt-gym-locker',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'Gym Locker Corridor',
+    prompt:
+      'Create a photorealistic athleisure mockup in a gym locker corridor with a standing model wearing an oversized black t-shirt. Integrate the uploaded design on chest level with realistic folds, sweat-free clean textile detail, and controlled lighting. Keep readability high and add no extra logos or text.',
+    productType: 'tshirt',
+    styleTag: 'athleisure',
+    sceneTag: 'gym',
+    weatherTag: 'controlled_fluorescent',
+    settingTag: 'indoor'
+  },
+  {
+    id: 'auto-tshirt-gallery-minimal',
+    mode: 'auto_mockup',
+    category: 'T-Shirt On-Model | Indoor',
+    title: 'Minimal Gallery Interior',
+    prompt:
+      'Generate a photorealistic minimal-fashion mockup inside a contemporary gallery interior. The model stands in an oversized black t-shirt; place the uploaded design naturally in the chest area, keep clean drape and realistic folds, preserve readability, and avoid extra text, logos, or branding.',
+    productType: 'tshirt',
+    styleTag: 'minimal_fashion',
+    sceneTag: 'gallery',
+    weatherTag: 'controlled_gallery_light',
+    settingTag: 'indoor'
   },
   {
     id: 'auto-wall-art-interior',
@@ -388,6 +668,126 @@ const PROMPT_LIBRARY_TR: Record<string, PromptLibraryTranslation> = {
     prompt:
       'Fotogercekci bir streetwear mockup olustur: sehir dis mekaninda ayakta duran modelin uzerindeki oversized siyah tisorte yuklenen tasarimi gogus bolgesine dogal sekilde yerlestir. Kumas kirisimlarini gercekci tut, tasarim okunurlugunu koru, ekstra yazi veya logo ekleme.'
   },
+  'auto-tshirt-urban-golden-hour': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Sehirde Altin Saat',
+    prompt:
+      'Fotogercekci bir oversized siyah t-shirt mockupi olustur: model sehir gecidinde altin saat isiginda ayakta dursun. Yuklenen tasarimi gogus baski alanina dogal sekilde yerlestir, kumas kirisimlari ve golgeleri gercekci tut, okunurlugu koru, ekstra yazi veya logo ekleme.'
+  },
+  'auto-tshirt-neon-rain': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Yagmurlu Neon Gece',
+    prompt:
+      'Yagisli gece sokaginda neon yansimalarla fotogercekci oversized siyah t-shirt mockupi uret. Model ayakta olsun, yuklenen tasarimi gogus alanina dogal sekilde entegre et, isik ve islak kumas etkilerini gercekci tut, tasarim okunurlugunu koru, ekstra logo veya yazi ekleme.'
+  },
+  'auto-tshirt-skate-overcast': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Kapali Havada Skatepark',
+    prompt:
+      'Bulutlu gunduzde beton skateparkta fotogercekci skater tarz oversized siyah t-shirt mockupi olustur. Tasarimi gogus bolgesine dogal yerlestir, kumas kirisimlarini gercekci koru, baski okunurlugunu dusurme, ekstra grafik, yazi veya logo ekleme.'
+  },
+  'auto-tshirt-rooftop-windy': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Ruzgarli Cati Alacakaranligi',
+    prompt:
+      'Sehir catısında ruzgarli alacakaranlikta ayakta duran modelle fotogercekci oversized siyah t-shirt mockupi olustur. Yuklenen tasarimi gogus alanina perspektife uygun ve dogal sekilde uygula, ruzgarin yarattigi hafif gerilimi gercekci yansit, okunurlugu koru, ekstra yazi/logo ekleme.'
+  },
+  'auto-tshirt-winter-snow': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Kis Sehir Karda',
+    prompt:
+      'Karli sehir kaldiriminda fotogercekci kis streetwear mockupi olustur; model oversized siyah t-shirt ile ayakta dursun. Tasarimi gogus seviyesinde dogal yerlestir, kumas dokusu ve kirisimlari gercekci tut, okunurlugu koru, ekstra yazi veya logo ekleme.'
+  },
+  'auto-tshirt-beach-boardwalk': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Gunesli Sahil Yolu',
+    prompt:
+      'Gunesli sahil boardwalk sahnesinde fotogercekci lifestyle t-shirt mockupi olustur. Model oversized siyah t-shirt giysin; yuklenen tasarimi gogus baski alanina dogal sekilde yerlestir, gun isigi golgelerini ve kumas dokusunu gercekci tut, ekstra logo/yazi ekleme.'
+  },
+  'auto-tshirt-desert-festival': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Col Festival Gunbatimi',
+    prompt:
+      'Gunbatiminda acik col festival ortaminda fotogercekci oversized siyah t-shirt mockupi uret. Model ayakta olsun, tasarimi gogus bolgesine dogal entegre et, tozlu isik etkisini gercekci yansit, baski okunurlugunu koru, ekstra metin veya marka ekleme.'
+  },
+  'auto-tshirt-forest-mist': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Sisli Orman Sabah',
+    prompt:
+      'Sisli sabah isiginda orman patikasinda fotogercekci model t-shirt mockupi olustur. Oversized siyah t-shirt uzerine yuklenen tasarimi gogus alanina dogal uygula, yumusak isikla kumas kirisimlarini gercekci tut, tasarim okunurlugunu koru, ekstra logo/yazi ekleme.'
+  },
+  'auto-tshirt-mountain-clear': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Dag Zirvesi Acik Oglen',
+    prompt:
+      'Acik oglen isiginda dag manzarasi noktasi uzerinde ayakta duran modelle fotogercekci t-shirt mockupi olustur. Oversized siyah tisortte tasarimi gogus alanina perspektife uygun ve dogal yerlestir, kirisimlari gercekci tut, ekstra logo, yazi veya watermark ekleme.'
+  },
+  'auto-tshirt-lakeside-cloudy': {
+    category: 'T-Shirt Model Uzerinde | Dis Mekan',
+    title: 'Bulutlu Gol Kenari',
+    prompt:
+      'Serin bulutlu havada gol kenarinda fotogercekci oversized siyah t-shirt mockupi olustur. Model ayakta dursun, yuklenen tasarimi gogus baski bolgesine dogal sekilde uygula, hafif esintiye uygun kumas davranisini koru, okunurlugu yuksek tut, ekstra yazi/logo ekleme.'
+  },
+  'auto-tshirt-cyclorama-softbox': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'Cyclorama Softbox Studyo',
+    prompt:
+      'Beyaz cyclorama studyoda yumusak softbox isikla fotogercekci oversized siyah t-shirt mockupi olustur. Model kameraya donuk ayakta olsun; tasarimi gogus bolgesine dogal yerlestir, kumas kirisimlarini gercekci tut, okunurlugu koru, ekstra text veya logo ekleme.'
+  },
+  'auto-tshirt-dark-studio-rim': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'Koyu Studyo Rim Isik',
+    prompt:
+      'Karanlik fotograf studyosunda kontrollu rim isikla fotogercekci oversized siyah t-shirt mockupi uret. Model ayakta dursun, tasarimi gogus alanina dogal sekilde uygula, golgelendirme ve kumas derinligini gercekci tut, ekstra logo veya yazi ekleme.'
+  },
+  'auto-tshirt-concrete-loft-editorial': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'Beton Loft Editorial',
+    prompt:
+      'Yandan gun isigi alan endustriyel beton loftta fotogercekci editorial model mockupi olustur. Oversized siyah t-shirt uzerine yuklenen tasarimi gogus baski alanina dogal sekilde yerlestir, kirisimlari gercekci tut, okunurlugu koru, ekstra yazi/logo ekleme.'
+  },
+  'auto-tshirt-warehouse-tungsten': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'Depo Tungsten Atmosfer',
+    prompt:
+      'Sicak tungsten pratik isiklarla aydinlatilmis depo ic mekaninda fotogercekci oversized siyah t-shirt mockupi olustur. Model ayakta olsun, tasarimi gogus bolgesine perspektife uygun uygula, kumas golgelerini gercekci tut, okunurlugu koru, ekstra branding ekleme.'
+  },
+  'auto-tshirt-highkey-ecom': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'High-Key E-Ticaret',
+    prompt:
+      'Esit dagilmis isiga sahip ic mekan studyoda one bakan modelle high-key e-ticaret t-shirt mockupi olustur. Oversized siyah t-shirtte tasarimi gogus alanina dogal yerlestir, oranlari ve netligi koru, ekstra yazi veya logo ekleme.'
+  },
+  'auto-tshirt-cafe-window': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'Kafe Pencere Isigi',
+    prompt:
+      'Yumusak pencere isigi alan rahat bir kafe ic mekaninda fotogercekci lifestyle t-shirt mockupi olustur. Model oversized siyah tisortle ayakta olsun; tasarimi gogus bolgesine dogal sekilde yerlestir, kirisim ve golgeleri gercekci tut, ekstra yazi/logo ekleme.'
+  },
+  'auto-tshirt-record-store': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'Plakci Koridoru',
+    prompt:
+      'Moodlu ambiyans isiga sahip bir plakci koridorunda fotogercekci street-culture t-shirt mockupi uret. Model oversized siyah t-shirt giysin; yuklenen tasarimi gogus alanina dogal uygula, baski okunurlugunu koru, kumas dokusunu gercekci tut, ekstra logo/yazi ekleme.'
+  },
+  'auto-tshirt-apartment-mirror': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'Daire Ayna Casual',
+    prompt:
+      'Modern dairede ayna kurulumlu casual bir ic mekan sahnesinde fotogercekci t-shirt mockupi olustur. Model oversized siyah t-shirt giysin; tasarimi gogus bolgesine dogal perspektifle uygula, kumas gerilimlerini gercekci tut, okunurlugu koru, ekstra yazi/logo ekleme.'
+  },
+  'auto-tshirt-gym-locker': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'Spor Salonu Koridoru',
+    prompt:
+      'Spor salonu locker koridorunda fotogercekci athleisure t-shirt mockupi olustur. Ayakta duran model oversized siyah t-shirt giysin; tasarimi gogus seviyesine dogal sekilde yerlestir, kumas detayini temiz ve gercekci tut, okunurlugu yuksek tut, ekstra text/logo ekleme.'
+  },
+  'auto-tshirt-gallery-minimal': {
+    category: 'T-Shirt Model Uzerinde | Ic Mekan',
+    title: 'Minimal Galeri Ic Mekan',
+    prompt:
+      'Cagdas minimal galeri ic mekaninda fotogercekci fashion t-shirt mockupi uret. Model oversized siyah t-shirt ile ayakta dursun; yuklenen tasarimi gogus alanina dogal sekilde uygula, drape ve kirisimlari gercekci tut, okunurlugu koru, ekstra yazi/logo ekleme.'
+  },
   'auto-wall-art-interior': {
     category: 'Duvar Sanati',
     title: 'Modern Icer Mekan Cerceve',
@@ -586,6 +986,20 @@ const SHORT_LEARNING_LIMITS_TR = [
   'Uretilen tum gorsellerde SynthID watermark bulunur.'
 ];
 
+function formatFilterTagLabel(value: string): string {
+  return value
+    .split('_')
+    .map((part) => {
+      if (!part) return part;
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(' ');
+}
+
+function uniqueSortedTags(values: Array<string | undefined>): string[] {
+  return Array.from(new Set(values.filter((value): value is string => !!value))).sort((a, b) => a.localeCompare(b));
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -662,6 +1076,11 @@ export default function MockupPage() {
   const [editorMode, setEditorMode] = useState<EditorMode>('auto_mockup');
   const [sidebarPanelTab, setSidebarPanelTab] = useState<SidebarPanelTab>('editor');
   const [helpLanguage, setHelpLanguage] = useState<HelpLanguage>('en');
+  const [promptTypeFilter, setPromptTypeFilter] = useState<PromptTypeFilter>('all');
+  const [promptSettingFilter, setPromptSettingFilter] = useState<PromptSettingFilter>('all');
+  const [promptStyleFilter, setPromptStyleFilter] = useState('all');
+  const [promptSceneFilter, setPromptSceneFilter] = useState('all');
+  const [promptWeatherFilter, setPromptWeatherFilter] = useState('all');
   const [autoHelpExpanded, setAutoHelpExpanded] = useState(true);
   const [sceneHelpExpanded, setSceneHelpExpanded] = useState(false);
 
@@ -773,7 +1192,7 @@ export default function MockupPage() {
     () => PROMPT_LIBRARY.filter((item) => item.mode === editorMode || item.mode === 'both'),
     [editorMode]
   );
-  const localizedPromptTemplates = useMemo(
+  const localizedPromptTemplates = useMemo<LocalizedPromptTemplate[]>(
     () =>
       activePromptTemplates.map((item) => {
         if (helpLanguage === 'tr') {
@@ -784,6 +1203,47 @@ export default function MockupPage() {
       }),
     [activePromptTemplates, helpLanguage]
   );
+  const promptStyleOptions = useMemo(
+    () => uniqueSortedTags(activePromptTemplates.map((item) => item.styleTag)),
+    [activePromptTemplates]
+  );
+  const promptSceneOptions = useMemo(
+    () => uniqueSortedTags(activePromptTemplates.map((item) => item.sceneTag)),
+    [activePromptTemplates]
+  );
+  const promptWeatherOptions = useMemo(
+    () => uniqueSortedTags(activePromptTemplates.map((item) => item.weatherTag)),
+    [activePromptTemplates]
+  );
+  const filteredPromptTemplates = useMemo(() => {
+    if (editorMode !== 'auto_mockup') return localizedPromptTemplates;
+
+    return localizedPromptTemplates.filter(({ item }) => {
+      if (promptTypeFilter === 'tshirt' && item.productType !== 'tshirt') return false;
+      if (promptSettingFilter !== 'all' && item.settingTag !== promptSettingFilter) return false;
+      if (promptStyleFilter !== 'all' && item.styleTag !== promptStyleFilter) return false;
+      if (promptSceneFilter !== 'all' && item.sceneTag !== promptSceneFilter) return false;
+      if (promptWeatherFilter !== 'all' && item.weatherTag !== promptWeatherFilter) return false;
+      return true;
+    });
+  }, [
+    editorMode,
+    localizedPromptTemplates,
+    promptSceneFilter,
+    promptSettingFilter,
+    promptStyleFilter,
+    promptTypeFilter,
+    promptWeatherFilter
+  ]);
+  const groupedPromptTemplates = useMemo(() => {
+    const groups = new Map<string, LocalizedPromptTemplate[]>();
+    for (const template of filteredPromptTemplates) {
+      const current = groups.get(template.category) ?? [];
+      current.push(template);
+      groups.set(template.category, current);
+    }
+    return Array.from(groups.entries()).map(([category, items]) => ({ category, items }));
+  }, [filteredPromptTemplates]);
   const localizedLearningTips = useMemo(
     () => (helpLanguage === 'tr' ? SHORT_LEARNING_TIPS_TR : SHORT_LEARNING_TIPS),
     [helpLanguage]
@@ -2194,34 +2654,134 @@ export default function MockupPage() {
                 ? 'Bir sablon sec, gerekirse prompt alaninda duzenle.'
                 : 'Pick a template, then edit in the prompt box if needed.'}
             </p>
+            {editorMode === 'auto_mockup' ? (
+              <div className="promptFilterGrid">
+                <div className="filterField">
+                  <label>{helpLanguage === 'tr' ? 'Urun' : 'Product'}</label>
+                  <select value={promptTypeFilter} onChange={(e) => setPromptTypeFilter(e.target.value as PromptTypeFilter)}>
+                    <option value="all">{helpLanguage === 'tr' ? 'Tum Promptlar' : 'All prompts'}</option>
+                    <option value="tshirt">{helpLanguage === 'tr' ? 'Sadece T-Shirt' : 'T-Shirt only'}</option>
+                  </select>
+                </div>
+                <div className="filterField">
+                  <label>{helpLanguage === 'tr' ? 'Mekan' : 'Setting'}</label>
+                  <select
+                    value={promptSettingFilter}
+                    onChange={(e) => setPromptSettingFilter(e.target.value as PromptSettingFilter)}
+                  >
+                    <option value="all">{helpLanguage === 'tr' ? 'Tum Mekanlar' : 'All settings'}</option>
+                    <option value="indoor">{helpLanguage === 'tr' ? 'Ic Mekan' : 'Indoor'}</option>
+                    <option value="outdoor">{helpLanguage === 'tr' ? 'Dis Mekan' : 'Outdoor'}</option>
+                  </select>
+                </div>
+                <div className="filterField">
+                  <label>{helpLanguage === 'tr' ? 'Stil' : 'Style'}</label>
+                  <select value={promptStyleFilter} onChange={(e) => setPromptStyleFilter(e.target.value)}>
+                    <option value="all">{helpLanguage === 'tr' ? 'Tum Stiller' : 'All styles'}</option>
+                    {promptStyleOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {formatFilterTagLabel(option)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filterField">
+                  <label>{helpLanguage === 'tr' ? 'Sahne' : 'Scene'}</label>
+                  <select value={promptSceneFilter} onChange={(e) => setPromptSceneFilter(e.target.value)}>
+                    <option value="all">{helpLanguage === 'tr' ? 'Tum Sahneler' : 'All scenes'}</option>
+                    {promptSceneOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {formatFilterTagLabel(option)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filterField">
+                  <label>{helpLanguage === 'tr' ? 'Hava' : 'Weather'}</label>
+                  <select value={promptWeatherFilter} onChange={(e) => setPromptWeatherFilter(e.target.value)}>
+                    <option value="all">{helpLanguage === 'tr' ? 'Tum Hava Kosullari' : 'All weather'}</option>
+                    {promptWeatherOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {formatFilterTagLabel(option)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ) : null}
+            <p className="hint">
+              {helpLanguage === 'tr'
+                ? `${filteredPromptTemplates.length} sablon listeleniyor.`
+                : `${filteredPromptTemplates.length} templates shown.`}
+            </p>
             <div className="promptLibraryList">
-              {localizedPromptTemplates.map(({ item, category, title, prompt }) => (
-                <article key={item.id} className="promptCard">
-                  <div className="promptCardHead">
-                    <strong>{title}</strong>
-                    <label>{category}</label>
-                  </div>
-                  <p>{prompt}</p>
-                  <div className="buttonRow">
-                    <button type="button" className="ghostBtn" onClick={() => handleUsePromptTemplate(prompt)}>
-                      {helpLanguage === 'tr' ? 'Kullan' : 'Use'}
-                    </button>
-                    <button
-                      type="button"
-                      className="ghostBtn"
-                      onClick={() => void handleCopyPromptTemplate(item.id, prompt)}
-                    >
-                      {copiedPromptId === item.id
-                        ? helpLanguage === 'tr'
-                          ? 'Kopyalandi'
-                          : 'Copied'
-                        : helpLanguage === 'tr'
-                          ? 'Kopyala'
-                          : 'Copy'}
-                    </button>
-                  </div>
-                </article>
-              ))}
+              {groupedPromptTemplates.length === 0 ? (
+                <p className="hint">{helpLanguage === 'tr' ? 'Filtreye uygun prompt yok.' : 'No prompts match filters.'}</p>
+              ) : (
+                groupedPromptTemplates.map(({ category, items }) => (
+                  <section key={category} className="promptGroup">
+                    <div className="promptGroupHead">
+                      <strong>{category}</strong>
+                      <span>{items.length}</span>
+                    </div>
+                    <div className="promptGroupList">
+                      {items.map(({ item, title, prompt }) => (
+                        <article key={item.id} className="promptCard">
+                          <div className="promptCardHead">
+                            <strong>{title}</strong>
+                            <label>{category}</label>
+                          </div>
+                          {item.styleTag || item.sceneTag || item.weatherTag || item.settingTag ? (
+                            <div className="promptMetaRow">
+                              {item.styleTag ? (
+                                <span>{`${helpLanguage === 'tr' ? 'Stil' : 'Style'}: ${formatFilterTagLabel(item.styleTag)}`}</span>
+                              ) : null}
+                              {item.sceneTag ? (
+                                <span>{`${helpLanguage === 'tr' ? 'Sahne' : 'Scene'}: ${formatFilterTagLabel(item.sceneTag)}`}</span>
+                              ) : null}
+                              {item.weatherTag ? (
+                                <span>{`${helpLanguage === 'tr' ? 'Hava' : 'Weather'}: ${formatFilterTagLabel(item.weatherTag)}`}</span>
+                              ) : null}
+                              {item.settingTag ? (
+                                <span>
+                                  {`${helpLanguage === 'tr' ? 'Mekan' : 'Setting'}: ${
+                                    item.settingTag === 'indoor'
+                                      ? helpLanguage === 'tr'
+                                        ? 'Ic Mekan'
+                                        : 'Indoor'
+                                      : helpLanguage === 'tr'
+                                        ? 'Dis Mekan'
+                                        : 'Outdoor'
+                                  }`}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <p>{prompt}</p>
+                          <div className="buttonRow">
+                            <button type="button" className="ghostBtn" onClick={() => handleUsePromptTemplate(prompt)}>
+                              {helpLanguage === 'tr' ? 'Kullan' : 'Use'}
+                            </button>
+                            <button
+                              type="button"
+                              className="ghostBtn"
+                              onClick={() => void handleCopyPromptTemplate(item.id, prompt)}
+                            >
+                              {copiedPromptId === item.id
+                                ? helpLanguage === 'tr'
+                                  ? 'Kopyalandi'
+                                  : 'Copied'
+                                : helpLanguage === 'tr'
+                                  ? 'Kopyala'
+                                  : 'Copy'}
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                ))
+              )}
             </div>
             </div>
           ) : null}
@@ -3159,6 +3719,34 @@ export default function MockupPage() {
           justify-content: flex-end;
         }
 
+        .promptFilterGrid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .filterField {
+          display: grid;
+          gap: 4px;
+        }
+
+        .filterField label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #35587f;
+          letter-spacing: 0.02em;
+        }
+
+        .filterField select {
+          width: 100%;
+          border: 1px solid #c8d9ef;
+          border-radius: 8px;
+          background: #ffffff;
+          color: #274b73;
+          padding: 6px 8px;
+          font-size: 12px;
+        }
+
         .languageToggle {
           display: inline-flex;
           border: 1px solid #c9d9ed;
@@ -3189,6 +3777,43 @@ export default function MockupPage() {
           max-height: 340px;
           overflow: auto;
           padding-right: 2px;
+        }
+
+        .promptGroup {
+          display: grid;
+          gap: 6px;
+        }
+
+        .promptGroupHead {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          border: 1px solid #d2e0f1;
+          border-radius: 9px;
+          background: #edf4ff;
+          padding: 6px 8px;
+        }
+
+        .promptGroupHead strong {
+          font-size: 11px;
+          color: #274c78;
+          letter-spacing: 0.02em;
+        }
+
+        .promptGroupHead span {
+          font-size: 10px;
+          font-weight: 700;
+          color: #42658d;
+          border: 1px solid #c4d8f0;
+          border-radius: 999px;
+          padding: 2px 6px;
+          background: #ffffff;
+        }
+
+        .promptGroupList {
+          display: grid;
+          gap: 8px;
         }
 
         .promptCard {
@@ -3230,6 +3855,21 @@ export default function MockupPage() {
           line-height: 1.35;
           color: #304f77;
           white-space: pre-wrap;
+        }
+
+        .promptMetaRow {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+        }
+
+        .promptMetaRow span {
+          font-size: 10px;
+          color: #3d618c;
+          border: 1px solid #d3e1f1;
+          border-radius: 999px;
+          padding: 2px 6px;
+          background: #f3f8ff;
         }
 
         .learningGroup {
@@ -3484,6 +4124,10 @@ export default function MockupPage() {
             height: auto;
             max-height: 56vh;
             overflow-y: auto;
+          }
+
+          .promptFilterGrid {
+            grid-template-columns: minmax(0, 1fr);
           }
         }
       `}</style>
