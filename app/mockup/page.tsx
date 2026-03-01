@@ -178,6 +178,208 @@ const FALLBACK_PRESETS: PlacementPreset[] = [
 const DEFAULT_RECT: PlacementRect = { xPct: 24, yPct: 24, wPct: 52, hPct: 52 };
 const DEFAULT_SCENE_FRAME: PlacementRect = { xPct: 34, yPct: 22, wPct: 32, hPct: 52 };
 const DEFAULT_MAX_PROMPT = 1500;
+const TOTAL_TSHIRT_PROMPT_TARGET = 100;
+const EXISTING_CURATED_TSHIRT_PROMPT_COUNT = 21;
+const ETSY_INSPIRED_TSHIRT_PROMPT_COUNT = TOTAL_TSHIRT_PROMPT_TARGET - EXISTING_CURATED_TSHIRT_PROMPT_COUNT;
+
+type EtsyInspiredTshirtStyle = {
+  styleTag: string;
+  title: string;
+  styleDirection: string;
+};
+
+type EtsyInspiredTshirtScene = {
+  sceneTag: string;
+  title: string;
+  settingTag: 'indoor' | 'outdoor';
+  sceneDirection: string;
+};
+
+type EtsyInspiredTshirtWeather = {
+  weatherTag: string;
+  title: string;
+  weatherDirection: string;
+};
+
+const ETSY_INSPIRED_TSHIRT_STYLES: EtsyInspiredTshirtStyle[] = [
+  { styleTag: 'streetwear_oversized', title: 'Oversized Streetwear', styleDirection: 'bold oversized streetwear styling' },
+  { styleTag: 'vintage_retro', title: 'Vintage Retro', styleDirection: 'vintage retro styling with worn-in authenticity' },
+  { styleTag: 'minimal_brand', title: 'Minimal Brand', styleDirection: 'minimal premium branding style' },
+  { styleTag: 'grunge_texture', title: 'Grunge Texture', styleDirection: 'grunge-influenced texture-rich styling' },
+  { styleTag: 'athleisure_clean', title: 'Athleisure Clean', styleDirection: 'clean athleisure styling with active posture' },
+  { styleTag: 'boho_lifestyle', title: 'Boho Lifestyle', styleDirection: 'boho lifestyle styling with natural attitude' },
+  { styleTag: 'y2k_graphic', title: 'Y2K Graphic', styleDirection: 'Y2K-inspired graphic street styling' },
+  { styleTag: 'techwear_modern', title: 'Techwear Modern', styleDirection: 'modern techwear styling with sharp silhouette' },
+  { styleTag: 'editorial_fashion', title: 'Editorial Fashion', styleDirection: 'editorial fashion styling for lookbook quality' },
+  { styleTag: 'casual_daily', title: 'Casual Daily', styleDirection: 'daily casual styling for relatable ecommerce presentation' }
+];
+
+const ETSY_INSPIRED_TSHIRT_SCENES: EtsyInspiredTshirtScene[] = [
+  { sceneTag: 'urban_crosswalk', title: 'Urban Crosswalk', settingTag: 'outdoor', sceneDirection: 'busy downtown crosswalk scene' },
+  { sceneTag: 'cozy_coffee_shop', title: 'Cozy Coffee Shop', settingTag: 'indoor', sceneDirection: 'cozy coffee shop environment' },
+  { sceneTag: 'patio_friends', title: 'Patio Friends', settingTag: 'outdoor', sceneDirection: 'casual patio hangout setting' },
+  { sceneTag: 'skatepark_concrete', title: 'Concrete Skatepark', settingTag: 'outdoor', sceneDirection: 'concrete skatepark backdrop' },
+  { sceneTag: 'rooftop_city', title: 'City Rooftop', settingTag: 'outdoor', sceneDirection: 'city rooftop with skyline depth' },
+  { sceneTag: 'gym_locker_corridor', title: 'Gym Corridor', settingTag: 'indoor', sceneDirection: 'gym locker corridor setting' },
+  { sceneTag: 'record_store_aisle', title: 'Record Store', settingTag: 'indoor', sceneDirection: 'record store aisle with music culture vibe' },
+  { sceneTag: 'boutique_rack', title: 'Boutique Rack', settingTag: 'indoor', sceneDirection: 'boutique fashion rack environment' },
+  { sceneTag: 'industrial_warehouse', title: 'Industrial Warehouse', settingTag: 'indoor', sceneDirection: 'industrial warehouse scene with depth' },
+  { sceneTag: 'cyclorama_studio', title: 'Cyclorama Studio', settingTag: 'indoor', sceneDirection: 'clean white cyclorama studio setup' },
+  { sceneTag: 'exterior_shutter_wall', title: 'Exterior Shutter Wall', settingTag: 'outdoor', sceneDirection: 'street exterior shutter wall scene' },
+  { sceneTag: 'brick_alley', title: 'Brick Alley', settingTag: 'outdoor', sceneDirection: 'urban brick alley location' },
+  { sceneTag: 'subway_platform', title: 'Subway Platform', settingTag: 'indoor', sceneDirection: 'subway platform scene with commuter mood' },
+  { sceneTag: 'campus_courtyard', title: 'Campus Courtyard', settingTag: 'outdoor', sceneDirection: 'college campus courtyard scene' },
+  { sceneTag: 'beach_boardwalk', title: 'Beach Boardwalk', settingTag: 'outdoor', sceneDirection: 'coastal beach boardwalk setting' },
+  { sceneTag: 'mountain_viewpoint', title: 'Mountain Viewpoint', settingTag: 'outdoor', sceneDirection: 'mountain viewpoint landscape scene' },
+  { sceneTag: 'desert_festival_grounds', title: 'Desert Festival', settingTag: 'outdoor', sceneDirection: 'desert festival grounds environment' },
+  { sceneTag: 'gallery_hall', title: 'Gallery Hall', settingTag: 'indoor', sceneDirection: 'minimal contemporary gallery hall' },
+  { sceneTag: 'bookstore_corner', title: 'Bookstore Corner', settingTag: 'indoor', sceneDirection: 'bookstore corner lifestyle setting' },
+  { sceneTag: 'arcade_neon', title: 'Arcade Neon', settingTag: 'indoor', sceneDirection: 'retro arcade with neon ambiance' }
+];
+
+const ETSY_INSPIRED_OUTDOOR_WEATHERS: EtsyInspiredTshirtWeather[] = [
+  { weatherTag: 'clear_daylight', title: 'Clear Daylight', weatherDirection: 'clear natural daylight' },
+  { weatherTag: 'golden_hour', title: 'Golden Hour', weatherDirection: 'golden hour sunlight' },
+  { weatherTag: 'overcast_soft', title: 'Overcast Soft', weatherDirection: 'soft overcast lighting' },
+  { weatherTag: 'cloudy_breeze', title: 'Cloudy Breeze', weatherDirection: 'cloudy breeze conditions' },
+  { weatherTag: 'light_drizzle', title: 'Light Drizzle', weatherDirection: 'light drizzle with subtle wet reflections' },
+  { weatherTag: 'misty_morning', title: 'Misty Morning', weatherDirection: 'misty morning atmosphere' },
+  { weatherTag: 'windy_dusk', title: 'Windy Dusk', weatherDirection: 'windy dusk with directional light' },
+  { weatherTag: 'sunset_glow', title: 'Sunset Glow', weatherDirection: 'sunset glow with warm highlights' },
+  { weatherTag: 'night_neon_reflections', title: 'Night Neon', weatherDirection: 'night neon reflections' },
+  { weatherTag: 'winter_snow', title: 'Winter Snow', weatherDirection: 'winter snowy atmosphere' }
+];
+
+const ETSY_INSPIRED_INDOOR_WEATHERS: EtsyInspiredTshirtWeather[] = [
+  { weatherTag: 'window_soft_light', title: 'Window Soft Light', weatherDirection: 'soft window light' },
+  { weatherTag: 'studio_softbox', title: 'Studio Softbox', weatherDirection: 'diffused studio softbox lighting' },
+  { weatherTag: 'high_key_even', title: 'High-Key Even', weatherDirection: 'even high-key lighting' },
+  { weatherTag: 'rim_light_controlled', title: 'Rim Light', weatherDirection: 'controlled rim lighting' },
+  { weatherTag: 'warm_tungsten', title: 'Warm Tungsten', weatherDirection: 'warm tungsten practical lights' },
+  { weatherTag: 'cool_fluorescent', title: 'Cool Fluorescent', weatherDirection: 'cool fluorescent ambient lights' },
+  { weatherTag: 'gallery_spot', title: 'Gallery Spot', weatherDirection: 'focused gallery spot lighting' },
+  { weatherTag: 'moody_ambient', title: 'Moody Ambient', weatherDirection: 'moody ambient low-key light' },
+  { weatherTag: 'backstage_haze', title: 'Backstage Haze', weatherDirection: 'subtle backstage haze lighting' },
+  { weatherTag: 'retail_daylight_mix', title: 'Retail Daylight Mix', weatherDirection: 'mixed retail daylight and fill light' }
+];
+
+function buildEtsyInspiredTshirtPrompts(count: number): PromptLibraryItem[] {
+  return Array.from({ length: count }, (_, idx) => {
+    const scene = ETSY_INSPIRED_TSHIRT_SCENES[idx % ETSY_INSPIRED_TSHIRT_SCENES.length];
+    const style = ETSY_INSPIRED_TSHIRT_STYLES[(idx * 3 + 1) % ETSY_INSPIRED_TSHIRT_STYLES.length];
+    const weatherPool = scene.settingTag === 'indoor' ? ETSY_INSPIRED_INDOOR_WEATHERS : ETSY_INSPIRED_OUTDOOR_WEATHERS;
+    const weather = weatherPool[(idx * 5 + Math.floor(idx / 4)) % weatherPool.length];
+    const idSerial = `${idx + 1}`.padStart(3, '0');
+
+    return {
+      id: `auto-tshirt-etsy-pack-${idSerial}`,
+      mode: 'auto_mockup',
+      category: scene.settingTag === 'indoor' ? 'T-Shirt On-Model | Indoor' : 'T-Shirt On-Model | Outdoor',
+      title: `${style.title} ${scene.title} ${idSerial}`,
+      prompt: [
+        `Create a photorealistic t-shirt mockup with ${style.styleDirection} on a standing model wearing an oversized black t-shirt in a ${scene.sceneDirection}.`,
+        `Use ${weather.weatherDirection}, keep cotton fabric folds physically believable, and integrate the uploaded design naturally on the chest print area.`,
+        'Preserve typography and shape readability, keep proportions true, and avoid adding any extra text, logos, or watermark.'
+      ].join(' '),
+      productType: 'tshirt',
+      styleTag: style.styleTag,
+      sceneTag: scene.sceneTag,
+      weatherTag: weather.weatherTag,
+      settingTag: scene.settingTag
+    };
+  });
+}
+
+const ETSY_INSPIRED_TSHIRT_PROMPTS: PromptLibraryItem[] = buildEtsyInspiredTshirtPrompts(
+  ETSY_INSPIRED_TSHIRT_PROMPT_COUNT
+);
+
+const ETSY_STYLE_TITLE_TR: Record<string, string> = {
+  streetwear_oversized: 'Oversized Streetwear',
+  vintage_retro: 'Vintage Retro',
+  minimal_brand: 'Minimal Marka',
+  grunge_texture: 'Grunge Doku',
+  athleisure_clean: 'Athleisure Temiz',
+  boho_lifestyle: 'Boho Yasam Tarzi',
+  y2k_graphic: 'Y2K Grafik',
+  techwear_modern: 'Techwear Modern',
+  editorial_fashion: 'Editorial Moda',
+  casual_daily: 'Gunluk Casual'
+};
+
+const ETSY_SCENE_TITLE_TR: Record<string, string> = {
+  urban_crosswalk: 'Sehir Gecidi',
+  cozy_coffee_shop: 'Rahat Kahve Dukkani',
+  patio_friends: 'Patio Bulusmasi',
+  skatepark_concrete: 'Beton Skatepark',
+  rooftop_city: 'Sehir Catisi',
+  gym_locker_corridor: 'Spor Salonu Koridoru',
+  record_store_aisle: 'Plakci Koridoru',
+  boutique_rack: 'Butik Standi',
+  industrial_warehouse: 'Endustriyel Depo',
+  cyclorama_studio: 'Cyclorama Studyo',
+  exterior_shutter_wall: 'Dis Mekan Kepenk Duvari',
+  brick_alley: 'Tugla Sokak',
+  subway_platform: 'Metro Peronu',
+  campus_courtyard: 'Kampus Avlusu',
+  beach_boardwalk: 'Sahil Yolu',
+  mountain_viewpoint: 'Dag Seyir Noktasi',
+  desert_festival_grounds: 'Col Festival Alani',
+  gallery_hall: 'Galeri Salonu',
+  bookstore_corner: 'Kitapci Kosesi',
+  arcade_neon: 'Neon Arcade'
+};
+
+const ETSY_WEATHER_TITLE_TR: Record<string, string> = {
+  clear_daylight: 'Acik Gun Isigi',
+  golden_hour: 'Altin Saat',
+  overcast_soft: 'Yumusak Kapali Hava',
+  cloudy_breeze: 'Bulutlu Esinti',
+  light_drizzle: 'Hafif Cise',
+  misty_morning: 'Sisli Sabah',
+  windy_dusk: 'Ruzgarli Alacakaranlik',
+  sunset_glow: 'Gunbatimi Isiltisi',
+  night_neon_reflections: 'Gece Neon Yansima',
+  winter_snow: 'Kis Karyagisi',
+  window_soft_light: 'Yumusak Pencere Isigi',
+  studio_softbox: 'Studyo Softbox',
+  high_key_even: 'Esit High-Key Isik',
+  rim_light_controlled: 'Kontrollu Rim Isik',
+  warm_tungsten: 'Sicak Tungsten',
+  cool_fluorescent: 'Serin Floresan',
+  gallery_spot: 'Galeri Spot Isik',
+  moody_ambient: 'Moodlu Ambiyans',
+  backstage_haze: 'Backstage Haze',
+  retail_daylight_mix: 'Perakende Gun Isigi Karisimi'
+};
+
+function buildEtsyInspiredTshirtPromptTranslations(prompts: PromptLibraryItem[]): Record<string, PromptLibraryTranslation> {
+  const result: Record<string, PromptLibraryTranslation> = {};
+
+  for (const item of prompts) {
+    const serialMatch = item.id.match(/(\d+)$/);
+    const serial = serialMatch ? serialMatch[1] : '';
+    const styleTitle = ETSY_STYLE_TITLE_TR[item.styleTag ?? ''] ?? formatFilterTagLabel(item.styleTag ?? '');
+    const sceneTitle = ETSY_SCENE_TITLE_TR[item.sceneTag ?? ''] ?? formatFilterTagLabel(item.sceneTag ?? '');
+    const weatherTitle = ETSY_WEATHER_TITLE_TR[item.weatherTag ?? ''] ?? formatFilterTagLabel(item.weatherTag ?? '');
+    const category = item.settingTag === 'indoor' ? 'T-Shirt Model Uzerinde | Ic Mekan' : 'T-Shirt Model Uzerinde | Dis Mekan';
+
+    result[item.id] = {
+      category,
+      title: `${styleTitle} ${sceneTitle}${serial ? ` ${serial}` : ''}`.trim(),
+      prompt: [
+        `Fotogercekci bir t-shirt mockupi olustur: ${styleTitle.toLowerCase()} yaklasiminda, ${sceneTitle.toLowerCase()} sahnesinde ayakta duran model oversized siyah t-shirt giysin.`,
+        `${weatherTitle.toLowerCase()} kosullarini kullan, yuklenen tasarimi gogus baski alanina dogal sekilde yerlestir.`,
+        'Kumas kirisimlarini fiziksel olarak gercekci tut, tipografi ve sekil okunurlugunu koru, ekstra yazi, logo veya watermark ekleme.'
+      ].join(' ')
+    };
+  }
+
+  return result;
+}
+
+const ETSY_INSPIRED_TSHIRT_PROMPTS_TR: Record<string, PromptLibraryTranslation> =
+  buildEtsyInspiredTshirtPromptTranslations(ETSY_INSPIRED_TSHIRT_PROMPTS);
 
 const PROMPT_LIBRARY: PromptLibraryItem[] = [
   {
@@ -461,6 +663,7 @@ const PROMPT_LIBRARY: PromptLibraryItem[] = [
     weatherTag: 'controlled_gallery_light',
     settingTag: 'indoor'
   },
+  ...ETSY_INSPIRED_TSHIRT_PROMPTS,
   {
     id: 'auto-wall-art-interior',
     mode: 'auto_mockup',
@@ -656,6 +859,7 @@ const PROMPT_LIBRARY: PromptLibraryItem[] = [
 ];
 
 const PROMPT_LIBRARY_TR: Record<string, PromptLibraryTranslation> = {
+  ...ETSY_INSPIRED_TSHIRT_PROMPTS_TR,
   'auto-studio-product': {
     category: 'Ticari Urun Cekimi',
     title: 'Studyo Urun Fotografi',
