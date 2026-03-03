@@ -4,12 +4,10 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
 import {
-  buildDevZipBlob,
   makeDevOrderCode,
-  saveDevDownloadDraft,
-  triggerBlobDownload
+  saveDevDownloadDraft
 } from '../../lib/dev-download';
-import { buildOrderFileToken, mapDesignSizeToPrintSize } from '../../lib/print-size-utils';
+import { mapDesignSizeToPrintSize } from '../../lib/print-size-utils';
 
 type RedeemResponse = {
   success: boolean;
@@ -79,7 +77,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      router.push(`/download?orderCode=${encodeURIComponent(data.orderCode || couponCode.trim())}`);
+      router.push(`/print-order?orderCode=${encodeURIComponent(data.orderCode || couponCode.trim())}`);
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -94,9 +92,6 @@ export default function CheckoutPage() {
     try {
       const orderCode = makeDevOrderCode();
       const sourcePrintSize = mapDesignSizeToPrintSize(draft.mapData.size);
-      const zipBlob = await buildDevZipBlob(draft.previewSvg, orderCode, sourcePrintSize);
-      const token = buildOrderFileToken(orderCode, sourcePrintSize);
-      triggerBlobDownload(zipBlob, `ourskymap-${token}.zip`);
       saveDevDownloadDraft({
         orderCode,
         email: email.trim(),
@@ -105,7 +100,7 @@ export default function CheckoutPage() {
         sourcePrintSize,
         createdAtIso: new Date().toISOString()
       });
-      router.push(`/download?orderCode=${encodeURIComponent(orderCode)}&dev=1`);
+      router.push(`/print-order?orderCode=${encodeURIComponent(orderCode)}&dev=1`);
     } catch {
       setError('Dev quick download failed. Please try again.');
     } finally {
@@ -173,7 +168,7 @@ export default function CheckoutPage() {
             </button>
             {process.env.NODE_ENV !== 'production' ? (
               <button type="button" className="devBtn" onClick={() => void handleDevQuickDownload()} disabled={devDownloading}>
-                {devDownloading ? 'Preparing browser download...' : 'Dev Quick Download (No Coupon)'}
+                {devDownloading ? 'Preparing...' : 'Dev Quick Continue (No Coupon)'}
               </button>
             ) : null}
           </form>

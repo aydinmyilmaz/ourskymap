@@ -235,7 +235,7 @@ function clampCompanionPhotoOffset(
 }
 
 async function normalizeCompanionPhotoFile(file: File): Promise<CompanionPhotoMeta> {
-  if (!file.type.startsWith('image/')) {
+  if (!String(file.type || '').startsWith('image/')) {
     throw new Error('Please upload an image file (JPG, PNG, or WEBP).');
   }
   if (file.size > PHOTO_MAX_MB * 1024 * 1024) {
@@ -289,7 +289,7 @@ async function buildCompanionPhotoOutput(args: {
 }
 
 async function normalizeGalaxyBackgroundFile(file: File): Promise<{ dataUrl: string; width: number; height: number }> {
-  if (!file.type.startsWith('image/')) {
+  if (!String(file.type || '').startsWith('image/')) {
     throw new Error('Please upload an image file (JPG, PNG, or WEBP).');
   }
   if (file.size > STYLE_BG_MAX_MB * 1024 * 1024) {

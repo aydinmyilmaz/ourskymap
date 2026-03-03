@@ -6,7 +6,7 @@ const LEGACY_API_REGEX = /^\/api\/(citymap|vinyl|soundwave|image|mockup)(\/|$)/i
 const MESSAGE = 'Only OurSkyMap is active on this deployment.';
 
 export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const pathname = String(req.nextUrl?.pathname || '');
 
   const isLegacyRoute = LEGACY_ROUTE_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)

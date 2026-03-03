@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import JSZip from 'jszip';
 import { calculatePrintTotals, formatMoney } from '../../lib/print-pricing';
 import type { PricingPayload, PrintCurrency, PrintOptionKey, PrintSizeKey } from '../../lib/print-types';
-import { loadDevDownloadDraft } from '../../lib/dev-download';
-import { mapDesignSizeToPrintSize } from '../../lib/print-size-utils';
+import { buildDevZipBlob, loadDevDownloadDraft, triggerBlobDownload } from '../../lib/dev-download';
+import { buildOrderFileToken, mapDesignSizeToPrintSize } from '../../lib/print-size-utils';
 
 type OrderStatusResponse = {
   success: boolean;
@@ -91,6 +91,8 @@ function PrintOrderPageBody() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [downloadingZip, setDownloadingZip] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
 
   const [countryCode, setCountryCode] = useState('DE');
   const [currency, setCurrency] = useState<PrintCurrency>('EUR');
@@ -124,7 +126,7 @@ function PrintOrderPageBody() {
 
   useEffect(() => {
     if (!orderCode) {
-      setError('Missing order code. Please return to download page.');
+      setError('Missing order code. Please return to checkout.');
       setLoading(false);
       return;
     }
@@ -253,7 +255,7 @@ function PrintOrderPageBody() {
   async function handleUploadChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
+    if (!String(file.type || '').startsWith('image/')) {
       setError('Please upload a valid image file (PNG/JPG/WEBP).');
       return;
     }
@@ -262,6 +264,52 @@ function PrintOrderPageBody() {
     setPreviewSvgMarkup('');
     setPreviewImageDataUrl(dataUrl);
     setError('');
+  }
+
+  function extractFileNameFromDisposition(disposition: string | null, fallback: string): string {
+    if (!disposition) return fallback;
+    const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match?.[1]) {
+      try {
+        return decodeURIComponent(utf8Match[1]);
+      } catch {
+        return utf8Match[1];
+      }
+    }
+    const simpleMatch = disposition.match(/filename="?([^\";]+)"?/i);
+    return simpleMatch?.[1] || fallback;
+  }
+
+  async function handleDownloadZipAgain() {
+    if (!order?.orderCode) return;
+    setDownloadingZip(true);
+    setDownloadError('');
+    try {
+      if (isDevMode) {
+        const draft = loadDevDownloadDraft();
+        if (!draft || draft.orderCode !== order.orderCode) {
+          throw new Error('Missing dev download context. Return to checkout and retry.');
+        }
+        const zipBlob = await buildDevZipBlob(draft.previewSvg, draft.orderCode, draft.sourcePrintSize || null);
+        const token = buildOrderFileToken(draft.orderCode, draft.sourcePrintSize || null);
+        triggerBlobDownload(zipBlob, `ourskymap-${token}.zip`);
+        return;
+      }
+
+      const res = await fetch(`/api/download-order-file?orderCode=${encodeURIComponent(order.orderCode)}`, { cache: 'no-store' });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(body?.message || 'Download failed. Please try again.');
+      }
+      const blob = await res.blob();
+      const fallbackName = `ourskymap-${order.orderCode}.zip`;
+      const fileName = extractFileNameFromDisposition(res.headers.get('content-disposition'), fallbackName);
+      triggerBlobDownload(blob, fileName);
+    } catch (e: any) {
+      setDownloadError(e?.message || 'Download failed. Please try again.');
+    } finally {
+      setDownloadingZip(false);
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -332,11 +380,10 @@ function PrintOrderPageBody() {
   }
 
   if (error && !order) {
-    const devSuffix = isDevMode ? '&dev=1' : '';
     return (
       <div className="state">
         <p>{error}</p>
-        <a href={`/download?orderCode=${encodeURIComponent(orderCode)}${devSuffix}`}>Back to download</a>
+        <a href="/checkout">Back to checkout</a>
       </div>
     );
   }
@@ -392,6 +439,17 @@ function PrintOrderPageBody() {
             <p className="title">Custom Star Map Print, Personalized Wall Art Keepsake</p>
             <p className="vendor">OurSkyMap ★★★★★</p>
             <p className="hint">Exchanges accepted</p>
+          </div>
+
+          <div className="downloadBox">
+            <div>
+              <p className="downloadBoxTitle">Digital File Ready</p>
+              <p className="downloadBoxSub">Re-download your ZIP anytime while choosing your physical print options.</p>
+            </div>
+            <button type="button" className="downloadAgainBtn" onClick={() => void handleDownloadZipAgain()} disabled={downloadingZip}>
+              {downloadingZip ? 'Preparing ZIP...' : 'Download ZIP Again'}
+            </button>
+            {downloadError ? <p className="downloadBoxError">{downloadError}</p> : null}
           </div>
 
           <form className="form" onSubmit={handleSubmit}>
@@ -787,6 +845,49 @@ function PrintOrderPageBody() {
           color: #485470;
           font-size: 16px;
           font-weight: 600;
+        }
+        .downloadBox {
+          margin-top: 14px;
+          border: 1px solid #c9d3e8;
+          border-radius: 14px;
+          background: linear-gradient(160deg, #f6f9ff 0%, #eef3fc 100%);
+          padding: 12px;
+          display: grid;
+          gap: 10px;
+        }
+        .downloadBoxTitle {
+          margin: 0;
+          color: #1f2a40;
+          font-size: 15px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .downloadBoxSub {
+          margin: 4px 0 0;
+          color: #4b5877;
+          font-size: 14px;
+          line-height: 1.35;
+        }
+        .downloadAgainBtn {
+          min-height: 46px;
+          border-radius: 11px;
+          border: 1px solid #2e3b59;
+          background: #20293d;
+          color: #fff;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .downloadAgainBtn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .downloadBoxError {
+          margin: 0;
+          color: #a01010;
+          font-size: 13px;
+          font-weight: 700;
         }
         .form {
           margin-top: 14px;

@@ -63,7 +63,9 @@ function bytesToBase64(bytes: Uint8Array): string {
 const publicDataUriCache = new Map<string, string | null>();
 
 async function loadPublicAssetDataUri(path: string, mimeType: string): Promise<string | null> {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const rawPath = String(path || '');
+  if (!rawPath) return null;
+  const normalizedPath = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
   const cacheKey = `${normalizedPath}|${mimeType}`;
   if (publicDataUriCache.has(cacheKey)) {
     return publicDataUriCache.get(cacheKey) ?? null;

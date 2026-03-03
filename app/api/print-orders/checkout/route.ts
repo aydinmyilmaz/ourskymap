@@ -78,7 +78,7 @@ export async function POST(req: Request) {
 
     const artworkFileValue = form.get('artworkFile');
     if (artworkFileValue instanceof File && artworkFileValue.size > 0) {
-      if (!artworkFileValue.type.startsWith('image/')) {
+      if (!String(artworkFileValue.type || '').startsWith('image/')) {
         return NextResponse.json({ success: false, message: 'Uploaded artwork must be an image file.' }, { status: 400 });
       }
 
