@@ -165,6 +165,8 @@ function getPalette(name: PosterRequest['poster']['palette']): Palette {
       return { bg: '#4e1d1c', ink: '#ffbe4c', mutedInk: 'rgba(255,190,76,0.35)', accent: '#ffbe4c' };
     case 'deep-teal':
       return { bg: '#2c4d42', ink: '#ffbe4c', mutedInk: 'rgba(255,190,76,0.35)', accent: '#ffbe4c' };
+    case 'minimal-white':
+      return { bg: '#ffffff', ink: '#111111', mutedInk: 'rgba(17,17,17,0.36)', accent: '#111111' };
     case 'midnight':
     default:
       return { bg: '#0b1020', ink: '#ffffff', mutedInk: 'rgba(255,255,255,0.40)', accent: '#ffffff' };
@@ -870,11 +872,44 @@ export function renderPosterSvg(req: PosterRequest): string {
   const effectiveMetaLineSpacing = is12x12Layout ? Math.max(1.15, metaLineSpacing - 0.12) : metaLineSpacing;
   const metaLineHeight = () => metaFont * effectiveMetaLineSpacing;
 
-  const gap1 = is12x12Layout ? 10 : showCompanionCircle ? 8 : 14;
-  const gap2 = is12x12Layout ? 10 : showCompanionCircle ? 10 : 16;
+  const baseGapTop = is12x12Layout ? 10 : showCompanionCircle ? 8 : 14;
+  const baseGapBottom = is12x12Layout ? 10 : showCompanionCircle ? 10 : 16;
+  const baseVisibleGap = Math.round((baseGapTop + baseGapBottom) / 2);
+  const getFontMetrics = (
+    fontKey: PosterRequest['poster']['titleFont'] | PosterRequest['poster']['namesFont'] | PosterRequest['poster']['metaFont'],
+    role: 'title' | 'names' | 'meta'
+  ): { asc: number; desc: number } => {
+    if (role === 'names' && (fontKey === 'cursive' || fontKey === 'jimmy-script')) {
+      return { asc: 0.82, desc: 0.30 };
+    }
+    if (fontKey === 'prata' || fontKey === 'serif') {
+      return { asc: 0.74, desc: 0.24 };
+    }
+    return { asc: 0.76, desc: 0.22 };
+  };
+  const computeSectionGaps = (): { gap1: number; gap2: number } => {
+    let gap1 = baseGapTop;
+    let gap2 = baseGapBottom;
+
+    // When all three sections exist, normalize optical spacing around names.
+    if (titleLines.length && namesLines.length && metaTextLines.length) {
+      const titleMetrics = getFontMetrics(titleFontKey, 'title');
+      const namesMetrics = getFontMetrics(namesFontKey, 'names');
+      const metaMetrics = getFontMetrics(metaFontKey, 'meta');
+      const opticalGapTop =
+        baseVisibleGap - namesLineHeight() + titleFont * titleMetrics.desc + namesFont * namesMetrics.asc;
+      const opticalGapBottom =
+        baseVisibleGap - metaLineHeight() + namesFont * namesMetrics.desc + metaFont * metaMetrics.asc;
+      gap1 = Math.max(0, opticalGapTop);
+      gap2 = Math.max(0, opticalGapBottom);
+    }
+
+    return { gap1, gap2 };
+  };
   const textBlockYOffset = is12x12Layout ? -20 : 0;
 
   const calcNeeded = () => {
+    const { gap1, gap2 } = computeSectionGaps();
     let h = 0;
     if (titleLines.length) h += titleLines.length * titleLineHeight();
     if (namesLines.length) h += (titleLines.length ? gap1 : 0) + namesLines.length * namesLineHeight();
@@ -891,6 +926,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   }
 
   const textBlock: string[] = [];
+  const { gap1, gap2 } = computeSectionGaps();
   const neededH = calcNeeded();
   // Text bloğu regionBottom'a yaslanır: textBottom = regionBottom → bottomMargin spec'e uyar
   const bottomAlignedStart = regionBottom - neededH;

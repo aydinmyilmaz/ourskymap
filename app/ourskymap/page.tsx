@@ -62,7 +62,8 @@ const POSTER_PALETTES: { key: PosterParams['palette']; label: string; bg: string
   { key: 'gold-black', label: 'Gold Black', bg: '#121212', tone: 'dark' },
   { key: 'dark-green', label: 'Dark Green', bg: '#1f392c', tone: 'dark' },
   { key: 'classic-burgundy', label: 'Burgundy', bg: '#4e1d1c', tone: 'dark' },
-  { key: 'deep-teal', label: 'Teal', bg: '#2c4d42', tone: 'dark' }
+  { key: 'deep-teal', label: 'Teal', bg: '#2c4d42', tone: 'dark' },
+  { key: 'minimal-white', label: 'Minimal White', bg: '#ffffff', tone: 'light' }
 ];
 
 function findPalette(paletteKey: PosterParams['palette']) {
@@ -73,6 +74,8 @@ const INK_PRESETS: { key: InkPresetKey; label: string; hex: string }[] = [
   { key: 'gold', label: 'Gold', hex: '#ffbe4c' },
   { key: 'silver', label: 'Silver', hex: '#e2e6e9' }
 ];
+const MINIMAL_WHITE_PALETTE: PosterParams['palette'] = 'minimal-white';
+const MINIMAL_WHITE_INK_HEX = '#111111';
 
 const defaultParams: RenderParams = {
   // TR: Tema paleti. dark = koyu arka plan, light = acik arka plan.
@@ -551,6 +554,9 @@ export default function DesignPage() {
 
   const selectedPalette = useMemo(() => findPalette(palette), [palette]);
   const selectedInk = useMemo(() => INK_PRESETS.find((item) => item.key === inkPreset) ?? INK_PRESETS[0], [inkPreset]);
+  const isMinimalWhitePalette = palette === MINIMAL_WHITE_PALETTE;
+  const effectiveInkHex = isMinimalWhitePalette ? MINIMAL_WHITE_INK_HEX : selectedInk.hex;
+  const effectiveInkLabel = isMinimalWhitePalette ? 'Black' : selectedInk.label;
   const selectedFont = useMemo(() => FONT_PRESETS.find((item) => item.key === fontPreset) ?? FONT_PRESETS[0], [fontPreset]);
   const selectedSizePreset = useMemo(() => SIZE_PRESETS.find((item) => item.key === size), [size]);
   const effectiveTheme = selectedPalette.tone;
@@ -858,7 +864,7 @@ export default function DesignPage() {
         subtitle: names,
         metaText: nextMetaLine,
         palette,
-        inkColor: selectedInk.hex,
+        inkColor: effectiveInkHex,
         inkPreset: selectedInk.key,
         includeAzimuthScale: true,
         showCardinals: false,
@@ -1031,7 +1037,7 @@ export default function DesignPage() {
         subtitle: names,
         metaText: nextMetaLine,
         palette,
-        inkColor: selectedInk.hex,
+        inkColor: effectiveInkHex,
         inkPreset: selectedInk.key,
         includeAzimuthScale: true,
         showCardinals: false,
@@ -1088,8 +1094,8 @@ export default function DesignPage() {
           showPlanetNames: showNames,
           showGraticule,
           palette,
-          inkColor: selectedInk.hex,
-          lineColor: selectedInk.label,
+          inkColor: effectiveInkHex,
+          lineColor: effectiveInkLabel,
           showTime: showTimeLine,
           size,
           companionPhoto: isSkyPhoto,
@@ -1374,12 +1380,16 @@ export default function DesignPage() {
                     type="button"
                     className={`inkBtn ${inkPreset === item.key ? 'active' : ''}`}
                     onClick={() => setInkPreset(item.key)}
+                    disabled={isMinimalWhitePalette}
                   >
                     <span className="inkSwatch" style={{ background: item.hex }} />
                     <span>{item.label}</span>
                   </button>
                 ))}
               </div>
+              {isMinimalWhitePalette ? (
+                <p className="microHint">Minimal White mode uses black line/text automatically.</p>
+              ) : null}
             </div>
 
             {isGalaxyUI ? (
@@ -2001,6 +2011,11 @@ export default function DesignPage() {
           border-color: #2f74ff;
           box-shadow: inset 0 0 0 1px #2f74ff;
           background: #edf3ff;
+        }
+
+        .inkBtn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
         }
 
         .inkSwatch {
