@@ -18,6 +18,8 @@ type RedeemResponse = {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const allowNoCouponFlow =
+    process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ALLOW_NO_COUPON_FLOW === 'true';
   const [draft, setDraft] = useState<CheckoutDraft | null>(null);
   const [email, setEmail] = useState('');
   const [couponCode, setCouponCode] = useState('');
@@ -166,9 +168,9 @@ export default function CheckoutPage() {
             <button type="submit" className="submitBtn" disabled={!canSubmit}>
               {loading ? 'Processing...' : 'Continue with Coupon'}
             </button>
-            {process.env.NODE_ENV !== 'production' ? (
+            {allowNoCouponFlow ? (
               <button type="button" className="devBtn" onClick={() => void handleDevQuickDownload()} disabled={devDownloading}>
-                {devDownloading ? 'Preparing...' : 'Dev Quick Continue (No Coupon)'}
+                {devDownloading ? 'Preparing...' : 'Continue Without Coupon'}
               </button>
             ) : null}
           </form>

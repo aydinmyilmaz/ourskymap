@@ -101,7 +101,6 @@ function PrintOrderPageBody() {
   const [quantity, setQuantity] = useState(1);
   const [sourcePrintSize, setSourcePrintSize] = useState<PrintSizeKey | ''>('');
 
-  const [shippingExpanded, setShippingExpanded] = useState(true);
   const [shippingName, setShippingName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -246,12 +245,6 @@ function PrintOrderPageBody() {
     });
   }, [currency, quantity, selectedOption, selectedSize]);
 
-  const shippingSummary = useMemo(() => {
-    const parts = [shippingName, city, countryCode].map((item) => item.trim()).filter(Boolean);
-    if (parts.length === 0) return 'Add shipping and contact details';
-    return parts.join(' • ');
-  }, [city, countryCode, shippingName]);
-
   async function handleUploadChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
     if (!file) return;
@@ -323,7 +316,6 @@ function PrintOrderPageBody() {
     const normalizedCountryCode = countryCode.trim().toUpperCase();
 
     if (!normalizedShippingName || !normalizedAddressLine1 || !normalizedCity || !normalizedPostalCode || !normalizedCountryCode) {
-      setShippingExpanded(true);
       setError('Please complete shipping details for physical print options.');
       return;
     }
@@ -391,322 +383,277 @@ function PrintOrderPageBody() {
   return (
     <div className="page">
       <main className="shell">
+        {/* ---- Left Panel: Product Preview ---- */}
         <section className="leftRail">
           <div className="artPanel">
-            <div className="artTopRow">
-              <p className="eyebrow">Customer Digital Product</p>
-              <p className="orderPill">Order #{order?.orderCode}</p>
+            <div className="artFrame">
+              <span className="orderPill">Order #{order?.orderCode}</span>
+              {previewImageDataUrl ? (
+                <img src={previewImageDataUrl} alt="Your custom star map" />
+              ) : previewSvgMarkup ? (
+                <div className="inlineSvgMount" dangerouslySetInnerHTML={{ __html: previewSvgMarkup }} />
+              ) : (
+                <div className="placeholder">Upload your artwork to see a preview.</div>
+              )}
             </div>
-            <div className="artFrameWrap">
-              <div className="artFrameGlow" />
-              <div className="artFrame">
-                {previewImageDataUrl ? (
-                  <img src={previewImageDataUrl} alt="Customer digital artwork" />
-                ) : previewSvgMarkup ? (
-                  <div className="inlineSvgMount" dangerouslySetInnerHTML={{ __html: previewSvgMarkup }} />
-                ) : (
-                  <div className="placeholder">Could not auto-load preview from ZIP. Upload your artwork below.</div>
-                )}
-              </div>
-            </div>
-            <p className="artMeta">Master digital file shown above. Physical print options below.</p>
+            <p className="artCaption">Your custom star map</p>
           </div>
 
-          <div className="mockupPanel">
-            <div className="mockupHead">
-              <h3>Mockup Previews</h3>
-              <span>Replace files in /public/mockups/print-order</span>
+          <div className="fileBanner">
+            <div className="fileBannerContent">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 1.67a8.33 8.33 0 100 16.66 8.33 8.33 0 000-16.66zm-.83 11.66V8.33h1.66v5h-1.66zm0-6.66V5h1.66v1.67H9.17z" fill="#1f8844"/></svg>
+              <span>Digital file ready</span>
             </div>
-            <div className="mockupGrid">
+            <button type="button" className="downloadLink" onClick={() => void handleDownloadZipAgain()} disabled={downloadingZip}>
+              {downloadingZip ? 'Preparing...' : 'Download ZIP'}
+            </button>
+            {downloadError ? <p className="downloadLinkError">{downloadError}</p> : null}
+          </div>
+
+          <div className="mockupStrip">
+            {isDevMode ? <span className="mockupDevHint">Replace files in /public/mockups/print-order</span> : null}
+            <div className="mockupRow">
               {MOCKUP_SCENES.map((scene) => (
-                <figure key={scene.title} className="mockupCard">
-                  <img src={scene.src} alt={scene.title} className="mockupBg" />
-                  <figcaption>{scene.title}</figcaption>
+                <figure key={scene.title} className="mockupThumb">
+                  <img src={scene.src} alt={scene.title} />
                 </figure>
               ))}
             </div>
           </div>
         </section>
 
+        {/* ---- Right Panel: Configuration & Checkout ---- */}
         <section className="buyPanel">
-          <div className="priceHeader">
-            <h1>Now from €33,61 <span>from €63,68</span></h1>
-            <div className="chipRow">
-              <p className="badge">New markdown!</p>
-              <p className="sale">45% off • Sale ends soon</p>
-            </div>
-            <p className="vat">VAT included (where applicable)</p>
-            <p className="title">Custom Star Map Print, Personalized Wall Art Keepsake</p>
-            <p className="vendor">OurSkyMap ★★★★★</p>
-            <p className="hint">Exchanges accepted</p>
-          </div>
-
-          <div className="downloadBox">
-            <div>
-              <p className="downloadBoxTitle">Digital File Ready</p>
-              <p className="downloadBoxSub">Re-download your ZIP anytime while choosing your physical print options.</p>
-            </div>
-            <button type="button" className="downloadAgainBtn" onClick={() => void handleDownloadZipAgain()} disabled={downloadingZip}>
-              {downloadingZip ? 'Preparing ZIP...' : 'Download ZIP Again'}
-            </button>
-            {downloadError ? <p className="downloadBoxError">{downloadError}</p> : null}
+          <div className="priceSection">
+            <h1 className="productTitle">Custom Star Map Print</h1>
+            <p className="productSubtitle">Personalized Wall Art Keepsake</p>
+            <p className="trustLine">Free exchanges accepted</p>
           </div>
 
           <form className="form" onSubmit={handleSubmit}>
-            <div className="selectorGrid">
-              <label>
-                <span>{isOrderSizeLocked ? 'Size (from your digital order)' : 'Size'}</span>
-                {isOrderSizeLocked ? (
-                  <>
-                    <input value={selectedSizeLabel || String(selectedSize)} readOnly />
-                    <small className="fieldHint">To choose another size, upload a replacement artwork first.</small>
-                  </>
-                ) : (
-                  <select value={selectedSize} onChange={(e) => setSelectedSize(e.target.value as PrintSizeKey)} required>
-                    <option value="">Select an option</option>
-                    {pricing?.sizes.map((size) => (
-                      <option key={size.key} value={size.key}>
-                        {size.label}
-                      </option>
+            <div className="configSection">
+              <h2 className="sectionHeading">Print Options</h2>
+              <div className="configGrid">
+                <label className="field">
+                  <span className="fieldLabel">{isOrderSizeLocked ? 'Size (from your digital order)' : 'Size'}</span>
+                  {isOrderSizeLocked ? (
+                    <>
+                      <input className="fieldInput" value={selectedSizeLabel || String(selectedSize)} readOnly />
+                      <small className="fieldHint">Upload a replacement artwork to choose another size.</small>
+                    </>
+                  ) : (
+                    <select className="fieldInput" value={selectedSize} onChange={(e) => setSelectedSize(e.target.value as PrintSizeKey)} required>
+                      <option value="">Select size</option>
+                      {pricing?.sizes.map((size) => (
+                        <option key={size.key} value={size.key}>{size.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </label>
+
+                <label className="field">
+                  <span className="fieldLabel">Print Type</span>
+                  <select className="fieldInput" value={selectedOption} onChange={(e) => setSelectedOption(e.target.value as PrintOptionKey)} required>
+                    <option value="">Select type</option>
+                    {pricing?.printOptions.map((option) => (
+                      <option key={option.key} value={option.key}>{option.label}</option>
                     ))}
                   </select>
-                )}
-              </label>
+                </label>
 
-              <label>
-                <span>Print Options (Unframed, Framed or Canvas)</span>
-                <select value={selectedOption} onChange={(e) => setSelectedOption(e.target.value as PrintOptionKey)} required>
-                  <option value="">Select an option</option>
-                  {pricing?.printOptions.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <label className="field fieldSmall">
+                  <span className="fieldLabel">Quantity</span>
+                  <select className="fieldInput" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))}>
+                    {(pricing?.quantityOptions || [1]).map((qty) => (
+                      <option key={qty} value={qty}>{qty}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
-              <label>
-                <span>Quantity</span>
-                <select value={quantity} onChange={(e) => setQuantity(Number(e.target.value))}>
-                  {(pricing?.quantityOptions || [1]).map((qty) => (
-                    <option key={qty} value={qty}>
-                      {qty}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="uploadField">
-                <span>Replace Artwork (optional)</span>
-                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleUploadChange} />
-              </label>
-            </div>
-
-            <div className="accordionWrap">
-              <button
-                type="button"
-                className="accordionHead"
-                aria-expanded={shippingExpanded}
-                onClick={() => setShippingExpanded((v) => !v)}
-              >
-                <div>
-                  <strong>Shipping & Contact Details</strong>
-                  <p>{shippingSummary}</p>
+              <details className="uploadDetails">
+                <summary className="uploadSummary">Replace artwork (optional)</summary>
+                <div className="uploadBody">
+                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleUploadChange} className="uploadInput" />
                 </div>
-                <span>{shippingExpanded ? '−' : '+'}</span>
-              </button>
-
-              {shippingExpanded ? (
-                <div className="accordionBody">
-                  <div className="addressGrid">
-                    <label>
-                      <span>Full Name</span>
-                      <input value={shippingName} onChange={(e) => setShippingName(e.target.value)} required />
-                    </label>
-                    <label>
-                      <span>Email</span>
-                      <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
-                    </label>
-                    <label>
-                      <span>Phone</span>
-                      <input value={phone} onChange={(e) => setPhone(e.target.value)} />
-                    </label>
-                    <label>
-                      <span>Country</span>
-                      <select
-                        value={countryCode}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          setCountryCode(next);
-                          setCurrency(currencyByCountry(next));
-                        }}
-                      >
-                        <option value="DE">Germany</option>
-                        <option value="TR">Turkey</option>
-                        <option value="US">United States</option>
-                        <option value="NL">Netherlands</option>
-                        <option value="FR">France</option>
-                        <option value="ES">Spain</option>
-                        <option value="IT">Italy</option>
-                        <option value="GB">United Kingdom</option>
-                      </select>
-                    </label>
-                    <label className="full">
-                      <span>Address Line 1</span>
-                      <input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} required />
-                    </label>
-                    <label className="full">
-                      <span>Address Line 2</span>
-                      <input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} />
-                    </label>
-                    <label>
-                      <span>City</span>
-                      <input value={city} onChange={(e) => setCity(e.target.value)} required />
-                    </label>
-                    <label>
-                      <span>State/Region</span>
-                      <input value={stateRegion} onChange={(e) => setStateRegion(e.target.value)} />
-                    </label>
-                    <label>
-                      <span>Postal Code</span>
-                      <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} required />
-                    </label>
-                  </div>
-                </div>
-              ) : null}
+              </details>
             </div>
 
-            <div className="summary">
-              <p>Currency <strong>{currency}</strong></p>
-              <p>Unit <strong>{totals ? formatMoney(totals.unit, currency) : '-'}</strong></p>
-              <p>Subtotal <strong>{totals ? formatMoney(totals.subtotal, currency) : '-'}</strong></p>
-              <p>Shipping <strong>{totals ? formatMoney(totals.shipping, currency) : '-'}</strong></p>
-              <p className="total">Estimated Total <strong>{totals ? formatMoney(totals.total, currency) : '-'}</strong></p>
-              <p className="estimate">Estimated total. Final exact pricing table will be applied later.</p>
+            <div className="shippingCard">
+              <h2 className="sectionHeading">Shipping & Contact</h2>
+              <div className="addressGrid">
+                <label className="field">
+                  <span className="fieldLabel">Full Name</span>
+                  <input className="fieldInput" value={shippingName} onChange={(e) => setShippingName(e.target.value)} required />
+                </label>
+                <label className="field">
+                  <span className="fieldLabel">Email</span>
+                  <input className="fieldInput" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+                </label>
+                <label className="field">
+                  <span className="fieldLabel">Phone</span>
+                  <input className="fieldInput" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </label>
+                <label className="field">
+                  <span className="fieldLabel">Country</span>
+                  <select
+                    className="fieldInput"
+                    value={countryCode}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setCountryCode(next);
+                      setCurrency(currencyByCountry(next));
+                    }}
+                  >
+                    <option value="DE">Germany</option>
+                    <option value="TR">Turkey</option>
+                    <option value="US">United States</option>
+                    <option value="NL">Netherlands</option>
+                    <option value="FR">France</option>
+                    <option value="ES">Spain</option>
+                    <option value="IT">Italy</option>
+                    <option value="GB">United Kingdom</option>
+                  </select>
+                </label>
+                <label className="field fieldFull">
+                  <span className="fieldLabel">Address Line 1</span>
+                  <input className="fieldInput" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} required />
+                </label>
+                <label className="field fieldFull">
+                  <span className="fieldLabel">Address Line 2</span>
+                  <input className="fieldInput" value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} />
+                </label>
+                <label className="field">
+                  <span className="fieldLabel">City</span>
+                  <input className="fieldInput" value={city} onChange={(e) => setCity(e.target.value)} required />
+                </label>
+                <label className="field">
+                  <span className="fieldLabel">State / Region</span>
+                  <input className="fieldInput" value={stateRegion} onChange={(e) => setStateRegion(e.target.value)} />
+                </label>
+                <label className="field">
+                  <span className="fieldLabel">Postal Code</span>
+                  <input className="fieldInput" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} required />
+                </label>
+              </div>
             </div>
 
-            {error ? <p className="error">{error}</p> : null}
+            <div className="orderSummary">
+              <div className="summaryRow"><span>Currency</span><strong>{currency}</strong></div>
+              <div className="summaryRow"><span>Unit price</span><strong>{totals ? formatMoney(totals.unit, currency) : '\u2014'}</strong></div>
+              <div className="summaryRow"><span>Subtotal</span><strong>{totals ? formatMoney(totals.subtotal, currency) : '\u2014'}</strong></div>
+              <div className="summaryRow"><span>Shipping</span><strong>{totals ? formatMoney(totals.shipping, currency) : '\u2014'}</strong></div>
+              <div className="summaryRow summaryTotal"><span>Estimated Total</span><strong>{totals ? formatMoney(totals.total, currency) : '\u2014'}</strong></div>
+              <p className="summaryNote">Estimated total. Final exact pricing will be applied at fulfillment.</p>
+            </div>
 
-            <button type="submit" disabled={saving || !selectedSize || !selectedOption}>
-              {saving ? 'Saving...' : 'Complete Order (Mock Payment)'}
+            {error ? <p className="formError">{error}</p> : null}
+
+            <button type="submit" className="submitBtn" disabled={saving || !selectedSize || !selectedOption}>
+              {saving ? 'Processing...' : 'Complete Order (Mock Payment)'}
             </button>
-            <p className="tiny">Payoneer integration is prepared but not active yet.</p>
+            <p className="submitNote">Payoneer integration is prepared but not active yet.</p>
           </form>
         </section>
       </main>
 
+      {/* Mobile sticky CTA bar */}
+      <div className="mobileCta">
+        <div className="mobileCtaInner">
+          <span className="mobileCtaPrice">{totals ? formatMoney(totals.total, currency) : '\u2014'}</span>
+          <button
+            type="button"
+            className="mobileCtaBtn"
+            disabled={saving || !selectedSize || !selectedOption}
+            onClick={() => {
+              const f = document.querySelector('.form') as HTMLFormElement | null;
+              if (f) f.requestSubmit();
+            }}
+          >
+            {saving ? 'Processing...' : 'Complete Order'}
+          </button>
+        </div>
+      </div>
+
       <style jsx>{`
+        /* ========== Layout ========== */
         .state {
           min-height: 100vh;
           display: grid;
           place-items: center;
-          background: radial-gradient(900px 520px at 20% -10%, #f8efe0 0%, #e8ecf4 45%, #e2e6ef 100%);
+          background: #f0f2f7;
           color: #23252c;
           text-align: center;
           padding: 24px;
+          font-family: 'Signika', ui-sans-serif, system-ui;
         }
         .state a {
-          color: #224c9e;
+          color: #3b5998;
           text-decoration: none;
         }
         .page {
           min-height: 100vh;
-          background:
-            radial-gradient(1200px 700px at 4% 0%, rgba(246, 209, 166, 0.28) 0%, rgba(246, 209, 166, 0) 55%),
-            radial-gradient(1100px 720px at 100% 8%, rgba(136, 171, 223, 0.28) 0%, rgba(136, 171, 223, 0) 58%),
-            #e8ebf2;
+          background: linear-gradient(170deg, #eef1f8 0%, #e4e8f0 100%);
           color: #20242f;
-          padding: 22px;
+          padding: 28px;
           font-family: 'Signika', ui-sans-serif, system-ui;
         }
         .shell {
-          max-width: 1360px;
+          max-width: 1320px;
           margin: 0 auto;
           display: grid;
-          grid-template-columns: minmax(360px, 1.22fr) minmax(390px, 0.94fr);
-          gap: 24px;
+          grid-template-columns: 1.15fr 0.85fr;
+          gap: 28px;
           align-items: start;
         }
+
+        /* ========== Left Rail ========== */
         .leftRail {
           position: sticky;
-          top: 20px;
+          top: 28px;
           display: grid;
           gap: 16px;
         }
-        .artPanel,
-        .mockupPanel,
-        .buyPanel {
-          border-radius: 20px;
-          border: 1px solid rgba(67, 83, 117, 0.22);
-          background: rgba(255, 255, 255, 0.82);
-          box-shadow: 0 16px 40px rgba(25, 39, 67, 0.11);
-          backdrop-filter: blur(6px);
-        }
         .artPanel {
-          padding: 16px;
-        }
-        .artTopRow {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-        }
-        .eyebrow {
-          margin: 0;
-          font-size: 12px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          font-weight: 700;
-          color: #4d628f;
-        }
-        .orderPill {
-          margin: 0;
-          font-size: 12px;
-          padding: 7px 10px;
-          border-radius: 999px;
-          background: #edf2ff;
-          border: 1px solid #cfdaf7;
-          color: #2e4069;
-          font-weight: 700;
-        }
-        .artFrameWrap {
-          margin-top: 10px;
-          position: relative;
-        }
-        .artFrameGlow {
-          position: absolute;
-          inset: -14px;
-          background: radial-gradient(circle at 50% 30%, rgba(251, 191, 95, 0.45), transparent 70%);
-          filter: blur(20px);
-          pointer-events: none;
+          border-radius: 16px;
+          overflow: hidden;
+          background: #fff;
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
         }
         .artFrame {
           position: relative;
-          min-height: 540px;
-          border-radius: 18px;
-          background: linear-gradient(160deg, #14253f 0%, #1b2642 100%);
-          padding: 16px;
-          border: 1px solid rgba(238, 198, 120, 0.35);
+          min-height: 520px;
+          background: #0f1729;
+          padding: 24px;
           display: grid;
           place-items: center;
           overflow: hidden;
         }
+        .orderPill {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          font-size: 11px;
+          padding: 5px 10px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.12);
+          color: rgba(255, 255, 255, 0.6);
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          z-index: 2;
+        }
         .artFrame img {
-          width: 100%;
-          height: 100%;
+          max-width: 100%;
+          max-height: 480px;
           object-fit: contain;
-          object-position: center;
-          border-radius: 10px;
-          box-shadow: 0 20px 44px rgba(5, 9, 18, 0.45);
-          background: #ffffff;
+          border-radius: 6px;
         }
         .artFrame :global(.inlineSvgMount) {
           width: 100%;
-          height: 100%;
-          border-radius: 10px;
+          max-height: 480px;
+          border-radius: 6px;
           overflow: hidden;
-          box-shadow: 0 20px 44px rgba(5, 9, 18, 0.45);
-          background: #ffffff;
           display: grid;
           place-items: center;
         }
@@ -716,325 +663,317 @@ function PrintOrderPageBody() {
           display: block;
         }
         .placeholder {
-          max-width: 380px;
-          text-align: center;
-          color: #c9d5ef;
+          color: rgba(255, 255, 255, 0.4);
           font-size: 15px;
-          line-height: 1.45;
+          text-align: center;
+          max-width: 300px;
         }
-        .artMeta {
-          margin: 12px 0 0;
-          color: #4a5778;
-          font-size: 14px;
+        .artCaption {
+          margin: 0;
+          padding: 12px 16px;
+          font-size: 13px;
+          color: #6b7280;
+          text-align: center;
         }
-        .mockupPanel {
-          padding: 14px;
-        }
-        .mockupHead {
+
+        /* ========== File Banner ========== */
+        .fileBanner {
           display: flex;
-          align-items: baseline;
+          align-items: center;
           justify-content: space-between;
-          gap: 10px;
-        }
-        .mockupHead h3 {
-          margin: 0;
-          font-size: 20px;
-          font-family: 'Prata', Georgia, serif;
-          color: #202733;
-        }
-        .mockupHead span {
-          font-size: 12px;
-          color: #5c6782;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          font-weight: 700;
-        }
-        .mockupGrid {
-          margin-top: 10px;
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 10px;
-        }
-        .mockupCard {
-          margin: 0;
-          position: relative;
+          gap: 12px;
+          padding: 12px 16px;
           border-radius: 12px;
-          overflow: hidden;
-          border: 1px solid #ced7ea;
-          background: #fff;
-          min-height: 190px;
+          background: #f8fafb;
+          border: 1px solid #e5e8ee;
         }
-        .mockupBg {
+        .fileBannerContent {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #1f8844;
+        }
+        .downloadLink {
+          border: 0;
+          background: none;
+          color: #3b5998;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+          padding: 0;
+          white-space: nowrap;
+        }
+        .downloadLink:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .downloadLinkError {
+          margin: 0;
+          color: #b91c1c;
+          font-size: 12px;
+        }
+
+        /* ========== Mockup Strip ========== */
+        .mockupStrip {
+          display: grid;
+          gap: 6px;
+        }
+        .mockupDevHint {
+          font-size: 11px;
+          color: #9ca3af;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          font-weight: 600;
+          text-align: right;
+        }
+        .mockupRow {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+        }
+        .mockupThumb {
+          margin: 0;
+          border-radius: 10px;
+          overflow: hidden;
+          border: 1px solid #e5e8ee;
+          aspect-ratio: 4 / 3;
+          transition: transform 0.2s ease;
+        }
+        .mockupThumb:hover {
+          transform: scale(1.02);
+        }
+        .mockupThumb img {
           width: 100%;
           height: 100%;
           object-fit: cover;
           display: block;
-          filter: saturate(0.95) contrast(0.96);
         }
-        .mockupCard figcaption {
-          position: absolute;
-          left: 8px;
-          right: 8px;
-          bottom: 6px;
-          z-index: 2;
-          font-size: 11px;
-          color: #f5f8ff;
-          font-weight: 700;
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.66);
-          letter-spacing: 0.04em;
-        }
+
+        /* ========== Right Panel ========== */
         .buyPanel {
-          padding: 18px;
+          border-radius: 16px;
+          background: #fff;
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+          padding: 28px;
         }
-        .priceHeader h1 {
+
+        /* Price Section */
+        .priceSection {
+          padding-bottom: 20px;
+          border-bottom: 1px solid #f0f0f0;
+          margin-bottom: 20px;
+        }
+        .productTitle {
           margin: 0;
-          font-size: clamp(44px, 5vw, 68px);
-          line-height: 0.96;
-          letter-spacing: -0.03em;
-          color: #1e2331;
-        }
-        .priceHeader h1 span {
-          font-size: 0.48em;
-          margin-left: 8px;
-          text-decoration: line-through;
-          color: #4c4f5b;
-          font-weight: 500;
-        }
-        .chipRow {
-          margin-top: 12px;
-          display: grid;
-          gap: 6px;
-        }
-        .badge {
-          margin: 0;
-          display: inline-flex;
-          width: fit-content;
-          padding: 7px 16px;
-          border-radius: 999px;
-          background: #97d98e;
-          color: #14301d;
-          font-size: 16px;
-          font-weight: 700;
-        }
-        .sale {
-          margin: 0;
-          color: #1b7b46;
-          font-size: 36px;
-          font-weight: 700;
-        }
-        .vat {
-          margin: 9px 0 0;
-          color: #596178;
-          font-size: 23px;
-        }
-        .title {
-          margin: 13px 0 0;
-          color: #252c3a;
-          font-size: 22px;
-          line-height: 1.34;
-          font-weight: 600;
-        }
-        .vendor {
-          margin: 8px 0 0;
+          font-family: 'Prata', Georgia, serif;
           font-size: 28px;
-          font-weight: 700;
-          color: #1e2434;
+          color: #111827;
+          line-height: 1.2;
         }
-        .hint {
+        .productSubtitle {
           margin: 4px 0 0;
-          color: #485470;
-          font-size: 16px;
-          font-weight: 600;
-        }
-        .downloadBox {
-          margin-top: 14px;
-          border: 1px solid #c9d3e8;
-          border-radius: 14px;
-          background: linear-gradient(160deg, #f6f9ff 0%, #eef3fc 100%);
-          padding: 12px;
-          display: grid;
-          gap: 10px;
-        }
-        .downloadBoxTitle {
-          margin: 0;
-          color: #1f2a40;
           font-size: 15px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
+          color: #6b7280;
         }
-        .downloadBoxSub {
-          margin: 4px 0 0;
-          color: #4b5877;
+        .trustLine {
+          margin: 8px 0 0;
           font-size: 14px;
-          line-height: 1.35;
-        }
-        .downloadAgainBtn {
-          min-height: 46px;
-          border-radius: 11px;
-          border: 1px solid #2e3b59;
-          background: #20293d;
-          color: #fff;
-          font-size: 15px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-        .downloadAgainBtn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-        .downloadBoxError {
-          margin: 0;
-          color: #a01010;
-          font-size: 13px;
-          font-weight: 700;
-        }
-        .form {
-          margin-top: 14px;
-          display: grid;
-          gap: 13px;
-        }
-        .selectorGrid {
-          display: grid;
-          gap: 10px;
-        }
-        .form label {
-          display: grid;
-          gap: 6px;
-        }
-        .form span {
-          font-size: 17px;
-          color: #22293a;
-          font-weight: 700;
-        }
-        .form small.fieldHint {
-          color: #4f5d7e;
-          font-size: 12px;
+          color: #1f8844;
           font-weight: 600;
         }
-        .form select,
-        .form input {
-          min-height: 50px;
+
+        /* Form */
+        .form {
+          display: grid;
+          gap: 24px;
+        }
+
+        /* Config Section */
+        .configSection {
+          display: grid;
+          gap: 16px;
+        }
+        .sectionHeading {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+          letter-spacing: 0.01em;
+        }
+        .configGrid {
+          display: grid;
+          gap: 14px;
+        }
+
+        /* Fields */
+        .field {
+          display: grid;
+          gap: 5px;
+        }
+        .fieldLabel {
+          font-size: 14px;
+          font-weight: 600;
+          color: #374151;
+        }
+        .fieldInput {
+          height: 48px;
           width: 100%;
           box-sizing: border-box;
-          border-radius: 12px;
-          border: 1px solid #b4bdd0;
-          background: #f8f9fc;
-          color: #1d2230;
-          font-size: 16px;
-          padding: 0 13px;
+          border-radius: 10px;
+          border: 1px solid #d1d5db;
+          background: #f9fafb;
+          color: #111827;
+          font-size: 15px;
+          padding: 0 12px;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
-        .uploadField input {
-          padding: 10px 12px;
-          min-height: 50px;
+        .fieldInput:focus {
+          outline: none;
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
-        .accordionWrap {
-          border: 1px solid #c9d2e6;
-          border-radius: 14px;
+        .fieldSmall {
+          max-width: 120px;
+        }
+        .fieldHint {
+          font-size: 12px;
+          color: #9ca3af;
+          font-weight: 500;
+        }
+
+        /* Upload Details */
+        .uploadDetails {
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
           overflow: hidden;
-          background: #f8fafd;
         }
-        .accordionHead {
-          width: 100%;
-          border: 0;
-          background: #eef3fb;
-          color: #202633;
-          min-height: 62px;
-          padding: 10px 12px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          text-align: left;
+        .uploadSummary {
+          padding: 12px 14px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #374151;
           cursor: pointer;
+          background: #f9fafb;
+          list-style: none;
         }
-        .accordionHead strong {
-          display: block;
-          font-size: 16px;
-          font-weight: 700;
+        .uploadSummary::-webkit-details-marker {
+          display: none;
         }
-        .accordionHead p {
-          margin: 3px 0 0;
-          font-size: 13px;
-          color: #586381;
+        .uploadBody {
+          padding: 12px 14px;
+          border-top: 1px solid #e5e7eb;
         }
-        .accordionHead span {
-          font-size: 24px;
-          font-weight: 700;
-          color: #3a4868;
-          line-height: 1;
+        .uploadInput {
+          font-size: 14px;
+          color: #374151;
         }
-        .accordionBody {
-          padding: 12px;
+
+        /* Shipping Card */
+        .shippingCard {
+          display: grid;
+          gap: 14px;
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          border-radius: 14px;
+          background: #fff;
+          padding: 20px;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
         }
         .addressGrid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 10px;
+          gap: 14px;
         }
-        .addressGrid .full {
+        .fieldFull {
           grid-column: 1 / -1;
         }
-        .summary {
-          border: 1px solid #bec9e0;
-          border-radius: 14px;
-          background: linear-gradient(160deg, #f4f7fd 0%, #edf1fa 100%);
-          padding: 12px;
+
+        /* Order Summary */
+        .orderSummary {
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          background: #f9fafb;
+          padding: 16px;
           display: grid;
-          gap: 5px;
+          gap: 6px;
         }
-        .summary p {
-          margin: 0;
-          font-size: 15px;
-          color: #2d3650;
+        .summaryRow {
           display: flex;
           justify-content: space-between;
-          gap: 12px;
-        }
-        .summary strong {
-          color: #151c2c;
-        }
-        .summary .total {
-          font-size: 18px;
-          font-weight: 700;
-          color: #1e2638;
-          margin-top: 2px;
-        }
-        .summary .estimate {
-          font-size: 12px;
-          color: #5b6787;
-          margin-top: 3px;
-        }
-        .error {
-          margin: 0;
-          color: #b41919;
+          align-items: center;
           font-size: 14px;
+          color: #374151;
+        }
+        .summaryRow strong {
+          color: #111827;
+        }
+        .summaryTotal {
+          font-size: 17px;
           font-weight: 700;
+          color: #111827;
+          padding-top: 8px;
+          margin-top: 4px;
+          border-top: 1px solid #e5e7eb;
         }
-        button[type='submit'] {
-          min-height: 58px;
-          border-radius: 999px;
-          border: 2px solid #252b37;
-          background: #1f2533;
-          color: #ffffff;
-          font-size: 24px;
-          font-weight: 800;
-          cursor: pointer;
-          transition: transform 0.16s ease, box-shadow 0.16s ease;
+        .summaryTotal strong {
+          font-size: 17px;
         }
-        button[type='submit']:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 10px 24px rgba(18, 29, 54, 0.25);
-        }
-        button[type='submit']:disabled {
-          opacity: 0.55;
-          cursor: not-allowed;
-        }
-        .tiny {
-          margin: 0;
+        .summaryNote {
+          margin: 4px 0 0;
           font-size: 12px;
-          color: #5f6985;
+          color: #9ca3af;
         }
 
+        /* Errors */
+        .formError {
+          margin: 0;
+          padding: 10px 14px;
+          border-radius: 8px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          color: #b91c1c;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        /* Submit Button */
+        .submitBtn {
+          width: 100%;
+          height: 56px;
+          border-radius: 999px;
+          border: 0;
+          background: #1f2535;
+          color: #fff;
+          font-size: 18px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .submitBtn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        .submitBtn:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+        .submitNote {
+          margin: 0;
+          text-align: center;
+          font-size: 12px;
+          color: #9ca3af;
+        }
+
+        /* ========== Mobile Sticky CTA ========== */
+        .mobileCta {
+          display: none;
+        }
+
+        /* ========== Responsive ========== */
         @media (max-width: 1160px) {
           .shell {
             grid-template-columns: 1fr;
@@ -1042,35 +981,85 @@ function PrintOrderPageBody() {
           .leftRail {
             position: static;
           }
-          .mockupGrid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+          .artFrame {
+            min-height: 400px;
           }
-          .priceHeader h1 {
-            font-size: clamp(40px, 12vw, 66px);
+          .mobileCta {
+            display: block;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: #fff;
+            border-top: 1px solid #e5e7eb;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+            padding: 12px 20px;
           }
-          .sale {
-            font-size: clamp(24px, 5.8vw, 36px);
+          .mobileCtaInner {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
           }
-          .vat {
-            font-size: clamp(18px, 4.2vw, 24px);
+          .mobileCtaPrice {
+            font-size: 22px;
+            font-weight: 800;
+            color: #111827;
+          }
+          .mobileCtaBtn {
+            height: 46px;
+            padding: 0 28px;
+            border-radius: 999px;
+            border: 0;
+            background: #1f2535;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+          }
+          .mobileCtaBtn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+          }
+          .page {
+            padding-bottom: 90px;
           }
         }
 
-        @media (max-width: 760px) {
+        @media (max-width: 640px) {
           .page {
             padding: 12px;
+            padding-bottom: 90px;
+          }
+          .buyPanel {
+            padding: 20px;
           }
           .artFrame {
-            min-height: 380px;
+            min-height: 300px;
+            padding: 16px;
           }
-          .mockupGrid {
-            grid-template-columns: 1fr;
+          .productTitle {
+            font-size: 24px;
+          }
+          .priceDisplay {
+            font-size: 32px;
           }
           .addressGrid {
             grid-template-columns: 1fr;
           }
-          .addressGrid .full {
+          .addressGrid .fieldFull {
             grid-column: auto;
+          }
+          .mockupRow {
+            grid-template-columns: repeat(3, 1fr);
+          }
+          .fileBanner {
+            flex-direction: column;
+            align-items: flex-start;
           }
         }
       `}</style>
