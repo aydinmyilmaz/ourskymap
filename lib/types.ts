@@ -93,7 +93,8 @@ export type PosterParams = {
   | 'gold-black'
   | 'dark-green'
   | 'classic-burgundy'
-  | 'deep-teal';
+  | 'deep-teal'
+  | 'minimal-white';
   inkColor: string;
   inkPreset?: 'gold' | 'silver';
   border: boolean;
