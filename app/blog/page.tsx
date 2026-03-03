@@ -1,90 +1,141 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
+import FallbackImage from '../../components/FallbackImage';
+
+const FEATURED_POST = {
+  title: 'The Science Behind Personalized Star Maps',
+  excerpt:
+    'How astronomical coordinates, date-time context, and location data become a visual memory object people keep for years.',
+  category: 'Behind the Scenes',
+  date: 'March 2026',
+  readTime: '6 min read',
+  image: '/blog-media/featured-science.png'
+} as const;
 
 const POSTS = [
   {
-    title: 'How to Design Gift-Ready Star Map Posters',
-    excerpt:
-      'A practical framework for selecting date precision, typography hierarchy, and framing ratios that print cleanly.',
-    category: 'Guides',
+    title: 'How to Choose the Best Date for an Anniversary Star Map',
+    excerpt: 'A quick framework for selecting the most emotional timestamp and framing the story around it.',
+    category: 'Gift Ideas',
+    date: 'February 2026',
+    readTime: '4 min read',
+    image: '/blog-media/best-date-anniversary.png'
+  },
+  {
+    title: 'Typography Pairings That Work for Elegant Celestial Posters',
+    excerpt: 'Balance script names, serif titles, and supporting lines without losing clarity.',
+    category: 'Design',
+    date: 'February 2026',
+    readTime: '5 min read',
+    image: '/blog-media/typography-pairings.png'
+  },
+  {
+    title: 'Color Systems for Dark, Neutral, and White Star Map Backgrounds',
+    excerpt: 'Practical contrast rules for text, constellations, and moon area harmony.',
+    category: 'Styling',
     date: 'January 2026',
-    href: '/ourskymap',
-    image: '/home/product-starmap.jpg'
+    readTime: '5 min read',
+    image: '/blog-media/color-systems.png'
   },
   {
-    title: 'City Poster Print Checklist for Reliable Production',
-    excerpt:
-      'From zoom levels to text spacing, this checklist helps teams avoid common print and composition mistakes.',
+    title: 'From Checkout to Print: Avoiding Common Export Mistakes',
+    excerpt: 'Simple checks before print to prevent spacing and scaling surprises.',
     category: 'Production',
+    date: 'January 2026',
+    readTime: '3 min read',
+    image: '/blog-media/checkout-to-print.png'
+  },
+  {
+    title: 'Writing Better Dedication Lines for Wedding Sky Posters',
+    excerpt: 'Line structures and wording styles that feel timeless instead of generic.',
+    category: 'Writing',
     date: 'December 2025',
-    href: '/citymap',
-    image: '/home/product-citymap.jpg'
+    readTime: '4 min read',
+    image: '/blog-media/dedication-lines.png'
   },
   {
-    title: 'Turning Audio into Better Wall Art Products',
-    excerpt:
-      'Soundwave products perform better when waveform style, metadata, and QR experiences are designed together.',
-    category: 'Product',
-    date: 'November 2025',
-    href: '/soundwave',
-    image: '/home/product-soundwave.jpg'
-  },
-  {
-    title: 'Building Premium Vinyl-Inspired Digital Posters',
-    excerpt:
-      'A breakdown of visual rhythm, material cues, and palette strategies for collectible-style digital products.',
-    category: 'Creative Ops',
-    date: 'October 2025',
-    href: '/vinyl',
-    image: '/home/product-vinyl2.jpeg'
+    title: 'Why Star Maps Work So Well as Emotional Gifts',
+    excerpt: 'The psychology behind date-based gifts and lasting sentimental value.',
+    category: 'Insights',
+    date: 'December 2025',
+    readTime: '5 min read',
+    image: '/blog-media/emotional-gifts.png'
   }
 ] as const;
 
 export default function BlogPage() {
   return (
     <main className="blogPage">
+      <div className="grain" aria-hidden="true" />
       <div className="shell">
-        <header className="hero">
-          <p className="eyebrow">Blog</p>
-          <h1>Insights for Better Digital Poster Products</h1>
-          <p>
-            Practical writing on design quality, workflow efficiency, and conversion-ready product experiences for custom poster
-            businesses.
-          </p>
+        <header className="topBar reveal">
+          <p className="brand">Celestial Journal</p>
+          <nav>
+            <Link href="/">Home</Link>
+            <Link href="/what-is-star-map">What is Star Map?</Link>
+            <Link href="/faq">FAQ</Link>
+            <Link href="/contact">Contact</Link>
+          </nav>
+          <Link href="/ourskymap" className="btn btnPrimary">
+            Open Editor
+          </Link>
         </header>
 
-        <section className="postsGrid" aria-label="Blog posts">
+        <section className="hero reveal delay1">
+          <p className="eyebrow">OURSKYMAP BLOG</p>
+          <h1>Ideas, craft, and emotion behind personalized sky posters.</h1>
+          <p className="lead">
+            Strategy notes and practical guides for designing star map products that look premium and feel deeply personal.
+          </p>
+        </section>
+
+        <section className="featured reveal delay2">
+          <div className="featuredMedia">
+            <FallbackImage src={FEATURED_POST.image} alt={FEATURED_POST.title} fill sizes="(max-width: 980px) 100vw, 56vw" priority />
+          </div>
+          <article className="featuredCopy">
+            <p className="meta">
+              {FEATURED_POST.category} - {FEATURED_POST.date} - {FEATURED_POST.readTime}
+            </p>
+            <h2>{FEATURED_POST.title}</h2>
+            <p>{FEATURED_POST.excerpt}</p>
+            <Link href="/ourskymap" className="inlineLink">
+              Apply this in the editor
+            </Link>
+          </article>
+        </section>
+
+        <section className="postGrid reveal delay3" aria-label="Blog article list">
           {POSTS.map((post) => (
             <article key={post.title} className="postCard">
               <div className="postImageWrap">
-                <Image src={post.image} alt={post.title} fill sizes="(max-width: 920px) 100vw, 25vw" />
+                <FallbackImage src={post.image} alt={post.title} fill sizes="(max-width: 980px) 100vw, 33vw" />
               </div>
               <p className="meta">
-                {post.category} • {post.date}
+                {post.category} - {post.date} - {post.readTime}
               </p>
-              <h2>{post.title}</h2>
+              <h3>{post.title}</h3>
               <p>{post.excerpt}</p>
-              <Link href={post.href} className="postLink">
-                Open related product
+              <Link href="/ourskymap" className="inlineLink">
+                Design now
               </Link>
             </article>
           ))}
         </section>
 
-        <section className="ctaBand" aria-label="Blog actions">
+        <section className="ctaBand reveal delay4">
           <div>
-            <p className="eyebrow">Next Step</p>
-            <h2>Apply these insights directly in the product editor.</h2>
-            <p>Start building and test these principles in real exports.</p>
+            <p className="eyebrow">NEXT STEP</p>
+            <h2>Use these ideas in your own design flow now.</h2>
+            <p>Start from date + location, then tailor every detail for your customer story.</p>
           </div>
           <div className="actions">
             <Link href="/ourskymap" className="btn btnPrimary">
               Start Designing
             </Link>
-            <Link href="/pricing" className="btn btnSecondary">
-              View Pricing
+            <Link href="/what-is-star-map" className="btn btnGhost">
+              Learn More
             </Link>
           </div>
         </section>
@@ -92,68 +143,205 @@ export default function BlogPage() {
 
       <style jsx>{`
         .blogPage {
+          --ink: #1f2d44;
+          --ink-soft: #55627a;
+          --paper: #f4ede4;
+          --card: rgba(255, 252, 247, 0.88);
+          --line: rgba(64, 83, 117, 0.2);
+          --accent: #b66424;
           min-height: 100vh;
-          background: linear-gradient(165deg, #edf3fa 0%, #e8f0fb 100%);
-          padding: 22px 14px 40px;
+          padding: 20px 14px 28px;
+          background:
+            radial-gradient(circle at 9% -1%, rgba(228, 191, 151, 0.36) 0%, transparent 30%),
+            radial-gradient(circle at 88% 6%, rgba(176, 194, 219, 0.38) 0%, transparent 31%),
+            linear-gradient(165deg, #f7f1e8 0%, #f0e8dc 50%, #ece2d4 100%);
+          color: var(--ink);
           font-family: 'Signika', ui-sans-serif, system-ui;
-          color: #0f1f3d;
+          position: relative;
+          overflow-x: clip;
+        }
+
+        .blogPage :global(a),
+        .blogPage :global(a:visited) {
+          color: #2d4268;
+          text-decoration: none;
+        }
+
+        .grain {
+          position: absolute;
+          inset: 0;
+          background-image: radial-gradient(rgba(40, 56, 83, 0.06) 0.65px, transparent 0.65px);
+          background-size: 3px 3px;
+          opacity: 0.25;
+          pointer-events: none;
         }
 
         .shell {
-          width: min(1120px, 100%);
+          width: min(1160px, 100%);
           margin: 0 auto;
           display: grid;
-          gap: 14px;
+          gap: 12px;
+          position: relative;
+          z-index: 1;
         }
 
+        .topBar,
         .hero,
+        .featured,
         .postCard,
         .ctaBand {
+          border: 1px solid var(--line);
+          background: var(--card);
           border-radius: 18px;
-          border: 1px solid #c8d5e9;
-          background: rgba(255, 255, 255, 0.94);
+          backdrop-filter: blur(6px);
+        }
+
+        .topBar {
+          min-height: 72px;
+          padding: 10px 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+          position: sticky;
+          top: 10px;
+          z-index: 20;
+        }
+
+        .brand {
+          margin: 0;
+          font-family: 'Prata', Georgia, serif;
+          font-size: 28px;
+          color: #20314f;
+        }
+
+        nav {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          flex: 1;
+          flex-wrap: wrap;
+        }
+
+        nav :global(a) {
+          min-height: 36px;
+          padding: 0 12px;
+          border-radius: 999px;
+          border: 1px solid transparent;
+          color: #334a71;
+          font-size: 13px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        nav :global(a:hover) {
+          background: rgba(145, 168, 203, 0.18);
+          border-color: rgba(80, 104, 142, 0.28);
         }
 
         .hero {
-          padding: 20px;
+          padding: 22px;
           display: grid;
-          gap: 8px;
+          gap: 10px;
         }
 
         .eyebrow {
           margin: 0;
+          color: #6d7f9e;
           font-size: 12px;
-          font-weight: 700;
+          letter-spacing: 0.13em;
           text-transform: uppercase;
-          letter-spacing: 0.12em;
-          color: #4a6898;
+          font-weight: 700;
+        }
+
+        h1,
+        h2,
+        h3 {
+          margin: 0;
+          letter-spacing: -0.02em;
+          color: #18263f;
         }
 
         h1,
         h2 {
-          margin: 0;
           font-family: 'Prata', Georgia, serif;
-          color: #102142;
-          letter-spacing: -0.02em;
         }
 
         h1 {
-          font-size: clamp(32px, 5vw, 54px);
-          line-height: 1.02;
+          font-size: clamp(38px, 5.4vw, 74px);
+          line-height: 0.95;
+          max-width: 980px;
         }
 
-        .hero p:last-child {
-          margin: 2px 0 0;
-          color: #4f6180;
-          font-size: 17px;
+        .lead {
+          margin: 0;
+          color: var(--ink-soft);
+          font-size: 18px;
           line-height: 1.45;
-          max-width: 760px;
+          max-width: 860px;
         }
 
-        .postsGrid {
+        .featured {
+          padding: 12px;
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        }
+
+        .featuredMedia {
+          min-height: 330px;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid rgba(90, 111, 146, 0.26);
+          position: relative;
+          background: #ecf2fb;
+        }
+
+        .featuredMedia :global(img),
+        .postImageWrap :global(img) {
+          object-fit: cover;
+        }
+
+        .featuredCopy {
+          border-radius: 12px;
+          border: 1px solid rgba(89, 111, 146, 0.2);
+          background: rgba(249, 253, 255, 0.82);
+          padding: 16px;
+          display: grid;
+          align-content: center;
+          gap: 8px;
+        }
+
+        h2 {
+          font-size: clamp(34px, 3.8vw, 50px);
+          line-height: 0.98;
+        }
+
+        .featuredCopy p,
+        .postCard p {
+          margin: 0;
+          color: #52607a;
+          font-size: 14px;
+          line-height: 1.46;
+        }
+
+        .meta {
+          margin: 0;
+          color: #6b7ea0;
+          font-size: 11px;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+          font-weight: 700;
+        }
+
+        .postGrid {
+          display: grid;
           gap: 10px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .postCard {
@@ -163,124 +351,176 @@ export default function BlogPage() {
         }
 
         .postImageWrap {
+          min-height: 170px;
           border-radius: 10px;
-          border: 1px solid #d6e1f0;
-          position: relative;
           overflow: hidden;
-          min-height: 180px;
+          border: 1px solid rgba(93, 115, 150, 0.24);
+          position: relative;
+          background: #ecf2fb;
         }
 
-        .postImageWrap :global(img) {
-          object-fit: cover;
-        }
-
-        .meta {
-          margin: 0;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #5e759b;
-          font-weight: 700;
-        }
-
-        h2 {
+        h3 {
           font-size: 30px;
           line-height: 1.02;
         }
 
-        .postCard p {
-          margin: 0;
-          color: #4b6187;
-          font-size: 15px;
-          line-height: 1.45;
-        }
-
-        .postLink {
-          text-decoration: none;
-          color: #1f4f89;
+        .inlineLink {
+          width: fit-content;
+          color: #24406f;
           font-size: 14px;
           font-weight: 700;
-          width: fit-content;
         }
 
-        .ctaBand {
-          padding: 18px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          flex-wrap: wrap;
-          background: linear-gradient(135deg, #132a4c 0%, #1b3f6d 100%);
-          border-color: #24497a;
-        }
-
-        .ctaBand .eyebrow {
-          color: #afcfee;
-        }
-
-        .ctaBand h2 {
-          color: #f0f7ff;
-          font-size: clamp(27px, 3vw, 39px);
-        }
-
-        .ctaBand p {
-          margin: 8px 0 0;
-          color: #c7dcf5;
-          font-size: 15px;
-          line-height: 1.45;
-        }
-
-        .actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
+        .inlineLink:hover {
+          color: #1d345a;
+          text-decoration: underline;
+          text-decoration-color: rgba(36, 64, 111, 0.45);
+          text-decoration-thickness: 2px;
         }
 
         .btn {
           min-height: 42px;
-          border-radius: 10px;
-          padding: 0 14px;
-          text-decoration: none;
+          border-radius: 999px;
+          padding: 0 15px;
           border: 1px solid transparent;
-          font-size: 14px;
-          font-weight: 700;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          transition: transform 0.16s ease;
+        }
+
+        .btn:hover {
+          transform: translateY(-1px);
         }
 
         .btnPrimary {
-          background: #f4f8ff;
-          border-color: #f4f8ff;
-          color: #153362;
+          background: linear-gradient(122deg, #ba692a 0%, #a95a21 100%);
+          color: #fff9f2;
+          border-color: rgba(156, 84, 34, 0.35);
+          box-shadow: 0 8px 20px rgba(169, 90, 33, 0.24);
         }
 
-        .btnSecondary {
-          background: transparent;
-          border-color: #89abd4;
-          color: #ecf5ff;
+        .btnGhost {
+          border-color: rgba(81, 103, 138, 0.32);
+          color: #253d65;
+          background: rgba(234, 242, 251, 0.72);
         }
 
-        @media (max-width: 980px) {
-          .postsGrid {
+        .ctaBand {
+          padding: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+          background:
+            radial-gradient(circle at 18% 14%, rgba(227, 193, 157, 0.44) 0%, transparent 36%),
+            linear-gradient(130deg, #f6ece0 0%, #f0dfcf 100%);
+        }
+
+        .ctaBand h2 {
+          font-size: clamp(34px, 3.7vw, 50px);
+          max-width: 760px;
+        }
+
+        .ctaBand p {
+          margin: 6px 0 0;
+          color: #56627c;
+          font-size: 15px;
+        }
+
+        .actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .reveal {
+          opacity: 0;
+          transform: translateY(16px);
+          animation: revealUp 0.55s ease forwards;
+        }
+
+        .delay1 {
+          animation-delay: 0.07s;
+        }
+
+        .delay2 {
+          animation-delay: 0.14s;
+        }
+
+        .delay3 {
+          animation-delay: 0.21s;
+        }
+
+        .delay4 {
+          animation-delay: 0.28s;
+        }
+
+        @keyframes revealUp {
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (max-width: 1080px) {
+          .featured,
+          .postGrid {
             grid-template-columns: 1fr;
           }
         }
 
         @media (max-width: 760px) {
           .blogPage {
-            padding: 12px 10px 24px;
+            padding: 10px;
           }
 
+          .topBar,
           .hero,
+          .featured,
           .postCard,
           .ctaBand {
             padding: 14px;
+            border-radius: 14px;
           }
 
-          .hero p:last-child,
-          .postCard p {
-            font-size: 14px;
+          .topBar {
+            position: static;
+          }
+
+          .brand {
+            font-size: 24px;
+          }
+
+          h1 {
+            font-size: clamp(34px, 10vw, 52px);
+          }
+
+          h2 {
+            font-size: clamp(30px, 8vw, 42px);
+          }
+
+          h3 {
+            font-size: 27px;
+          }
+
+          .lead {
+            font-size: 16px;
+          }
+
+          .actions,
+          .actions .btn,
+          .btn {
+            width: 100%;
+          }
+
+          .featuredMedia {
+            min-height: 260px;
           }
         }
       `}</style>

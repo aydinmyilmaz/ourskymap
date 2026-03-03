@@ -4,8 +4,8 @@ import { buildLocalFontFaceCss } from '../lib/local-font-assets';
 const LOCAL_FONT_FACE_CSS = buildLocalFontFaceCss();
 
 export const metadata: Metadata = {
-  title: 'MementoGifts',
-  description: 'MementoGifts personalized design studio for star maps, city maps, soundwave, vinyl, and image products.',
+  title: 'OurSkyMap',
+  description: 'Create personalized star maps from meaningful dates and locations, then download print-ready files instantly.',
   icons: {
     icon: '/logo_ourskymap_round.png',
     shortcut: '/logo_ourskymap_round.png',

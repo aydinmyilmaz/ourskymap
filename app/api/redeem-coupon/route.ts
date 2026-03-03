@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { renderPosterSvg } from '../../../lib/poster';
 import type { CheckoutDraft } from '../../../lib/checkout';
-import { renderCityMapSvg, type CityMapRequest } from '../../../lib/citymap';
-import { renderVinylPosterSvg } from '../../../lib/vinyl';
-import { renderSoundwavePosterSvg } from '../../../lib/soundwave';
 import { LOCAL_FONT_ASSETS } from '../../../lib/local-font-assets';
-import type { PosterRequest, VinylRequest, SoundwaveRequest } from '../../../lib/types';
+import type { PosterRequest } from '../../../lib/types';
 import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 import JSZip from 'jszip';
 import sharp from 'sharp';
@@ -44,8 +41,6 @@ function isSimulationCoupon(orderCode: string): boolean {
 
 const MOON_ASSET_PATH_REGEX = /\/(?:moon_(?:gold|silver)\.png|moon-phases\/(?:gold|silver)\/(?:[1-9]|[12]\d|30)\.png)/g;
 const SAFE_MOON_ASSET_REL_PATH_REGEX = /^(?:moon_(?:gold|silver)\.png|moon-phases\/(?:gold|silver)\/(?:[1-9]|[12]\d|30)\.png)$/;
-const VINYL_ASSET_PATH_REGEX = /\/vinyl\/(?:backgrounds|labels)\/[a-zA-Z0-9._-]+\.(?:png|jpe?g|webp)/g;
-const SAFE_VINYL_ASSET_REL_PATH_REGEX = /^vinyl\/(?:backgrounds|labels)\/[a-zA-Z0-9._-]+\.(?:png|jpe?g|webp)$/i;
 
 function replaceAssetUrlRefs(svg: string, assetPath: string, replacement: string): string {
   return svg
@@ -82,7 +77,6 @@ function withAbsoluteMoonUrls(svg: string, req: Request): string {
 }
 
 const moonDataUriCache: Record<string, string | null> = {};
-const vinylDataUriCache: Record<string, string | null> = {};
 const publicAssetBytesCache: Record<string, Buffer | null> = {};
 
 async function loadPublicAssetBytes(relPath: string, req: Request): Promise<Buffer | null> {
@@ -125,52 +119,6 @@ async function withEmbeddedMoonUrls(svg: string, req: Request): Promise<string> 
   let result = svg;
   for (const assetPath of listMoonAssetPaths(svg)) {
     const dataUri = await getMoonImageDataUri(assetPath, req);
-    if (!dataUri) continue;
-    result = replaceAssetUrlRefs(result, assetPath, dataUri);
-  }
-  return result;
-}
-
-function listVinylAssetPaths(svg: string): string[] {
-  return [...new Set(svg.match(VINYL_ASSET_PATH_REGEX) ?? [])];
-}
-
-function withAbsoluteVinylUrls(svg: string, req: Request): string {
-  const base = resolveAssetBaseUrl(req);
-  let result = svg;
-  for (const assetPath of listVinylAssetPaths(svg)) {
-    const abs = `${base}${assetPath}`;
-    result = replaceAssetUrlRefs(result, assetPath, abs);
-  }
-  return result;
-}
-
-function inferImageMime(relPath: string): string {
-  if (relPath.endsWith('.png')) return 'image/png';
-  if (relPath.endsWith('.webp')) return 'image/webp';
-  return 'image/jpeg';
-}
-
-async function getVinylImageDataUri(assetPath: string, req: Request): Promise<string | null> {
-  const relPath = assetPath.replace(/^\/+/, '');
-  if (!SAFE_VINYL_ASSET_REL_PATH_REGEX.test(relPath)) return null;
-  const cacheKey = relPath.toLowerCase();
-  if (Object.prototype.hasOwnProperty.call(vinylDataUriCache, cacheKey)) return vinylDataUriCache[cacheKey];
-  const mime = inferImageMime(relPath.toLowerCase());
-  const raw = await loadPublicAssetBytes(relPath, req);
-  if (!raw) {
-    vinylDataUriCache[cacheKey] = null;
-    return null;
-  }
-  const dataUri = `data:${mime};base64,${raw.toString('base64')}`;
-  vinylDataUriCache[cacheKey] = dataUri;
-  return dataUri;
-}
-
-async function withEmbeddedVinylUrls(svg: string, req: Request): Promise<string> {
-  let result = svg;
-  for (const assetPath of listVinylAssetPaths(svg)) {
-    const dataUri = await getVinylImageDataUri(assetPath, req);
     if (!dataUri) continue;
     result = replaceAssetUrlRefs(result, assetPath, dataUri);
   }
@@ -420,6 +368,15 @@ export async function POST(req: Request) {
     if (!draft?.renderRequest || !draft?.previewSvg || !draft?.mapData) {
       return NextResponse.json({ success: false, message: 'Missing map data. Please return to designer.' }, { status: 400 });
     }
+    if (draft.productType && draft.productType !== 'sky') {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Unsupported draft productType "${draft.productType}". This checkout accepts sky maps only.`
+        },
+        { status: 400 }
+      );
+    }
 
     const supabase = getSupabaseAdminClient();
 
@@ -478,26 +435,11 @@ export async function POST(req: Request) {
       console.info(`[coupon] simulation rerender enabled for completed order ${couponCode}`);
     }
 
-    const isCityDraft = draft.productType === 'city';
-    const isVinylDraft = draft.productType === 'vinyl';
-    const isSoundwaveDraft = draft.productType === 'soundwave';
     let svg = '';
     try {
-      if (isCityDraft) {
-        svg = await renderCityMapSvg(draft.renderRequest as CityMapRequest);
-      } else if (isVinylDraft) {
-        svg = renderVinylPosterSvg(draft.renderRequest as VinylRequest);
-      } else if (isSoundwaveDraft) {
-        svg = renderSoundwavePosterSvg(draft.renderRequest as SoundwaveRequest);
-      } else {
-        svg = renderPosterSvg(draft.renderRequest as PosterRequest);
-      }
+      svg = renderPosterSvg(draft.renderRequest as PosterRequest);
     } catch {
-      if (isCityDraft || isVinylDraft || isSoundwaveDraft) {
-        svg = draft.previewSvg;
-      } else {
-        throw new Error('Could not regenerate sky map for export. Please return to designer and try again.');
-      }
+      throw new Error('Could not regenerate sky map for export. Please return to designer and try again.');
     }
 
     if (!svg.trim().startsWith('<')) {
@@ -506,13 +448,8 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-    if (isVinylDraft) {
-      const embeddedVinylSvg = await withEmbeddedVinylUrls(svg, req);
-      svg = embeddedVinylSvg !== svg ? embeddedVinylSvg : withAbsoluteVinylUrls(svg, req);
-    } else if (!isCityDraft && !isSoundwaveDraft) {
-      const embeddedMoonSvg = await withEmbeddedMoonUrls(svg, req);
-      svg = embeddedMoonSvg !== svg ? embeddedMoonSvg : withAbsoluteMoonUrls(svg, req);
-    }
+    const embeddedMoonSvg = await withEmbeddedMoonUrls(svg, req);
+    svg = embeddedMoonSvg !== svg ? embeddedMoonSvg : withAbsoluteMoonUrls(svg, req);
 
     const embeddedFontsCss = await getEmbeddedPosterFontsCss(req);
     if (embeddedFontsCss) {
@@ -532,7 +469,7 @@ export async function POST(req: Request) {
         svg: exportSvg,
         svgWidth: exportSvgW,
         svgHeight: exportSvgH,
-        allowSharpFallback: isCityDraft || isVinylDraft || isSoundwaveDraft
+        allowSharpFallback: false
       });
       if (remoteRender) {
         png = remoteRender.png;
@@ -547,7 +484,7 @@ export async function POST(req: Request) {
         png = await renderSvgToPng(exportSvg, {
           svgWidth: exportSvgW,
           svgHeight: exportSvgH,
-          allowSharpFallback: isCityDraft || isVinylDraft || isSoundwaveDraft
+          allowSharpFallback: false
         });
         pdf = await makePdfFromPng(png, exportSvgW, exportSvgH);
       }
@@ -555,13 +492,13 @@ export async function POST(req: Request) {
       png = await renderSvgToPng(exportSvg, {
         svgWidth: exportSvgW,
         svgHeight: exportSvgH,
-        allowSharpFallback: isCityDraft || isVinylDraft || isSoundwaveDraft
+        allowSharpFallback: false
       });
       pdf = await makePdfFromPng(png, exportSvgW, exportSvgH);
     }
 
     const zip = new JSZip();
-    const filePrefix = isCityDraft ? 'citymap' : isVinylDraft ? 'vinylstudio' : isSoundwaveDraft ? 'soundwave' : 'ourskymap';
+    const filePrefix = 'ourskymap';
     zip.file(`${filePrefix}-${safeCode}.svg`, exportSvg);
     zip.file(`${filePrefix}-${safeCode}.png`, png);
     zip.file(`${filePrefix}-${safeCode}.pdf`, pdf);

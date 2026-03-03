@@ -1,6 +1,6 @@
-# MementoGifts
+# OurSkyMap
 
-Next.js app for personalized gift products, including star maps, city maps, soundwave, vinyl, and image-based designs.
+Standalone Next.js app for personalized star map products and related checkout/download flows.
 
 ## Dev
 

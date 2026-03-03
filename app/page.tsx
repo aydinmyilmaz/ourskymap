@@ -1,385 +1,267 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
+import FallbackImage from '../components/FallbackImage';
 
 const NAV_LINKS = [
-  { href: '/ourskymap', label: 'StarMap' },
-  { href: '/citymap', label: 'CityMap' },
-  { href: '/soundwave', label: 'Soundwave' },
-  { href: '/vinyl', label: 'Vinyl' },
-  { href: '/image', label: 'T-Shirt Design' },
-  { href: '/mockup', label: 'Mockup Studio' },
-  { href: '/pricing', label: 'Pricing' },
+  { href: '/#what-is-star-map', label: 'What is Star Map?' },
+  { href: '/#faq', label: 'FAQ' },
   { href: '/blog', label: 'Blog' },
-  { href: '/faq', label: 'FAQ' },
   { href: '/contact', label: 'Contact' }
 ] as const;
 
-const HERO_POINTS = [
-  'Astronomically accurate sky rendering for meaningful dates',
-  'Detailed city cartography with print-ready layout controls',
-  'Unified checkout and instant export delivery (SVG, PNG, PDF)',
-  'Image Studio for T-shirt and poster composition workflows'
-] as const;
-
-const STATS = [
-  { value: '130K+', label: 'Designs generated' },
-  { value: '190+', label: 'Countries served' },
-  { value: '4.9/5', label: 'Average customer rating' },
-  { value: '< 3 min', label: 'Typical design-to-download time' }
-] as const;
-
-const PRODUCTS = [
+const VALUE_POINTS = [
   {
-    href: '/ourskymap',
-    title: 'StarMap',
-    tag: 'Signature Product',
-    description: 'Create memory-driven star maps with elegant typography, moon phases, and premium print proportions.',
-    image: '/home/product-starmap.jpg',
-    cta: 'Start StarMap'
+    title: 'Astronomy-Based Rendering',
+    text: 'Each map is generated from real location and time data, not a decorative template.'
   },
   {
-    href: '/citymap',
-    title: 'CityMap',
-    tag: 'Location Poster',
-    description: 'Design clean, modern city posters with curated map themes, text styles, and frame-ready compositions.',
-    image: '/home/product-citymap.jpg',
-    cta: 'Start City Map'
+    title: 'Luxury Poster Composition',
+    text: 'Refined spacing, typography hierarchy, and moon styling built for elegant print output.'
   },
   {
-    href: '/soundwave',
-    title: 'Soundwave',
-    tag: 'Audio Story',
-    description: 'Turn songs, voice notes, and moments into custom waveform art with QR and picture integrations.',
-    image: '/home/product-soundwave.jpg',
-    cta: 'Create Soundwave'
+    title: 'Meaningful Personalization',
+    text: 'Title, names, place, and date lines transform a sky chart into a personal story object.'
   },
   {
-    href: '/vinyl',
-    title: 'Vinyl Studio',
-    tag: 'Music Collectible',
-    description: 'Design vinyl-inspired posters with curated gradients, labels, and premium visual treatments.',
-    image: '/home/product-vinyl2.jpeg',
-    cta: 'Open Vinyl Studio'
-  },
-  {
-    href: '/image',
-    title: 'Image Studio',
-    tag: 'T-Shirt Design',
-    description: 'Build custom T-shirt compositions with multi-layer photo editing, text effects, and print-area controls.',
-    image: '/home/product-image-studio.jpg',
-    cta: 'Open Image Studio'
-  },
-  {
-    href: '/mockup',
-    title: 'Mockup Studio',
-    tag: 'AI Mockup',
-    description: 'Generate product mockups from your design + prompt with optional background input and placement control.',
-    image: '/home/product-image-studio.jpg',
-    cta: 'Open Mockup Studio'
+    title: 'Instant Download Workflow',
+    text: 'Preview live, checkout once, and receive export-ready files within minutes.'
   }
 ] as const;
 
-const WORKFLOW = [
+const PROCESS_STEPS = [
   {
     step: '01',
-    title: 'Pick Your Product',
-    body: 'Select sky map, city map, soundwave, vinyl, or image workflow based on your story and product target.'
+    title: 'Enter your moment',
+    text: 'Choose city, date, and optional time for the memory you want to preserve.'
   },
   {
     step: '02',
-    title: 'Customize Live',
-    body: 'Tune typography, color palette, composition, map style, and metadata with live visual feedback.'
+    title: 'Shape the design',
+    text: 'Adjust background, typography, moon behavior, and content alignment.'
   },
   {
     step: '03',
-    title: 'Checkout & Export',
-    body: 'Complete checkout once and instantly download production-ready files for digital or print use.'
+    title: 'Download and gift',
+    text: 'Get print-friendly files and deliver a keepsake with emotional impact.'
   }
 ] as const;
 
-const PRICING = [
+const OCCASIONS = [
+  'Wedding Day',
+  'Anniversary',
+  'First Date',
+  'New Baby',
+  'Proposal Night',
+  'Memorial Tribute'
+] as const;
+
+const TESTIMONIALS = [
   {
-    name: 'Starter',
-    price: '$19',
-    note: '50 designs per day',
-    highlighted: false,
-    features: ['Single product export', 'PNG + PDF output', 'Standard print ratio support', 'Personal usage license'],
-    href: '/pricing',
-    cta: 'See Starter'
+    quote:
+      'We gave it as an anniversary gift and it felt far more personal than anything store-bought.',
+    author: 'Selin & Marco'
   },
   {
-    name: 'Professional',
-    price: '$39',
-    note: '200 designs per day',
-    highlighted: true,
-    features: ['All export formats (SVG/PNG/PDF)', 'Advanced style controls', 'Priority render queue', 'Commercial-ready outputs'],
-    href: '/pricing',
-    cta: 'See Professional'
+    quote:
+      'The editor is clear, the output quality is high, and the final result looks premium on the wall.',
+    author: 'Danielle'
   },
   {
-    name: 'Studio Bundle',
-    price: '$89',
-    note: '500 designs per day',
-    highlighted: false,
-    features: ['Multi-product access', 'Premium templates', 'Commercial usage option'],
-    href: '/pricing',
-    cta: 'See Bundle'
-  },
-  {
-    name: 'Commercial',
-    price: 'Custom',
-    note: '1000+ designs per day',
-    highlighted: false,
-    features: ['Dedicated commercial license', 'Enterprise render capacity', 'Priority SLA support'],
-    href: '/contact',
-    cta: 'Contact Commercial'
+    quote:
+      'I used our baby’s birth moment and the reaction from family was unforgettable.',
+    author: 'Liam Family'
   }
 ] as const;
 
 const FAQ_PREVIEW = [
   {
-    q: 'How accurate are sky and map renders?',
-    a: 'Our engine computes location and time-based astronomical/map data and outputs poster-ready vectors.'
+    q: 'Are your sky maps astronomically accurate?',
+    a: 'Yes. We calculate star positions from date, time, and coordinates for the selected moment.'
   },
   {
-    q: 'Can I export files for print shops?',
-    a: 'Yes. Exports are prepared for high-resolution print workflows in PNG, PDF, and SVG formats.'
+    q: 'Can I create a map without exact time?',
+    a: 'Yes. Location and date are enough to start. Exact time improves precision.'
   },
   {
-    q: 'Can I continue editing after checkout?',
-    a: 'Yes. Your design draft can be resumed and updated before creating a new export.'
+    q: 'Can I design for future dates?',
+    a: 'Yes. Future milestones like weddings and planned celebrations are fully supported.'
+  },
+  {
+    q: 'What do I receive after checkout?',
+    a: 'You receive high-resolution files optimized for both digital delivery and print production.'
   }
 ] as const;
 
 const BLOG_PREVIEW = [
   {
-    href: '/blog',
-    title: 'How to Design Gift-Ready Star Map Posters',
-    category: 'Guides',
-    date: 'Jan 2026',
-    image: '/home/product-vinyl2.jpeg'
+    title: 'How We Reconstruct Historical Night Skies',
+    category: 'Astronomy',
+    date: 'March 2026',
+    image: '/home-media/blog-historical-skies.jpg'
   },
   {
-    href: '/blog',
-    title: 'City Poster Typography Systems That Actually Print Well',
-    category: 'Design Ops',
-    date: 'Dec 2025',
-    image: '/home/product-citymap.jpg'
+    title: 'Typography Systems for Elegant Star Map Posters',
+    category: 'Design',
+    date: 'February 2026',
+    image: '/home-media/blog-typography-principles.jpg'
   },
   {
-    href: '/blog',
-    title: 'From Song to Wall Art: Building Better Soundwave Products',
-    category: 'Product',
-    date: 'Nov 2025',
-    image: '/home/product-soundwave.jpg'
-  }
-] as const;
-
-const FOOTER_COLUMNS = [
-  {
-    title: 'Products',
-    links: [
-      { href: '/ourskymap', label: 'StarMap' },
-      { href: '/citymap', label: 'CityMap' },
-      { href: '/soundwave', label: 'Soundwave' },
-      { href: '/vinyl', label: 'Vinyl Studio' },
-      { href: '/image', label: 'Image Studio' },
-      { href: '/mockup', label: 'Mockup Studio' }
-    ]
-  },
-  {
-    title: 'Resources',
-    links: [
-      { href: '/pricing', label: 'Pricing' },
-      { href: '/faq', label: 'FAQ' },
-      { href: '/blog', label: 'Blog' },
-      { href: '/what-is-star-map', label: 'What is StarMap?' }
-    ]
-  },
-  {
-    title: 'Company',
-    links: [
-      { href: '/contact', label: 'Contact' },
-      { href: '/checkout', label: 'Checkout' },
-      { href: '/download', label: 'Downloads' },
-      { href: '/design', label: 'Legacy Design Redirect' }
-    ]
+    title: 'Color Pairings for White and Dark Sky Themes',
+    category: 'Styling',
+    date: 'January 2026',
+    image: '/home-media/blog-color-palettes.jpg'
   }
 ] as const;
 
 export default function HomePage() {
   return (
-    <main className="homeRoot">
-      <div className="aura auraOne" aria-hidden="true" />
-      <div className="aura auraTwo" aria-hidden="true" />
+    <main className="landing">
+      <div className="ambient ambientOne" aria-hidden="true" />
+      <div className="ambient ambientTwo" aria-hidden="true" />
 
       <div className="shell">
-        <section className="promoBar" aria-label="Service highlights">
-          <p>Trusted by makers, gift shops, and design studios worldwide.</p>
-          <p>Instant exports. Clear licensing. Print-first workflows.</p>
-        </section>
-
-        <header className="topNav">
-          <Link href="/" className="brandLockup" aria-label="MEMENTOGIFTS home">
-            <span className="brandLogo" aria-hidden="true">
-              <span className="brandLogoCore" />
-              <span className="brandLogoDot" />
-            </span>
-            <span className="brandText" lang="en">
-              MEMENTOGIFTS
-            </span>
-          </Link>
-          <nav className="navLinks" aria-label="Main navigation">
+        <header className="topBar reveal">
+          <nav className="menu" aria-label="Main navigation">
             {NAV_LINKS.map((item) => (
               <Link key={item.href} href={item.href}>
                 {item.label}
               </Link>
             ))}
           </nav>
+          <Link href="/ourskymap" className="btn btnPrimary">
+            Start Designing
+          </Link>
         </header>
 
-        <section className="hero">
+        <section className="hero reveal delay1">
           <div className="heroCopy">
-            <p className="eyebrow brandEyebrow" lang="en">
-              MEMENTOGIFTS PLATFORM
-            </p>
-            <h1>Build Meaningful Gift Products with Studio Precision</h1>
+            <p className="eyebrow">PERSONALIZED CELESTIAL PRINTS</p>
+            <h1>Your memory, mapped in starlight.</h1>
+            <p className="signature">For the night that changed everything.</p>
             <p className="lead">
-              Create sky maps, city maps, soundwave art, and vinyl concepts in one unified platform. Designed for premium visual
-              quality and production-ready delivery.
+              Build a custom star map from a meaningful place and date, then style it into a timeless gift that feels personal,
+              modern, and frame-ready.
             </p>
-            <ul className="heroPoints">
-              {HERO_POINTS.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
+            <div className="actions">
+              <Link href="/ourskymap" className="btn btnPrimary">
+                Create Your Star Map
+              </Link>
+              <Link href="/what-is-star-map" className="btn btnGhost">
+                Explore How It Works
+              </Link>
+            </div>
+            <div className="proofRow" aria-label="Trust indicators">
+              <p><strong>Instant export</strong> after checkout</p>
+              <p><strong>Print-first layout</strong> quality</p>
+              <p><strong>Designed for gifting</strong> moments</p>
+            </div>
           </div>
 
           <div className="heroVisual" aria-hidden="true">
-            <article className="heroCard heroCardMain">
-              <Image src="/home/product-starmap.jpg" alt="Star map poster mockup" fill sizes="(max-width: 960px) 100vw, 34vw" />
-              <span>Sky</span>
-            </article>
-            <article className="heroCard heroCardOffset">
-              <Image src="/home/product-citymap.jpg" alt="City map poster mockup" fill sizes="(max-width: 960px) 100vw, 26vw" />
-              <span>City</span>
-            </article>
-            <article className="heroCard heroCardMini">
-              <Image src="/home/product-soundwave.jpg" alt="Soundwave poster mockup" fill sizes="(max-width: 960px) 100vw, 20vw" />
-              <span>Studio</span>
-            </article>
+            <div className="heroFrame mainFrame">
+              <FallbackImage src="/home-media/hero-star-map.jpg" alt="Star map hero preview" fill sizes="(max-width: 980px) 100vw, 42vw" priority />
+            </div>
+            <div className="heroFrame detailFrame">
+              <FallbackImage src="/home-media/hero-detail.jpg" alt="Star map close detail" fill sizes="(max-width: 980px) 42vw, 20vw" />
+            </div>
+            <p className="heroBadge">Astronomy data + editorial layout</p>
           </div>
         </section>
 
-        <section className="stats" aria-label="Platform metrics">
-          {STATS.map((stat) => (
-            <article key={stat.label} className="statCard">
-              <p className="statValue">{stat.value}</p>
-              <p className="statLabel">{stat.label}</p>
-            </article>
-          ))}
-        </section>
-
-        <section className="sectionBlock" aria-label="Product workflows">
+        <section id="what-is-star-map" className="panel reveal delay2">
           <div className="sectionHead">
-            <p className="sectionTag">Products</p>
-            <h2>Choose Your Workflow</h2>
+            <p className="eyebrow">WHAT IS STAR MAP?</p>
+            <h2>A visual keepsake of the exact sky above your chosen moment.</h2>
           </div>
+          <p className="sectionLead">
+            OurSkyMap turns celestial data into a design object. It combines real sky positioning with premium typography and
+            flexible styling controls, so the final poster feels both accurate and emotional.
+          </p>
 
-          <div className="productsGrid">
-            {PRODUCTS.map((product) => (
-              <article key={product.href} className="productCard">
-                <div className="productImageWrap">
-                  <Image src={product.image} alt={product.title} fill sizes="(max-width: 960px) 100vw, 24vw" />
-                </div>
-                <p className="cardTag">{product.tag}</p>
-                <h3>{product.title}</h3>
-                <p>{product.description}</p>
-                <Link href={product.href} className="cardLink">
-                  {product.cta}
-                </Link>
+          <div className="valueGrid">
+            {VALUE_POINTS.map((item) => (
+              <article key={item.title} className="valueCard">
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="sectionBlock workflowBlock" aria-label="How it works">
+        <section className="panel reveal delay3">
           <div className="sectionHead">
-            <p className="sectionTag">Workflow</p>
-            <h2>Production-Ready From First Click</h2>
+            <p className="eyebrow">HOW IT WORKS</p>
+            <h2>From special date to finished wall art in three steps.</h2>
           </div>
+          <div className="processGrid">
+            {PROCESS_STEPS.map((item) => (
+              <article key={item.step} className="processCard">
+                <p className="stepNo">Step {item.step}</p>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
 
-          <div className="workflowGrid">
-            <div className="workflowImageWrap">
-              <Image src="/home/product-soundwave.jpg" alt="Soundwave design workflow mockup" fill sizes="(max-width: 960px) 100vw, 34vw" />
+        <section className="dualBlock reveal delay4">
+          <article className="panel occasionsPanel">
+            <div className="sectionHead compact">
+              <p className="eyebrow">POPULAR OCCASIONS</p>
+              <h2>Built for gifts with emotional context.</h2>
             </div>
-            <div className="workflowSteps">
-              {WORKFLOW.map((step) => (
-                <article className="stepCard" key={step.step}>
-                  <p className="stepNo">{step.step}</p>
-                  <h4>{step.title}</h4>
-                  <p>{step.body}</p>
-                </article>
+            <div className="occasionWrap">
+              {OCCASIONS.map((occasion) => (
+                <span key={occasion}>{occasion}</span>
               ))}
             </div>
-          </div>
-        </section>
+          </article>
 
-        <section id="pricing" className="sectionBlock pricingBlock" aria-label="Pricing overview">
-          <div className="sectionHead">
-            <p className="sectionTag">Pricing</p>
-            <h2>Flexible Plans for Individuals and Teams</h2>
-          </div>
-
-          <div className="pricingGrid">
-            {PRICING.map((plan) => (
-              <article key={plan.name} className={plan.highlighted ? 'pricingCard pricingCardFeatured' : 'pricingCard'}>
-                <p className="planName">{plan.name}</p>
-                <p className="planPrice">{plan.price}</p>
-                <p className="planNote">{plan.note}</p>
-                <ul>
-                  {plan.features.map((feature) => (
-                    <li key={feature}>{feature}</li>
-                  ))}
-                </ul>
-                <Link href={plan.href} className="btn btnPricing">
-                  {plan.cta}
-                </Link>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section id="faq" className="sectionBlock faqBlock" aria-label="Frequently asked questions">
-          <div className="sectionHeadRow">
-            <div className="sectionHead">
-              <p className="sectionTag">FAQ</p>
-              <h2>Answers Before You Start</h2>
+          <article className="panel testimonialPanel">
+            <div className="sectionHead compact">
+              <p className="eyebrow">CUSTOMER NOTES</p>
+              <h2>Why people choose this over generic gifts.</h2>
             </div>
-            <Link href="/faq" className="ghostLink">
-              View full FAQ
+            <div className="testimonialList">
+              {TESTIMONIALS.map((item) => (
+                <blockquote key={item.author}>
+                  <p>{item.quote}</p>
+                  <cite>{item.author}</cite>
+                </blockquote>
+              ))}
+            </div>
+          </article>
+        </section>
+
+        <section id="faq" className="panel reveal delay5">
+          <div className="sectionHead rowHead">
+            <div>
+              <p className="eyebrow">FAQ</p>
+              <h2>Questions before you start.</h2>
+            </div>
+            <Link href="/faq" className="linkPill">
+              Open full FAQ
             </Link>
           </div>
 
           <div className="faqGrid">
             {FAQ_PREVIEW.map((item) => (
               <article key={item.q} className="faqCard">
-                <h4>{item.q}</h4>
+                <h3>{item.q}</h3>
                 <p>{item.a}</p>
               </article>
             ))}
           </div>
         </section>
 
-        <section id="blog" className="sectionBlock blogBlock" aria-label="Latest blog insights">
-          <div className="sectionHeadRow">
-            <div className="sectionHead">
-              <p className="sectionTag">Blog</p>
-              <h2>Design, Product, and Growth Insights</h2>
+        <section className="panel reveal delay6">
+          <div className="sectionHead rowHead">
+            <div>
+              <p className="eyebrow">BLOG</p>
+              <h2>Fresh ideas from our celestial journal.</h2>
             </div>
-            <Link href="/blog" className="ghostLink">
+            <Link href="/blog" className="linkPill">
               Visit blog
             </Link>
           </div>
@@ -388,13 +270,13 @@ export default function HomePage() {
             {BLOG_PREVIEW.map((post) => (
               <article key={post.title} className="blogCard">
                 <div className="blogImageWrap">
-                  <Image src={post.image} alt={post.title} fill sizes="(max-width: 960px) 100vw, 22vw" />
+                  <FallbackImage src={post.image} alt={post.title} fill sizes="(max-width: 980px) 100vw, 30vw" />
                 </div>
                 <p className="meta">
-                  {post.category} • {post.date}
+                  {post.category} - {post.date}
                 </p>
-                <h4>{post.title}</h4>
-                <Link href={post.href} className="cardLink">
+                <h3>{post.title}</h3>
+                <Link href="/blog" className="inlineLink">
                   Read article
                 </Link>
               </article>
@@ -402,247 +284,149 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section id="contact" className="contactBand" aria-label="Contact call to action">
-          <div className="contactMedia" aria-hidden="true">
-            <Image src="/home/product-vinyl2.jpeg" alt="Vinyl poster mockup" fill sizes="(max-width: 960px) 100vw, 24vw" />
+        <section className="ctaBand reveal delay7">
+          <div>
+            <p className="eyebrow">READY TO BUILD YOURS?</p>
+            <h2>Start with one date, one place, one unforgettable sky.</h2>
+            <p>Create, personalize, and download your design in minutes.</p>
           </div>
-          <div className="contactCopy">
-            <p className="sectionTag">Contact</p>
-            <h2>Need a custom workflow for your store or campaign?</h2>
-            <p>
-              Talk to us about white-label setups, partner pricing, and product bundles tailored for your audience and fulfillment
-              model.
-            </p>
-            <div className="heroActions">
-              <Link href="/contact" className="btn btnPrimary">
-                Contact Sales
-              </Link>
-              <Link href="/pricing" className="btn btnSecondary">
-                Explore Pricing
-              </Link>
-            </div>
+          <div className="ctaActions">
+            <Link href="/ourskymap" className="btn btnPrimary">
+              Start Design
+            </Link>
+            <Link href="/contact" className="btn btnGhost">
+              Talk to Us
+            </Link>
           </div>
         </section>
 
-        <footer className="footer">
-          <div className="footerTop">
-            <div className="footerBrand">
-              <p className="footerLogo">MementoGifts</p>
-              <p>Digital-first poster platform for story-driven products and print-grade outputs.</p>
-            </div>
-            <div className="footerCols">
-              {FOOTER_COLUMNS.map((column) => (
-                <section key={column.title}>
-                  <p className="footerColTitle">{column.title}</p>
-                  <ul>
-                    {column.links.map((item) => (
-                      <li key={`${column.title}-${item.href}`}>
-                        <Link href={item.href}>{item.label}</Link>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          </div>
-
-          <div className="footerBottom">
-            <p>© {new Date().getFullYear()} MementoGifts. All rights reserved.</p>
-            <div>
-              <Link href="/faq">Support</Link>
-              <Link href="/contact">Contact</Link>
-            </div>
+        <footer className="footer reveal delay7">
+          <p>OurSkyMap</p>
+          <div>
+            <Link href="/what-is-star-map">What is Star Map?</Link>
+            <Link href="/faq">FAQ</Link>
+            <Link href="/blog">Blog</Link>
+            <Link href="/contact">Contact</Link>
           </div>
         </footer>
       </div>
 
       <style jsx>{`
-        .homeRoot {
-          --bg: #f0f4f8;
-          --surface: #ffffff;
-          --surface-soft: #f8fbff;
-          --border: #c5d1e4;
-          --text: #111d34;
-          --text-muted: #4f5f7f;
-          --ink: #172847;
-          --accent: #0f4f8a;
-          --accent-soft: #dbeeff;
+        .landing {
+          --bg: #f6f1e9;
+          --ink: #1a2842;
+          --ink-soft: #43506a;
+          --panel: rgba(255, 255, 255, 0.88);
+          --line: rgba(35, 56, 89, 0.15);
+          --accent: #bc6b2b;
+          --accent-soft: #f0d4b7;
           min-height: 100vh;
-          padding: 20px;
-          background:
-            radial-gradient(circle at 84% 10%, rgba(129, 188, 234, 0.23) 0%, transparent 40%),
-            radial-gradient(circle at 8% 7%, rgba(120, 150, 208, 0.26) 0%, transparent 33%),
-            linear-gradient(165deg, #eaf1f9 0%, #eff5fc 45%, #e3ebf6 100%);
-          color: var(--text);
-          font-family: 'Signika', ui-sans-serif, system-ui;
+          padding: 20px 14px 28px;
           position: relative;
           overflow-x: clip;
+          color: var(--ink);
+          font-family: 'Signika', ui-sans-serif, system-ui;
+          background:
+            radial-gradient(circle at 10% 0%, rgba(243, 214, 179, 0.42) 0%, transparent 34%),
+            radial-gradient(circle at 92% -4%, rgba(197, 214, 238, 0.48) 0%, transparent 28%),
+            linear-gradient(168deg, #f8f4ed 0%, #f4efe6 52%, #eee6db 100%);
         }
 
-        .aura {
+        .landing :global(a),
+        .landing :global(a:visited) {
+          color: var(--ink);
+          text-decoration: none;
+        }
+
+        .ambient {
           position: absolute;
           border-radius: 999px;
-          filter: blur(70px);
-          pointer-events: none;
+          filter: blur(90px);
           z-index: 0;
+          pointer-events: none;
         }
 
-        .auraOne {
-          width: 420px;
-          height: 420px;
-          left: -140px;
-          top: -80px;
-          background: rgba(127, 171, 236, 0.4);
+        .ambientOne {
+          width: 300px;
+          height: 300px;
+          left: -120px;
+          top: 140px;
+          background: rgba(188, 107, 43, 0.2);
         }
 
-        .auraTwo {
+        .ambientTwo {
           width: 360px;
           height: 360px;
-          right: -120px;
-          top: 280px;
-          background: rgba(95, 180, 191, 0.28);
+          right: -130px;
+          top: 560px;
+          background: rgba(90, 122, 173, 0.2);
         }
 
         .shell {
-          position: relative;
-          z-index: 1;
-          width: min(1260px, 100%);
+          width: min(1180px, 100%);
           margin: 0 auto;
           display: grid;
-          gap: 14px;
-        }
-
-        .promoBar {
-          border: 1px solid #c9d4e7;
-          border-radius: 14px;
-          background: linear-gradient(100deg, #e9f4ff 0%, #edf8f7 100%);
-          min-height: 44px;
-          padding: 8px 14px;
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px 16px;
-        }
-
-        .promoBar p {
-          margin: 0;
-          color: #1f355b;
-          font-size: 13px;
-          font-weight: 600;
-        }
-
-        .topNav {
-          min-height: 70px;
-          border-radius: 16px;
-          border: 1px solid var(--border);
-          background: rgba(255, 255, 255, 0.86);
-          backdrop-filter: blur(8px);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 10px 14px;
-          padding: 10px 16px;
-        }
-
-        .brandLockup {
-          min-height: 42px;
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          text-decoration: none;
-          border-radius: 999px;
-          padding: 4px 6px;
-        }
-
-        .brandLogo {
-          width: 34px;
-          height: 34px;
-          border-radius: 999px;
+          gap: 12px;
           position: relative;
-          border: 1px solid #a8bbd8;
-          background:
-            radial-gradient(circle at 28% 26%, #ffffff 0%, #eaf3ff 34%, rgba(234, 243, 255, 0) 50%),
-            linear-gradient(145deg, #182a4a 0%, #27487a 48%, #1a3359 100%);
-          box-shadow: 0 8px 18px rgba(18, 40, 74, 0.24);
-          display: inline-flex;
+          z-index: 1;
+        }
+
+        .topBar,
+        .panel,
+        .hero,
+        .ctaBand,
+        .footer {
+          border: 1px solid var(--line);
+          border-radius: 20px;
+          background: var(--panel);
+          backdrop-filter: blur(6px);
+        }
+
+        .topBar {
+          min-height: 72px;
+          padding: 10px 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          position: sticky;
+          top: 10px;
+          z-index: 30;
+        }
+
+        .menu {
+          display: flex;
           align-items: center;
           justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .brandLogo::before {
-          content: '';
-          position: absolute;
-          inset: 3px;
-          border-radius: 999px;
-          border: 1.5px solid rgba(211, 225, 247, 0.72);
-        }
-
-        .brandLogoCore {
-          width: 14px;
-          height: 14px;
-          border-radius: 999px;
-          border: 1px solid rgba(190, 213, 246, 0.9);
-          background: linear-gradient(145deg, #24497e 0%, #173055 100%);
-          box-shadow: inset 0 1px 2px rgba(240, 247, 255, 0.45);
-        }
-
-        .brandLogoDot {
-          position: absolute;
-          width: 4px;
-          height: 4px;
-          border-radius: 999px;
-          background: #f2f7ff;
-          top: 10px;
-          right: 9px;
-          box-shadow: 0 0 6px rgba(242, 247, 255, 0.8);
-        }
-
-        .brandText {
-          color: #183359;
-          font-size: 15px;
-          font-weight: 800;
-          letter-spacing: 0.12em;
-          line-height: 1;
-          white-space: nowrap;
-          text-transform: none;
-        }
-
-        .navLinks {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          flex-wrap: wrap;
           gap: 6px;
           flex: 1;
+          flex-wrap: wrap;
         }
 
-        .navLinks :global(a) {
-          text-decoration: none;
-          color: #2c4268;
-          padding: 7px 10px;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 600;
+        .menu :global(a) {
+          min-height: 38px;
+          padding: 0 13px;
+          border-radius: 999px;
           border: 1px solid transparent;
+          font-size: 13px;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: #2d3e61;
+          display: inline-flex;
+          align-items: center;
+          transition: background 0.2s ease, border-color 0.2s ease;
         }
 
-        .navLinks :global(a:hover) {
-          background: #eff5ff;
-          border-color: #d8e5fb;
+        .menu :global(a:hover) {
+          background: rgba(99, 126, 167, 0.1);
+          border-color: rgba(66, 95, 139, 0.22);
         }
 
         .hero {
-          border-radius: 22px;
-          border: 1px solid var(--border);
-          background: linear-gradient(145deg, #ffffff 0%, #f7fbff 100%);
-          box-shadow: 0 22px 58px rgba(16, 29, 56, 0.11);
           padding: 24px;
           display: grid;
-          grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-          gap: 18px;
+          gap: 16px;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
           align-items: stretch;
         }
 
@@ -655,45 +439,50 @@ export default function HomePage() {
         .eyebrow {
           margin: 0;
           font-size: 12px;
-          letter-spacing: 0.13em;
+          letter-spacing: 0.14em;
           text-transform: uppercase;
-          color: #365d8e;
           font-weight: 700;
+          color: #5d6f8e;
         }
 
-        .brandEyebrow {
-          text-transform: none;
+        h1,
+        h2,
+        h3 {
+          margin: 0;
+          color: #16233c;
+          letter-spacing: -0.02em;
+        }
+
+        h1,
+        h2 {
+          font-family: 'Prata', Georgia, serif;
         }
 
         h1 {
+          font-size: clamp(40px, 5.5vw, 72px);
+          line-height: 0.95;
+          max-width: 700px;
+        }
+
+        .signature {
           margin: 0;
-          font-family: 'Prata', Georgia, serif;
-          font-size: clamp(32px, 5vw, 62px);
-          line-height: 1.02;
-          letter-spacing: -0.02em;
-          color: #102040;
+          font-family: 'Allura', 'Great Vibes', cursive;
+          font-size: clamp(30px, 4.3vw, 48px);
+          color: #b7682a;
+          line-height: 1;
         }
 
         .lead {
           margin: 0;
-          font-size: 19px;
-          line-height: 1.46;
-          color: var(--text-muted);
-          max-width: 820px;
-        }
-
-        .heroPoints {
-          margin: 6px 0 0;
-          padding-left: 20px;
-          color: #2d456d;
-          display: grid;
-          gap: 6px;
-          font-size: 15px;
+          color: var(--ink-soft);
+          font-size: 18px;
           line-height: 1.45;
+          max-width: 680px;
         }
 
-        .heroActions {
-          margin-top: 8px;
+        .actions,
+        .ctaActions {
+          margin-top: 4px;
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
@@ -701,399 +490,290 @@ export default function HomePage() {
 
         .btn {
           min-height: 44px;
-          border-radius: 11px;
-          padding: 0 14px;
+          border-radius: 999px;
+          padding: 0 16px;
           border: 1px solid transparent;
-          text-decoration: none;
-          font-weight: 700;
-          font-size: 14px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          transition: transform 0.15s ease;
+        }
+
+        .btn:hover {
+          transform: translateY(-1px);
         }
 
         .btnPrimary {
-          background: linear-gradient(120deg, #152f59 0%, #1e4f87 100%);
-          border-color: #193f6d;
-          color: #f5f9ff;
+          background: linear-gradient(125deg, #bf6e2f 0%, #a85b22 100%);
+          color: #fffaf4;
+          border-color: rgba(156, 83, 32, 0.35);
+          box-shadow: 0 8px 22px rgba(168, 91, 34, 0.25);
         }
 
-        .btnSecondary {
-          background: #ffffff;
-          border-color: #b8c8de;
-          color: #1a345f;
+        .btnGhost {
+          border-color: rgba(82, 105, 141, 0.32);
+          color: #21304d;
+          background: rgba(234, 241, 250, 0.76);
         }
 
-        .heroVisual {
-          border-radius: 18px;
-          border: 1px solid #cfdcf0;
-          background: linear-gradient(140deg, #eaf2ff 0%, #f4f9ff 100%);
-          min-height: 360px;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .heroCard {
-          position: absolute;
-          overflow: hidden;
-          border-radius: 13px;
-          border: 1px solid #d7e2f2;
-          box-shadow: 0 20px 32px rgba(17, 38, 69, 0.22);
-          background: #d8e3f5;
-        }
-
-        .heroCard :global(img) {
-          object-fit: cover;
-        }
-
-        .heroCard span {
-          position: absolute;
-          left: 10px;
-          bottom: 10px;
-          min-height: 24px;
-          border-radius: 999px;
-          padding: 0 10px;
-          font-size: 11px;
-          letter-spacing: 0.07em;
-          text-transform: uppercase;
-          font-weight: 700;
-          color: #14365f;
-          background: rgba(243, 250, 255, 0.88);
-          border: 1px solid rgba(191, 213, 238, 0.92);
-          display: inline-flex;
-          align-items: center;
-        }
-
-        .heroCardMain {
-          width: 66%;
-          height: 74%;
-          left: 6%;
-          top: 10%;
-        }
-
-        .heroCardOffset {
-          width: 52%;
-          height: 64%;
-          right: 4%;
-          top: 8%;
-        }
-
-        .heroCardMini {
-          width: 42%;
-          height: 44%;
-          right: 14%;
-          bottom: 6%;
-        }
-
-        .stats {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 10px;
-        }
-
-        .statCard {
-          border-radius: 14px;
-          border: 1px solid #cfdaeb;
-          background: var(--surface-soft);
-          padding: 14px;
-        }
-
-        .statValue {
-          margin: 0;
-          font-size: 27px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          color: #13294b;
-        }
-
-        .statLabel {
-          margin: 2px 0 0;
-          color: #567097;
-          font-size: 13px;
-          font-weight: 600;
-        }
-
-        .sectionBlock,
-        .contactBand,
-        .footer {
-          border-radius: 18px;
-          border: 1px solid var(--border);
-          background: rgba(254, 255, 255, 0.92);
-          padding: 18px;
-        }
-
-        .sectionHead {
-          display: grid;
-          gap: 6px;
-          margin-bottom: 12px;
-        }
-
-        .sectionHeadRow {
+        .proofRow {
+          margin-top: 6px;
           display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 10px;
           flex-wrap: wrap;
+          gap: 8px;
         }
 
-        .sectionTag {
+        .proofRow p {
           margin: 0;
-          font-size: 12px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          font-weight: 700;
-          color: #4a6694;
-        }
-
-        h2 {
-          margin: 0;
-          font-family: 'Prata', Georgia, serif;
-          font-size: clamp(28px, 3.2vw, 42px);
-          letter-spacing: -0.02em;
-          color: #101f3f;
-        }
-
-        .ghostLink {
-          min-height: 38px;
-          text-decoration: none;
-          border: 1px solid #c8d8ec;
-          border-radius: 10px;
-          padding: 0 12px;
-          color: #204273;
-          background: #f8fbff;
+          min-height: 34px;
+          padding: 0 11px;
+          border-radius: 999px;
+          border: 1px solid rgba(86, 111, 150, 0.22);
+          background: rgba(245, 248, 253, 0.88);
+          color: #3f516f;
           font-size: 13px;
-          font-weight: 700;
           display: inline-flex;
           align-items: center;
           white-space: nowrap;
         }
 
-        .productsGrid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 10px;
+        .proofRow strong {
+          color: #243452;
+          margin-right: 4px;
         }
 
-        .productCard {
-          border-radius: 14px;
-          border: 1px solid #d5dfee;
-          background: #ffffff;
-          padding: 12px;
+        .heroVisual {
+          border-radius: 16px;
+          border: 1px solid rgba(90, 113, 147, 0.2);
+          background:
+            radial-gradient(circle at 18% 10%, rgba(229, 239, 253, 0.9) 0%, rgba(229, 239, 253, 0) 34%),
+            linear-gradient(140deg, #e8eef7 0%, #dbe5f2 45%, #d2deef 100%);
+          padding: 14px;
+          display: grid;
+          gap: 10px;
+          align-content: start;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .heroFrame {
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid rgba(99, 124, 164, 0.3);
+          position: relative;
+          box-shadow: 0 14px 26px rgba(27, 43, 73, 0.16);
+          background: #eff4fb;
+        }
+
+        .mainFrame {
+          min-height: 330px;
+        }
+
+        .detailFrame {
+          min-height: 126px;
+          width: 54%;
+          margin-left: auto;
+        }
+
+        .heroFrame :global(img) {
+          object-fit: cover;
+        }
+
+        .heroBadge {
+          margin: 0;
+          position: absolute;
+          left: 14px;
+          bottom: 14px;
+          min-height: 30px;
+          padding: 0 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(73, 101, 146, 0.28);
+          background: rgba(242, 247, 255, 0.84);
+          color: #2f4468;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .panel {
+          padding: 20px;
+        }
+
+        .sectionHead {
           display: grid;
           gap: 7px;
-          transition: transform 0.18s ease, box-shadow 0.18s ease;
         }
 
-        .productCard:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 15px 28px rgba(17, 34, 63, 0.12);
+        .sectionHead h2 {
+          font-size: clamp(32px, 3.1vw, 46px);
+          line-height: 1.02;
         }
 
-        .productImageWrap {
-          height: 138px;
-          border-radius: 10px;
-          border: 1px solid #d6e1f2;
-          overflow: hidden;
-          position: relative;
+        .sectionLead {
+          margin: 10px 0 0;
+          color: #4a5772;
+          font-size: 16px;
+          line-height: 1.5;
+          max-width: 920px;
         }
 
-        .productImageWrap :global(img) {
-          object-fit: cover;
-        }
-
-        .cardTag {
-          margin: 2px 0 0;
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.09em;
-          color: #5c7298;
-          font-weight: 700;
-        }
-
-        h3 {
-          margin: 0;
-          font-size: 30px;
-          line-height: 0.95;
-          letter-spacing: -0.02em;
-          color: #11203f;
-        }
-
-        .productCard p {
-          margin: 0;
-          color: #4f607e;
-          line-height: 1.46;
-          font-size: 14px;
-        }
-
-        .cardLink {
-          text-decoration: none;
-          color: #1f4c86;
-          font-size: 14px;
-          font-weight: 700;
-        }
-
-        .workflowGrid {
-          display: grid;
-          grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
-          gap: 10px;
-        }
-
-        .workflowImageWrap {
-          border-radius: 12px;
-          border: 1px solid #d4dfef;
-          overflow: hidden;
-          min-height: 300px;
-          position: relative;
-        }
-
-        .workflowImageWrap :global(img) {
-          object-fit: cover;
-        }
-
-        .workflowSteps {
+        .valueGrid,
+        .processGrid,
+        .faqGrid,
+        .blogGrid {
+          margin-top: 12px;
           display: grid;
           gap: 10px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .stepCard {
-          border: 1px solid #d2deee;
-          border-radius: 12px;
-          padding: 13px;
-          background: #fbfdff;
+        .valueCard,
+        .processCard,
+        .faqCard,
+        .blogCard {
+          border-radius: 14px;
+          border: 1px solid rgba(77, 99, 133, 0.2);
+          background: rgba(253, 254, 255, 0.85);
+          padding: 14px;
           display: grid;
-          gap: 4px;
+          gap: 6px;
         }
 
-        .stepNo {
-          margin: 0;
-          font-size: 12px;
-          font-weight: 700;
-          color: #5574a1;
-          letter-spacing: 0.12em;
+        .valueCard h3,
+        .processCard h3,
+        .faqCard h3,
+        .blogCard h3 {
+          font-size: 25px;
+          line-height: 1.1;
         }
 
-        h4 {
+        .valueCard p,
+        .processCard p,
+        .faqCard p,
+        .blogCard p {
           margin: 0;
-          font-size: 21px;
-          color: #11264b;
-          letter-spacing: -0.02em;
-        }
-
-        .stepCard p {
-          margin: 0;
-          color: #4f607e;
+          color: #4f5d79;
           font-size: 14px;
           line-height: 1.45;
         }
 
-        .pricingBlock {
-          background:
-            linear-gradient(110deg, rgba(231, 243, 255, 0.6) 0%, rgba(230, 248, 244, 0.5) 100%),
-            #ffffff;
+        .processGrid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
-        .pricingGrid {
+        .stepNo {
+          margin: 0;
+          color: #b06328;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .dualBlock {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 10px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
         }
 
-        .pricingCard {
-          border-radius: 13px;
-          border: 1px solid #cad8ea;
-          background: rgba(255, 255, 255, 0.95);
-          padding: 14px;
+        .compact h2 {
+          font-size: clamp(28px, 2.4vw, 38px);
+        }
+
+        .occasionWrap {
+          margin-top: 10px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .occasionWrap span {
+          min-height: 35px;
+          padding: 0 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(81, 104, 140, 0.28);
+          color: #31456a;
+          background: rgba(246, 250, 255, 0.9);
+          font-size: 13px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .testimonialList {
+          margin-top: 10px;
           display: grid;
           gap: 8px;
         }
 
-        .pricingCardFeatured {
-          border-color: #8fb2df;
-          box-shadow: 0 14px 30px rgba(24, 63, 114, 0.17);
+        .testimonialList blockquote {
+          margin: 0;
+          padding: 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(78, 101, 139, 0.2);
+          background: rgba(252, 254, 255, 0.86);
+          display: grid;
+          gap: 7px;
         }
 
-        .planName {
+        .testimonialList p {
           margin: 0;
-          color: #1f467a;
-          font-size: 13px;
+          color: #4c5973;
+          line-height: 1.45;
+          font-size: 14px;
+        }
+
+        .testimonialList cite {
+          font-style: normal;
+          color: #2f4366;
+          font-size: 12px;
           letter-spacing: 0.08em;
           text-transform: uppercase;
           font-weight: 700;
         }
 
-        .planPrice {
-          margin: 0;
-          font-size: 44px;
-          line-height: 1;
-          letter-spacing: -0.03em;
-          color: #102243;
-          font-family: 'Prata', Georgia, serif;
+        .rowHead {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
         }
 
-        .planNote {
-          margin: -2px 0 2px;
-          color: #5a7095;
+        .linkPill {
+          min-height: 38px;
+          border-radius: 999px;
+          padding: 0 13px;
+          border: 1px solid rgba(77, 101, 139, 0.28);
+          color: #304569;
+          background: rgba(244, 249, 255, 0.86);
           font-size: 13px;
-          font-weight: 600;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
         }
 
-        .pricingCard ul {
-          margin: 0;
-          padding-left: 20px;
-          color: #435b83;
-          display: grid;
-          gap: 6px;
-          font-size: 14px;
-        }
-
-        .btnPricing {
-          background: #123463;
-          color: #f5f9ff;
-          border-color: #123463;
-          width: fit-content;
-          margin-top: 4px;
-        }
-
-        .faqGrid,
         .blogGrid {
-          display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 10px;
         }
 
-        .faqCard,
         .blogCard {
-          border-radius: 12px;
-          border: 1px solid #d4deee;
-          background: #ffffff;
-          padding: 12px;
-          display: grid;
-          gap: 6px;
-        }
-
-        .faqCard h4,
-        .blogCard h4 {
-          margin: 0;
-          font-size: 20px;
-          line-height: 1.2;
-          color: #12294f;
-        }
-
-        .faqCard p,
-        .blogCard p {
-          margin: 0;
-          font-size: 14px;
-          line-height: 1.45;
-          color: #516585;
+          gap: 8px;
         }
 
         .blogImageWrap {
-          height: 128px;
+          min-height: 150px;
           border-radius: 10px;
-          border: 1px solid #d7e2f2;
-          position: relative;
+          border: 1px solid rgba(91, 114, 151, 0.24);
           overflow: hidden;
+          position: relative;
         }
 
         .blogImageWrap :global(img) {
@@ -1101,262 +781,191 @@ export default function HomePage() {
         }
 
         .meta {
-          color: #5d749a;
-          font-size: 12px;
+          margin: 0;
+          color: #6a7fa5;
+          font-size: 11px;
           text-transform: uppercase;
           letter-spacing: 0.08em;
           font-weight: 700;
         }
 
-        .contactBand {
-          display: grid;
-          grid-template-columns: minmax(260px, 0.82fr) minmax(0, 1.18fr);
+        .inlineLink {
+          width: fit-content;
+          color: #2d4265;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .ctaBand {
+          padding: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
           gap: 12px;
-          background: linear-gradient(130deg, #13284c 0%, #1a3e69 55%, #1f5e88 100%);
-          border-color: #204675;
+          flex-wrap: wrap;
+          background:
+            radial-gradient(circle at 22% 10%, rgba(240, 214, 185, 0.45) 0%, transparent 40%),
+            linear-gradient(130deg, #f8efe4 0%, #f1e2d3 100%);
         }
 
-        .contactMedia {
-          border-radius: 12px;
-          border: 1px solid rgba(180, 206, 235, 0.5);
-          position: relative;
-          overflow: hidden;
-          min-height: 260px;
+        .ctaBand h2 {
+          font-size: clamp(32px, 3.3vw, 46px);
+          max-width: 730px;
         }
 
-        .contactMedia :global(img) {
-          object-fit: cover;
-        }
-
-        .contactCopy {
-          display: grid;
-          align-content: center;
-          gap: 8px;
-        }
-
-        .contactCopy .sectionTag {
-          color: #b8d6f6;
-        }
-
-        .contactCopy h2 {
-          color: #f0f7ff;
-          font-size: clamp(29px, 3vw, 40px);
-        }
-
-        .contactCopy p {
-          margin: 0;
-          color: #d8e9fc;
-          font-size: 16px;
-          line-height: 1.46;
-          max-width: 670px;
-        }
-
-        .contactCopy .btnSecondary {
-          background: transparent;
-          border-color: #97bcdd;
-          color: #edf6ff;
+        .ctaBand p {
+          margin: 6px 0 0;
+          color: #4f607f;
+          font-size: 15px;
         }
 
         .footer {
-          background: #111f3b;
-          border-color: #1f355a;
-          color: #deebff;
-          padding: 16px;
-        }
-
-        .footerTop {
-          display: flex;
-          justify-content: space-between;
-          gap: 14px;
-          flex-wrap: wrap;
-          padding-bottom: 12px;
-          border-bottom: 1px solid rgba(162, 190, 226, 0.27);
-        }
-
-        .footerBrand {
-          max-width: 360px;
-          display: grid;
-          gap: 6px;
-        }
-
-        .footerLogo {
-          margin: 0;
-          font-size: 22px;
-          font-family: 'Prata', Georgia, serif;
-          letter-spacing: -0.01em;
-          color: #f3f8ff;
-        }
-
-        .footerBrand p {
-          margin: 0;
-          color: #bcd2f0;
-          line-height: 1.46;
-          font-size: 14px;
-        }
-
-        .footerCols {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(130px, 1fr));
-          gap: 12px;
-        }
-
-        .footerColTitle {
-          margin: 0 0 6px;
-          font-size: 12px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          font-weight: 700;
-          color: #9fc0e6;
-        }
-
-        .footerCols ul {
-          margin: 0;
-          padding: 0;
-          list-style: none;
-          display: grid;
-          gap: 5px;
-        }
-
-        .footerCols :global(a),
-        .footerBottom :global(a) {
-          text-decoration: none;
-          color: #d9e8fc;
-          font-size: 14px;
-        }
-
-        .footerBottom {
-          margin-top: 12px;
+          min-height: 70px;
+          padding: 12px 16px;
           display: flex;
           align-items: center;
           justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+          background: rgba(255, 255, 255, 0.75);
+        }
+
+        .footer p {
+          margin: 0;
+          font-family: 'Prata', Georgia, serif;
+          color: #243454;
+          font-size: 22px;
+        }
+
+        .footer div {
+          display: flex;
           gap: 12px;
           flex-wrap: wrap;
         }
 
-        .footerBottom p {
-          margin: 0;
-          color: #a9c2e3;
+        .footer div :global(a) {
+          color: #32486e;
           font-size: 13px;
         }
 
-        .footerBottom div {
-          display: flex;
-          align-items: center;
-          gap: 12px;
+        .reveal {
+          opacity: 0;
+          transform: translateY(18px);
+          animation: revealUp 0.65s ease forwards;
         }
 
-        @media (max-width: 1180px) {
-          .topNav {
-            justify-content: center;
-          }
+        .delay1 {
+          animation-delay: 0.08s;
+        }
 
-          .brandLockup {
-            width: 100%;
-            justify-content: center;
-          }
+        .delay2 {
+          animation-delay: 0.16s;
+        }
 
-          .navLinks {
-            justify-content: center;
-          }
+        .delay3 {
+          animation-delay: 0.24s;
+        }
 
+        .delay4 {
+          animation-delay: 0.32s;
+        }
+
+        .delay5 {
+          animation-delay: 0.4s;
+        }
+
+        .delay6 {
+          animation-delay: 0.48s;
+        }
+
+        .delay7 {
+          animation-delay: 0.56s;
+        }
+
+        @keyframes revealUp {
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (max-width: 1120px) {
           .hero {
             grid-template-columns: 1fr;
           }
 
-          .heroVisual {
-            min-height: 300px;
-          }
-
-          .productsGrid {
+          .blogGrid,
+          .processGrid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
+        }
 
-          .stats {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-
-          .workflowGrid {
+        @media (max-width: 860px) {
+          .dualBlock {
             grid-template-columns: 1fr;
           }
 
-          .pricingGrid,
+          .valueGrid,
           .faqGrid,
-          .blogGrid {
+          .blogGrid,
+          .processGrid {
             grid-template-columns: 1fr;
           }
 
-          .contactBand {
-            grid-template-columns: 1fr;
+          .detailFrame {
+            width: 65%;
           }
         }
 
         @media (max-width: 760px) {
-          .homeRoot {
-            padding: 12px;
+          .landing {
+            padding: 10px;
           }
 
+          .topBar,
           .hero,
-          .sectionBlock,
-          .contactBand,
+          .panel,
+          .ctaBand,
           .footer {
             padding: 14px;
+            border-radius: 16px;
           }
 
-          .promoBar {
-            padding: 8px 10px;
-          }
-
-          .promoBar p {
-            font-size: 12px;
+          .topBar {
+            position: static;
           }
 
           h1 {
-            font-size: clamp(30px, 9vw, 46px);
+            font-size: clamp(34px, 10.2vw, 54px);
+          }
+
+          .signature {
+            font-size: clamp(28px, 8.4vw, 38px);
           }
 
           .lead {
             font-size: 16px;
           }
 
-          h3 {
-            font-size: 28px;
+          .mainFrame {
+            min-height: 280px;
           }
 
-          .productImageWrap {
-            height: 122px;
+          .detailFrame {
+            width: 78%;
           }
 
-          .blogImageWrap {
-            height: 112px;
+          .actions,
+          .ctaActions {
+            width: 100%;
           }
 
-          .footerCols {
-            grid-template-columns: 1fr 1fr;
-          }
-        }
-
-        @media (max-width: 520px) {
-          .productsGrid,
-          .stats,
-          .footerCols {
-            grid-template-columns: 1fr;
+          .btn {
+            width: 100%;
           }
 
-          .heroCardMain {
-            width: 64%;
-          }
-
-          .heroCardOffset {
-            width: 54%;
-          }
-
-          .heroCardMini {
-            width: 44%;
-          }
-
-          .footerBottom {
-            align-items: flex-start;
-            flex-direction: column;
+          .proofRow p {
+            white-space: normal;
           }
         }
       `}</style>

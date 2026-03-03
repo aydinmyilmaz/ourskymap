@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
   const res = await fetch(url.toString(), {
     headers: {
-      'User-Agent': 'mementogifts (vercel app)'
+      'User-Agent': 'ourskymap (vercel app)'
     }
   });
   if (!res.ok) return NextResponse.json([]);

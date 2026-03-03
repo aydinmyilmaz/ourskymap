@@ -2,127 +2,216 @@
 
 import Link from 'next/link';
 
-const FAQS = [
+const FAQ_GROUPS = [
   {
-    q: 'How accurate are the sky maps?',
-    a: 'Sky maps are generated from date, time, and location parameters. Exact time improves the precision of the star field.'
+    title: 'Sky Accuracy',
+    items: [
+      {
+        q: 'Is the star map astronomically accurate?',
+        a: 'Yes. The map is generated from location and time data to represent the selected sky moment.'
+      },
+      {
+        q: 'Do I need the exact time?',
+        a: 'Exact time is optional, but it improves precision for moon phase and star positioning.'
+      }
+    ]
   },
   {
-    q: 'Can I design city posters for any location?',
-    a: 'Yes. You can search global locations and customize map style, zoom composition, typography, and poster framing.'
+    title: 'Customization',
+    items: [
+      {
+        q: 'Can I edit title, names, and location text?',
+        a: 'Yes. You can personalize all key text lines before checkout.'
+      },
+      {
+        q: 'Can I change colors and visual style?',
+        a: 'Yes. Background and visual settings can be adjusted to match your preferred look.'
+      }
+    ]
   },
   {
-    q: 'Which file formats do I receive?',
-    a: 'Depending on the product and plan, exports include print-ready PNG, PDF, and SVG.'
+    title: 'Order & Delivery',
+    items: [
+      {
+        q: 'What happens after checkout?',
+        a: 'Your order is processed immediately and your download link becomes available from the order page.'
+      },
+      {
+        q: 'Which file formats are provided?',
+        a: 'You receive production-friendly files suitable for digital delivery and print workflows.'
+      }
+    ]
   },
   {
-    q: 'Can I edit my design after checkout?',
-    a: 'You can return to your design flow, adjust settings, and generate a new export when needed.'
-  },
-  {
-    q: 'Do you offer commercial/partner usage?',
-    a: 'Yes. For store bundles, campaigns, or white-label usage, contact the sales team for the right plan.'
-  },
-  {
-    q: 'How fast is support?',
-    a: 'Most support requests are answered within 12-24 hours. Sales and partnership requests are prioritized on business days.'
+    title: 'Gift Use Cases',
+    items: [
+      {
+        q: 'Can I make a star map for future dates?',
+        a: 'Yes. Future events like weddings or anniversaries are supported.'
+      },
+      {
+        q: 'Is this a good wedding or anniversary gift?',
+        a: 'Yes. These are our most common gifting scenarios because they connect date and emotion strongly.'
+      }
+    ]
   }
 ] as const;
 
 export default function FaqPage() {
   return (
-    <main className="faqPage">
+    <main className="page">
       <div className="shell">
         <header className="hero">
+          <div className="heroTop">
+            <Link href="/" className="brand">
+              OurSkyMap
+            </Link>
+            <nav>
+              <Link href="/">Home</Link>
+              <Link href="/what-is-star-map">What is Star Map?</Link>
+              <Link href="/blog">Blog</Link>
+            </nav>
+          </div>
+
           <p className="eyebrow">FAQ</p>
-          <h1>Questions Before You Launch Your Design</h1>
-          <p>Quick answers about quality, exports, licensing, and workflow so you can move faster with confidence.</p>
+          <h1>Questions before you create your star map.</h1>
+          <p className="lead">Everything important about data accuracy, design controls, and download flow in one place.</p>
         </header>
 
-        <section className="faqGrid" aria-label="Frequently asked questions">
-          {FAQS.map((item) => (
-            <article key={item.q} className="faqCard">
-              <h2>{item.q}</h2>
-              <p>{item.a}</p>
+        <section className="faqGrid">
+          {FAQ_GROUPS.map((group) => (
+            <article key={group.title} className="faqGroup">
+              <h2>{group.title}</h2>
+              <div className="qaList">
+                {group.items.map((item) => (
+                  <details key={item.q} open>
+                    <summary>{item.q}</summary>
+                    <p>{item.a}</p>
+                  </details>
+                ))}
+              </div>
             </article>
           ))}
         </section>
 
-        <section className="ctaBand" aria-label="Need help">
+        <section className="ctaBand">
           <div>
-            <p className="eyebrow">Need a custom answer?</p>
-            <h2>Talk to our team directly.</h2>
-            <p>We can help with product setup, commercial plans, and workflow recommendations.</p>
+            <p className="eyebrow">NEXT STEP</p>
+            <h2>Start with your date and location, customize in real time.</h2>
+            <p>Need help for a special order? Contact us and we can guide the setup.</p>
           </div>
           <div className="actions">
-            <Link href="/contact" className="btn btnPrimary">
-              Contact Team
+            <Link href="/ourskymap" className="btn btnPrimary">
+              Create Star Map
             </Link>
-            <Link href="/pricing" className="btn btnSecondary">
-              View Pricing
+            <Link href="/contact" className="btn btnGhost">
+              Contact
             </Link>
           </div>
         </section>
       </div>
 
       <style jsx>{`
-        .faqPage {
+        .page {
           min-height: 100vh;
-          background: linear-gradient(165deg, #edf3fa 0%, #e8f0fb 100%);
-          padding: 22px 14px 40px;
+          background:
+            radial-gradient(circle at 82% 0%, rgba(132, 166, 226, 0.2) 0%, transparent 36%),
+            linear-gradient(168deg, #080d1c 0%, #0d1730 100%);
+          padding: 16px;
+          color: #edf4ff;
           font-family: 'Signika', ui-sans-serif, system-ui;
-          color: #0f1f3d;
         }
 
         .shell {
           width: min(1120px, 100%);
           margin: 0 auto;
           display: grid;
-          gap: 14px;
+          gap: 12px;
         }
 
         .hero,
-        .faqCard,
+        .faqGroup,
         .ctaBand {
-          border-radius: 18px;
-          border: 1px solid #c8d5e9;
-          background: rgba(255, 255, 255, 0.94);
+          border: 1px solid rgba(161, 189, 230, 0.24);
+          background: rgba(13, 23, 47, 0.82);
+          border-radius: 16px;
+          backdrop-filter: blur(5px);
         }
 
         .hero {
-          padding: 20px;
+          padding: 18px;
           display: grid;
           gap: 8px;
         }
 
+        .heroTop {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 4px;
+        }
+
+        .brand {
+          text-decoration: none;
+          color: #f0f6ff;
+          font-size: 22px;
+          font-family: 'Prata', Georgia, serif;
+        }
+
+        nav {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+
+        nav :global(a) {
+          text-decoration: none;
+          color: #d5e4fe;
+          border: 1px solid transparent;
+          border-radius: 999px;
+          min-height: 34px;
+          padding: 0 12px;
+          display: inline-flex;
+          align-items: center;
+          font-size: 13px;
+        }
+
+        nav :global(a:hover) {
+          border-color: rgba(170, 195, 235, 0.4);
+          background: rgba(100, 128, 174, 0.15);
+        }
+
         .eyebrow {
           margin: 0;
+          color: #9db9e8;
           font-size: 12px;
-          font-weight: 700;
-          text-transform: uppercase;
           letter-spacing: 0.12em;
-          color: #4a6898;
+          text-transform: uppercase;
+          font-weight: 700;
         }
 
         h1,
         h2 {
           margin: 0;
           font-family: 'Prata', Georgia, serif;
-          color: #102142;
           letter-spacing: -0.02em;
         }
 
         h1 {
-          font-size: clamp(32px, 5vw, 54px);
-          line-height: 1.02;
+          font-size: clamp(34px, 4.8vw, 58px);
+          line-height: 1;
+          max-width: 900px;
         }
 
-        .hero p:last-child {
-          margin: 2px 0 0;
-          color: #4f6180;
-          font-size: 17px;
+        .lead {
+          margin: 0;
+          color: #b7c9e7;
+          font-size: 16px;
           line-height: 1.45;
-          max-width: 760px;
+          max-width: 820px;
         }
 
         .faqGrid {
@@ -131,21 +220,41 @@ export default function FaqPage() {
           gap: 10px;
         }
 
-        .faqCard {
+        .faqGroup {
           padding: 14px;
           display: grid;
-          gap: 7px;
+          gap: 10px;
         }
 
-        .faqCard h2 {
-          font-size: 28px;
+        h2 {
+          font-size: 33px;
           line-height: 1.05;
         }
 
-        .faqCard p {
-          margin: 0;
-          color: #4b6187;
-          font-size: 15px;
+        .qaList {
+          display: grid;
+          gap: 8px;
+        }
+
+        details {
+          border: 1px solid rgba(164, 189, 227, 0.3);
+          border-radius: 10px;
+          background: rgba(17, 30, 59, 0.7);
+          padding: 10px 12px;
+        }
+
+        summary {
+          cursor: pointer;
+          color: #e8f0ff;
+          font-size: 16px;
+          font-weight: 600;
+          line-height: 1.35;
+        }
+
+        details p {
+          margin: 7px 0 0;
+          color: #b4c8ea;
+          font-size: 14px;
           line-height: 1.45;
         }
 
@@ -154,26 +263,21 @@ export default function FaqPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 10px;
+          gap: 12px;
           flex-wrap: wrap;
-          background: linear-gradient(135deg, #132a4c 0%, #1b3f6d 100%);
-          border-color: #24497a;
-        }
-
-        .ctaBand .eyebrow {
-          color: #afcfee;
+          background:
+            radial-gradient(circle at 20% 20%, rgba(132, 167, 222, 0.2) 0%, transparent 42%),
+            linear-gradient(130deg, #102144 0%, #1c335f 100%);
         }
 
         .ctaBand h2 {
-          color: #f0f7ff;
-          font-size: clamp(27px, 3vw, 39px);
+          font-size: clamp(30px, 3vw, 42px);
         }
 
         .ctaBand p {
-          margin: 8px 0 0;
-          color: #c7dcf5;
+          margin: 6px 0 0;
+          color: #bdd1ef;
           font-size: 15px;
-          line-height: 1.45;
         }
 
         .actions {
@@ -183,28 +287,30 @@ export default function FaqPage() {
         }
 
         .btn {
-          min-height: 42px;
-          border-radius: 10px;
-          padding: 0 14px;
           text-decoration: none;
+          min-height: 40px;
+          border-radius: 999px;
+          padding: 0 14px;
           border: 1px solid transparent;
-          font-size: 14px;
-          font-weight: 700;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
         }
 
         .btnPrimary {
-          background: #f4f8ff;
-          border-color: #f4f8ff;
-          color: #153362;
+          background: linear-gradient(120deg, #728dbd 0%, #56709f 100%);
+          border-color: rgba(196, 213, 242, 0.34);
+          color: #eef4ff;
         }
 
-        .btnSecondary {
-          background: transparent;
-          border-color: #89abd4;
-          color: #ecf5ff;
+        .btnGhost {
+          color: #dae8ff;
+          border-color: rgba(170, 195, 234, 0.42);
+          background: rgba(104, 132, 178, 0.12);
         }
 
         @media (max-width: 980px) {
@@ -214,19 +320,19 @@ export default function FaqPage() {
         }
 
         @media (max-width: 760px) {
-          .faqPage {
-            padding: 12px 10px 24px;
+          .page {
+            padding: 10px;
           }
 
           .hero,
-          .faqCard,
+          .faqGroup,
           .ctaBand {
             padding: 14px;
           }
 
-          .hero p:last-child,
-          .faqCard p {
-            font-size: 14px;
+          .actions,
+          .actions .btn {
+            width: 100%;
           }
         }
       `}</style>
