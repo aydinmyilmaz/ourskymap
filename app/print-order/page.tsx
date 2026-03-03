@@ -382,6 +382,22 @@ function PrintOrderPageBody() {
 
   return (
     <div className="page">
+      <header className="topbar">
+        <div className="brand">
+          <div className="brandMark" aria-hidden="true">
+            <img src="/logo_ourskymap_v4.jpeg" alt="" />
+          </div>
+          <div className="brandText">
+            <div className="brandMain">STAR MAP</div>
+            <div className="brandSub">STUDIO</div>
+          </div>
+        </div>
+        <nav className="cornerLinks" aria-label="Quick links">
+          <a href="/ourskymap">SkyMap Studio</a>
+          <a href="/">Home Page</a>
+        </nav>
+      </header>
+
       <main className="shell">
         {/* ---- Left Panel: Product Preview ---- */}
         <section className="leftRail">
@@ -404,10 +420,7 @@ function PrintOrderPageBody() {
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 1.67a8.33 8.33 0 100 16.66 8.33 8.33 0 000-16.66zm-.83 11.66V8.33h1.66v5h-1.66zm0-6.66V5h1.66v1.67H9.17z" fill="#1f8844"/></svg>
               <span>Digital file ready</span>
             </div>
-            <button type="button" className="downloadLink" onClick={() => void handleDownloadZipAgain()} disabled={downloadingZip}>
-              {downloadingZip ? 'Preparing...' : 'Download ZIP'}
-            </button>
-            {downloadError ? <p className="downloadLinkError">{downloadError}</p> : null}
+            <p className="fileBannerHint">Download button is pinned under the print title.</p>
           </div>
 
           <div className="mockupStrip">
@@ -428,6 +441,16 @@ function PrintOrderPageBody() {
             <h1 className="productTitle">Custom Star Map Print</h1>
             <p className="productSubtitle">Personalized Wall Art Keepsake</p>
             <p className="trustLine">Free exchanges accepted</p>
+            <div className="downloadCallout">
+              <div className="downloadCalloutCopy">
+                <strong>Your paid digital file is ready</strong>
+                <span>Download anytime while you decide on physical print options.</span>
+              </div>
+              <button type="button" className="downloadPrimaryBtn" onClick={() => void handleDownloadZipAgain()} disabled={downloadingZip}>
+                {downloadingZip ? 'Preparing ZIP...' : 'Download ZIP'}
+              </button>
+            </div>
+            {downloadError ? <p className="downloadInlineError">{downloadError}</p> : null}
           </div>
 
           <form className="form" onSubmit={handleSubmit}>
@@ -595,8 +618,96 @@ function PrintOrderPageBody() {
           min-height: 100vh;
           background: linear-gradient(170deg, #eef1f8 0%, #e4e8f0 100%);
           color: #20242f;
-          padding: 28px;
+          padding: 108px 28px 28px;
           font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+        .topbar {
+          height: 74px;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 80;
+          background: linear-gradient(90deg, #0f172a 0%, #13203f 52%, #1b2a4d 100%);
+          color: #fff;
+          display: grid;
+          grid-template-columns: auto 1fr;
+          align-items: center;
+          padding: 0 18px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+          overflow: hidden;
+        }
+        .topbar::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background-image:
+            radial-gradient(circle, rgba(255, 255, 255, 0.42) 0.7px, transparent 1px),
+            radial-gradient(circle, rgba(255, 255, 255, 0.28) 0.5px, transparent 0.9px);
+          background-size: 46px 46px, 73px 73px;
+          background-position: 0 0, 23px 14px;
+          background-repeat: repeat, repeat;
+          opacity: 0.88;
+        }
+        .topbar > * {
+          position: relative;
+          z-index: 2;
+        }
+        .brand {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          justify-self: start;
+        }
+        .brandMark {
+          width: 40px;
+          height: 40px;
+          border: 2px solid rgba(255, 255, 255, 0.82);
+          border-radius: 50%;
+          overflow: hidden;
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .brandMark img {
+          width: 84%;
+          height: 84%;
+          margin: 8%;
+          display: block;
+          object-fit: contain;
+          object-position: center;
+          border-radius: 50%;
+        }
+        .brandMain {
+          font-size: 18px;
+          letter-spacing: 0.1em;
+          line-height: 1;
+          font-weight: 700;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+        .brandSub {
+          font-size: 9px;
+          letter-spacing: 0.32em;
+          margin-top: 2px;
+          font-family: 'Signika', ui-sans-serif, system-ui;
+        }
+        .cornerLinks {
+          justify-self: end;
+          display: inline-flex;
+          align-items: center;
+          gap: 18px;
+        }
+        .cornerLinks a {
+          color: rgba(255, 255, 255, 0.92);
+          text-decoration: none;
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
+        }
+        .cornerLinks a:hover {
+          color: #ffffff;
+          text-decoration: underline;
+          text-underline-offset: 2px;
         }
         .shell {
           max-width: 1320px;
@@ -695,26 +806,11 @@ function PrintOrderPageBody() {
           font-weight: 600;
           color: #1f8844;
         }
-        .downloadLink {
-          border: 0;
-          background: none;
-          color: #3b5998;
-          font-size: 14px;
-          font-weight: 700;
-          cursor: pointer;
-          text-decoration: underline;
-          text-underline-offset: 2px;
-          padding: 0;
-          white-space: nowrap;
-        }
-        .downloadLink:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .downloadLinkError {
+        .fileBannerHint {
           margin: 0;
-          color: #b91c1c;
           font-size: 12px;
+          color: #4b5563;
+          font-weight: 600;
         }
 
         /* ========== Mockup Strip ========== */
@@ -784,6 +880,56 @@ function PrintOrderPageBody() {
           margin: 8px 0 0;
           font-size: 14px;
           color: #1f8844;
+          font-weight: 600;
+        }
+        .downloadCallout {
+          margin-top: 14px;
+          border: 1px solid #c9d8ff;
+          border-radius: 14px;
+          background: linear-gradient(155deg, #edf3ff 0%, #e4edff 100%);
+          padding: 14px;
+          display: grid;
+          gap: 12px;
+          box-shadow: 0 8px 18px rgba(52, 87, 175, 0.14);
+        }
+        .downloadCalloutCopy {
+          display: grid;
+          gap: 4px;
+        }
+        .downloadCalloutCopy strong {
+          font-size: 16px;
+          color: #142e6c;
+          line-height: 1.2;
+        }
+        .downloadCalloutCopy span {
+          font-size: 13px;
+          color: #334155;
+          line-height: 1.35;
+        }
+        .downloadPrimaryBtn {
+          height: 50px;
+          border: 0;
+          border-radius: 11px;
+          background: linear-gradient(135deg, #1f3f95 0%, #182d67 100%);
+          color: #fff;
+          font-size: 16px;
+          font-weight: 800;
+          letter-spacing: 0.01em;
+          cursor: pointer;
+          transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+        }
+        .downloadPrimaryBtn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 22px rgba(30, 53, 119, 0.32);
+        }
+        .downloadPrimaryBtn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+        .downloadInlineError {
+          margin: 8px 0 0;
+          color: #b91c1c;
+          font-size: 12px;
           font-weight: 600;
         }
 
@@ -1032,8 +1178,24 @@ function PrintOrderPageBody() {
 
         @media (max-width: 640px) {
           .page {
-            padding: 12px;
-            padding-bottom: 90px;
+            padding: 90px 12px 90px;
+          }
+          .topbar {
+            height: 64px;
+            padding: 0 12px;
+          }
+          .brandMain {
+            font-size: 14px;
+            letter-spacing: 0.08em;
+          }
+          .brandSub {
+            letter-spacing: 0.2em;
+          }
+          .cornerLinks {
+            gap: 10px;
+          }
+          .cornerLinks a {
+            font-size: 12px;
           }
           .buyPanel {
             padding: 20px;

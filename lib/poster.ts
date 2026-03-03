@@ -670,6 +670,7 @@ export function renderPosterSvg(req: PosterRequest): string {
   let moonCy = 0;
   let moonR = 0;
   let moonPhaseBucketIndex = 0;
+  const mirrorMoonPhaseByHemisphere = latitude < 0;
 
   if (showCompanionCircle) {
     const { topMargin: compTopMargin, bottomMargin: compBottomMargin } = verticalSpacing;
@@ -1118,7 +1119,7 @@ export function renderPosterSvg(req: PosterRequest): string {
     </g>
   </g>`
         : `<g>
-    <image href="${svgAttrEscape(moonPhaseImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)" data-moon-phase-index="${moonPhaseBucketIndex}"/>
+    <image href="${svgAttrEscape(moonPhaseImageUrl)}" x="${(moonCx - moonR).toFixed(2)}" y="${(moonCy - moonR).toFixed(2)}" width="${(moonR * 2).toFixed(2)}" height="${(moonR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#moonClip)"${mirrorMoonPhaseByHemisphere ? ` transform="translate(${(2 * moonCx).toFixed(2)} 0) scale(-1 1)"` : ''} data-moon-phase-index="${moonPhaseBucketIndex}" data-moon-hemisphere="${mirrorMoonPhaseByHemisphere ? 'south' : 'north'}"/>
   </g>`
       : ''
     }
