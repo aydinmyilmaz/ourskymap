@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
+import { parsePrintSizeFromZipName } from '../../../lib/print-size-utils';
 
 export const runtime = 'nodejs';
 
@@ -32,7 +33,8 @@ export async function GET(req: Request) {
       status: data.status,
       usedAt: data.used_at,
       downloadUrl: data.pdf_url,
-      customerEmail: data.customer_email
+      customerEmail: data.customer_email,
+      sourcePrintSize: parsePrintSizeFromZipName(data.pdf_url || '')
     });
   } catch (e: any) {
     return NextResponse.json({ success: false, message: e?.message ?? 'Failed to fetch order.' }, { status: 500 });

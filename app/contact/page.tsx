@@ -38,7 +38,7 @@ export default function ContactPage() {
         <header className="hero">
           <div>
             <p className="eyebrow">Contact</p>
-            <h1>Let&apos;s Build Better Digital Poster Products Together</h1>
+            <h1>Let&apos;s Build Better Star Map Experiences Together</h1>
             <p>
               Reach out for product questions, plan recommendations, or partnership discussions. We reply with clear, practical next
               steps.
@@ -53,7 +53,7 @@ export default function ContactPage() {
             </div>
           </div>
           <div className="heroImage" aria-hidden="true">
-            <Image src="/home/product-citymap.jpg" alt="Contact visual" fill sizes="(max-width: 920px) 100vw, 34vw" />
+            <Image src="/home/product-starmap.jpg" alt="Contact visual" fill sizes="(max-width: 920px) 100vw, 34vw" />
           </div>
         </header>
 

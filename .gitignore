@@ -71,9 +71,12 @@ public/logo_favicon.jpeg
 
 # Local archives (do not commit)
 archive/
+!docs/archive/
+!docs/archive/**
 
 # Temporary local test scripts
 tmp/
+temp/
 
 # Moon texture generation test assets
 test-scripts/moon_texture/

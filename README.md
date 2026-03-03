@@ -1,6 +1,16 @@
 # OurSkyMap
 
-Standalone Next.js app for personalized star map products and related checkout/download flows.
+Single-product Next.js app for personalized **Star Map** design, checkout, download, and physical print funnel.
+
+## Scope
+
+This deployment only serves:
+- `/ourskymap`
+- `/checkout`
+- `/download`
+- `/print-order`
+
+Legacy product routes (`/citymap`, `/vinyl`, `/soundwave`, `/image`, `/mockup`) are intentionally disabled.
 
 ## Dev
 
@@ -11,24 +21,34 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Deploy (Vercel)
+## Deployment
 
 - Push to GitHub
-- Import the repo in Vercel
+- Import repository in Vercel
+- Configure required env vars
 - Deploy
 
-## Notes
+## Environment Variables
 
-- Time input is interpreted as **local time for the selected location** and normalized to UTC for calculations.
-  - Example: Istanbul `February 12, 2026 23:00` (Europe/Istanbul, UTC+03:00) ⇒ `2026-02-12T20:00:00Z`.
-- When comparing with other sites (Stellarium / Heavens-Above), make sure you are comparing the same instant (local vs UTC).
-- Sun/Moon/planet positions are computed using `astronomy-engine`. Stars/constellations depend on the bundled catalog + rendering parameters, so the map may not match other catalogs pixel-for-pixel.
-- The app generates SVG server-side in `app/api/chart/route.ts`.
-- Location search uses Nominatim via `app/api/geocode/route.ts`.
-- Star/constellation datasets are in `data/`.
+Core:
+- `NEXT_PUBLIC_SUPABASE_URL` (or `SUPABASE_URL`)
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_ORDERS_TABLE` (default: `orders`)
+- `SUPABASE_STORAGE_BUCKET` (default: `generated-maps`)
+
+Physical print funnel:
+- `SUPABASE_PRINT_ORDERS_TABLE` (default: `print_orders`)
+- `SUPABASE_PRINT_ASSETS_BUCKET` (default: `print-order-assets`)
+- `PAYONEER_ENABLED` (`false` for current mock flow)
+
+## Supabase SQL
+
+- Base orders table: `supabase/sql/orders_schema.sql`
+- Physical print table: `supabase/sql/print_orders_schema.sql`
 
 ## Technical docs
 
-- OurSkyMap routing/API migration notes: `docs/OURSKYMAP_TECHNICAL.md`
-- Checkout coupon flow: `docs/CHECKOUT_COUPON_FLOW.md`
-- Star density normalization note: `docs/STAR_DENSITY_NORMALIZATION_NOTE.md`
+- Checkout flow: `docs/CHECKOUT_COUPON_FLOW.md`
+- Print order flow: `docs/PRINT_ORDER_FLOW.md`
+- OurSkyMap technical notes: `docs/OURSKYMAP_TECHNICAL.md`
+- Archived non-sky docs: `docs/archive/`

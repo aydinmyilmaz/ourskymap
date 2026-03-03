@@ -4,6 +4,7 @@ import type { CheckoutDraft } from '../../../lib/checkout';
 import { LOCAL_FONT_ASSETS } from '../../../lib/local-font-assets';
 import type { PosterRequest } from '../../../lib/types';
 import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
+import { buildOrderFileToken, mapDesignSizeToPrintSize } from '../../../lib/print-size-utils';
 import JSZip from 'jszip';
 import sharp from 'sharp';
 import { PDFDocument } from 'pdf-lib';
@@ -456,7 +457,8 @@ export async function POST(req: Request) {
       svg = injectFontCssIntoSvg(svg, embeddedFontsCss);
     }
 
-    const safeCode = couponCode.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const sourcePrintSize = mapDesignSizeToPrintSize(draft.mapData.size);
+    const fileToken = buildOrderFileToken(couponCode, sourcePrintSize);
     const ts = Date.now();
     const exportSvg = svg;
     const { width: exportSvgW, height: exportSvgH } = getSvgSize(exportSvg);
@@ -499,12 +501,12 @@ export async function POST(req: Request) {
 
     const zip = new JSZip();
     const filePrefix = 'ourskymap';
-    zip.file(`${filePrefix}-${safeCode}.svg`, exportSvg);
-    zip.file(`${filePrefix}-${safeCode}.png`, png);
-    zip.file(`${filePrefix}-${safeCode}.pdf`, pdf);
+    zip.file(`${filePrefix}-${fileToken}.svg`, exportSvg);
+    zip.file(`${filePrefix}-${fileToken}.png`, png);
+    zip.file(`${filePrefix}-${fileToken}.pdf`, pdf);
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
 
-    const fileName = `star-maps/${safeCode}-${ts}.zip`;
+    const fileName = `star-maps/${fileToken}-${ts}.zip`;
     const upload = await supabase.storage.from(storageBucket).upload(fileName, zipBuffer, {
       contentType: 'application/zip',
       upsert: true

@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
+import { parsePrintSizeFromZipName } from '../../../lib/print-size-utils';
 
 export const runtime = 'nodejs';
 
-function fileNameFor(orderCode: string, contentType: string): string {
+function fileNameFor(orderCode: string, contentType: string, downloadUrl?: string | null): string {
   const safe = orderCode.replace(/[^a-zA-Z0-9_-]/g, '_');
-  if (contentType.includes('zip')) return `custom-map-${safe}.zip`;
-  if (contentType.includes('pdf')) return `custom-map-${safe}.pdf`;
-  if (contentType.includes('svg')) return `custom-map-${safe}.svg`;
-  return `custom-map-${safe}.bin`;
+  const sourceSize = parsePrintSizeFromZipName(downloadUrl || '');
+  const suffix = sourceSize ? `-${sourceSize}` : '';
+  if (contentType.includes('zip')) return `custom-map-${safe}${suffix}.zip`;
+  if (contentType.includes('pdf')) return `custom-map-${safe}${suffix}.pdf`;
+  if (contentType.includes('svg')) return `custom-map-${safe}${suffix}.svg`;
+  return `custom-map-${safe}${suffix}.bin`;
 }
 
 export async function GET(req: Request) {
@@ -45,7 +48,7 @@ export async function GET(req: Request) {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${fileNameFor(orderCode, contentType)}"`,
+        'Content-Disposition': `attachment; filename="${fileNameFor(orderCode, contentType, data.pdf_url)}"`,
         'Cache-Control': 'no-store'
       }
     });
