@@ -630,9 +630,10 @@ function PrintOrderPageBody() {
           z-index: 80;
           background: linear-gradient(90deg, #0f172a 0%, #13203f 52%, #1b2a4d 100%);
           color: #fff;
-          display: grid;
-          grid-template-columns: auto 1fr;
+          display: flex;
           align-items: center;
+          justify-content: space-between;
+          gap: 16px;
           padding: 0 18px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.14);
           overflow: hidden;
@@ -658,7 +659,8 @@ function PrintOrderPageBody() {
           display: flex;
           align-items: center;
           gap: 10px;
-          justify-self: start;
+          flex: 0 0 auto;
+          min-width: 0;
         }
         .brandMark {
           width: 40px;
@@ -691,10 +693,10 @@ function PrintOrderPageBody() {
           font-family: 'Signika', ui-sans-serif, system-ui;
         }
         .cornerLinks {
-          justify-self: end;
           display: inline-flex;
           align-items: center;
           gap: 18px;
+          flex: 0 0 auto;
         }
         .cornerLinks a {
           color: rgba(255, 255, 255, 0.92);
@@ -1196,6 +1198,10 @@ function PrintOrderPageBody() {
           }
           .cornerLinks a {
             font-size: 12px;
+          }
+          .brandMark {
+            width: 34px;
+            height: 34px;
           }
           .buyPanel {
             padding: 20px;
