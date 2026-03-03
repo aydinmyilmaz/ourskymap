@@ -427,8 +427,6 @@ function PrintOrderPageBody() {
           <div className="priceSection">
             <h1 className="productTitle">Custom Star Map Print</h1>
             <p className="productSubtitle">Personalized Wall Art Keepsake</p>
-            <p className="priceDisplay">{totals ? formatMoney(totals.unit, currency) : '...'}</p>
-            <p className="vatNote">VAT included (where applicable)</p>
             <p className="trustLine">Free exchanges accepted</p>
           </div>
 
@@ -481,7 +479,7 @@ function PrintOrderPageBody() {
               </details>
             </div>
 
-            <div className="shippingSection">
+            <div className="shippingCard">
               <h2 className="sectionHeading">Shipping & Contact</h2>
               <div className="addressGrid">
                 <label className="field">
@@ -782,19 +780,6 @@ function PrintOrderPageBody() {
           font-size: 15px;
           color: #6b7280;
         }
-        .priceDisplay {
-          margin: 16px 0 0;
-          font-size: 40px;
-          font-weight: 800;
-          color: #111827;
-          letter-spacing: -0.02em;
-          line-height: 1;
-        }
-        .vatNote {
-          margin: 6px 0 0;
-          font-size: 13px;
-          color: #9ca3af;
-        }
         .trustLine {
           margin: 8px 0 0;
           font-size: 14px;
@@ -888,10 +873,15 @@ function PrintOrderPageBody() {
           color: #374151;
         }
 
-        /* Shipping Section */
-        .shippingSection {
+        /* Shipping Card */
+        .shippingCard {
           display: grid;
           gap: 14px;
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          border-radius: 14px;
+          background: #fff;
+          padding: 20px;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
         }
         .addressGrid {
           display: grid;
