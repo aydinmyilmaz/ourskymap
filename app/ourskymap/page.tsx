@@ -19,7 +19,7 @@ type SizePreset = {
 
 type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x20' | 'a2' | '18x24' | '20x20' | 'a1' | '24x32';
 type CompanionSubtype = 'moon-phase' | 'sky-photo';
-type PosterType = 'single' | 'companion' | 'galaxy';
+type PosterType = 'single' | 'companion' | 'galaxy' | 'moon-phase';
 type BackgroundSourceMode = 'palette' | 'upload';
 type InkPresetKey = 'gold' | 'silver';
 type FontPresetKey = 'calligraphy' | 'signature' | 'serif' | 'gothic' | 'times';
@@ -561,7 +561,6 @@ export default function DesignPage() {
   const selectedSizePreset = useMemo(() => SIZE_PRESETS.find((item) => item.key === size), [size]);
   const effectiveTheme = selectedPalette.tone;
   const sizeOptions = STANDARD_SIZE_PRESETS;
-  const isMoonPhaseUI = posterType === 'companion' && companionSubtype === 'moon-phase';
   const isSkyPhotoUI = posterType === 'companion' && companionSubtype === 'sky-photo';
   const isGalaxyUI = posterType === 'galaxy';
   const reviewLocation = useMemo(() => normalizePlaceLabel(locationLabel || cityQuery) || 'Custom location', [cityQuery, locationLabel]);
@@ -832,7 +831,8 @@ export default function DesignPage() {
 
 
       const isGalaxyPoster = posterType === 'galaxy';
-      const isMoonPhase = posterType === 'companion' && companionSubtype === 'moon-phase';
+      const isMoonPhaseOnly = posterType === 'moon-phase';
+      const isMoonPhase = isMoonPhaseOnly || (posterType === 'companion' && companionSubtype === 'moon-phase');
       const isSkyPhoto = posterType === 'companion' && companionSubtype === 'sky-photo';
       const usesCompanionCircle = posterType === 'companion';
       if (isSkyPhoto && !companionPhotoDataUrl) {
@@ -872,6 +872,7 @@ export default function DesignPage() {
         showTime: false,
         dedication: '',
         showMoonPhase: isMoonPhase,
+        moonPhaseOnly: isMoonPhaseOnly,
         moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
@@ -1004,7 +1005,8 @@ export default function DesignPage() {
         mirrorHorizontal: true
       };
       const isGalaxyPoster = posterType === 'galaxy';
-      const isMoonPhase = posterType === 'companion' && companionSubtype === 'moon-phase';
+      const isMoonPhaseOnly = posterType === 'moon-phase';
+      const isMoonPhase = isMoonPhaseOnly || (posterType === 'companion' && companionSubtype === 'moon-phase');
       const isSkyPhoto = posterType === 'companion' && companionSubtype === 'sky-photo';
       const usesCompanionCircle = posterType === 'companion';
       if (isSkyPhoto && !companionPhotoDataUrl) {
@@ -1045,6 +1047,7 @@ export default function DesignPage() {
         showTime: false,
         dedication: '',
         showMoonPhase: isMoonPhase,
+        moonPhaseOnly: isMoonPhaseOnly,
         moonPhaseImageUrl,
         showCompanionPhoto: isSkyPhoto,
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
@@ -1197,7 +1200,7 @@ export default function DesignPage() {
                     <span className="typeBtnLabel">Star Map<br />with Moon Phase</span>
                   </button>
                 </div>
-                <div className="posterTypeRow posterTypeRow--single">
+                <div className="posterTypeRow">
                   <button
                     className={posterType === 'galaxy' ? 'typeBtn typeBtn--active' : 'typeBtn'}
                     onClick={() => setPosterType('galaxy')}
@@ -1208,6 +1211,17 @@ export default function DesignPage() {
                       <span className="typeBtnGalaxyBase" />
                     </span>
                     <span className="typeBtnLabel">Galaxy<br />Star Map</span>
+                  </button>
+                  <button
+                    className={posterType === 'moon-phase' ? 'typeBtn typeBtn--active' : 'typeBtn'}
+                    onClick={() => setPosterType('moon-phase')}
+                    type="button"
+                  >
+                    <span className="typeBtnImg typeBtnImg--moonPhase" aria-hidden="true">
+                      <span className="typeBtnMoonDisk" />
+                      <span className="typeBtnMoonGlow" />
+                    </span>
+                    <span className="typeBtnLabel">Moon<br />Phase</span>
                   </button>
                 </div>
               </div>
@@ -2134,6 +2148,35 @@ export default function DesignPage() {
           border-radius: 2px;
           box-shadow: 0 5px 0 #ffbe4c;
           opacity: 0.9;
+        }
+        .typeBtnImg--moonPhase {
+          position: relative;
+          border: 1px solid #2c3d61;
+          background: linear-gradient(180deg, #1a2740 0%, #18253d 100%);
+          overflow: hidden;
+        }
+        .typeBtnMoonDisk {
+          position: absolute;
+          width: 24px;
+          height: 24px;
+          left: 10px;
+          top: 12px;
+          border-radius: 50%;
+          background:
+            radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.36) 0%, rgba(255, 255, 255, 0) 42%),
+            radial-gradient(circle at 58% 65%, rgba(0, 0, 0, 0.24) 0%, rgba(0, 0, 0, 0) 48%),
+            #ffbe4c;
+          box-shadow: inset 0 0 0 1px rgba(18, 18, 18, 0.35);
+        }
+        .typeBtnMoonGlow {
+          position: absolute;
+          left: 8px;
+          top: 10px;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          box-shadow: 0 0 0 1px rgba(255, 190, 76, 0.42), 0 0 12px rgba(255, 190, 76, 0.22);
+          opacity: 0.95;
         }
         .typeBtnLabel {
           font-size: 11px;

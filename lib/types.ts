@@ -128,6 +128,7 @@ export type PosterParams = {
   metaLineSpacing: number;
   metaUppercase: boolean;
   showMoonPhase?: boolean;
+  moonPhaseOnly?: boolean;
   moonPhaseImageUrl?: string;
   showCompanionPhoto?: boolean;
   companionPhotoImageUrl?: string;

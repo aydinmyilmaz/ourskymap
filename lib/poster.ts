@@ -587,8 +587,10 @@ export function renderPosterSvg(req: PosterRequest): string {
   const size = poster.size;
   const is12x12Layout = size === '12x12';
   const showMoonPhase = !!poster.showMoonPhase;
+  const showMoonPhaseOnly = !!poster.moonPhaseOnly;
+  const enableMoonPhaseImage = showMoonPhase || showMoonPhaseOnly;
   const showCompanionPhoto = !!poster.showCompanionPhoto && !!(poster.companionPhotoImageUrl || '').trim();
-  const showCompanionCircle = showMoonPhase || showCompanionPhoto;
+  const showCompanionCircle = !showMoonPhaseOnly && (showMoonPhase || showCompanionPhoto);
   let moonPhaseImageUrl = resolveMoonPhaseAssetUrl(poster.inkPreset, 0);
 
   const companionPhotoUrl = (poster.companionPhotoImageUrl || '').trim();
@@ -706,12 +708,12 @@ export function renderPosterSvg(req: PosterRequest): string {
       chartCy = sharedCy;
       moonCy = sharedCy;
     }
-    if (showMoonPhase) {
-      const moonPhaseDegRaw = MoonPhase(new AstroTime(date));
-      const q = quantizeMoonPhaseDeg(moonPhaseDegRaw);
-      moonPhaseBucketIndex = q.phaseIndex;
-      moonPhaseImageUrl = resolveMoonPhaseAssetUrl(poster.inkPreset, q.phaseIndex);
-    }
+  }
+  if (enableMoonPhaseImage) {
+    const moonPhaseDegRaw = MoonPhase(new AstroTime(date));
+    const q = quantizeMoonPhaseDeg(moonPhaseDegRaw);
+    moonPhaseBucketIndex = q.phaseIndex;
+    moonPhaseImageUrl = resolveMoonPhaseAssetUrl(poster.inkPreset, q.phaseIndex);
   }
 
   const title = (poster.title || '').trim();
@@ -730,7 +732,7 @@ export function renderPosterSvg(req: PosterRequest): string {
 
   // Build azimuth scale for poster (simpler: just outer ring + cardinals)
   const azScale: string[] = [];
-  if (includeAzScale) {
+  if (includeAzScale && !showMoonPhaseOnly) {
     const sinScale = params.mirrorHorizontal ? -1 : 1;
     const clampWidth = (v: number) => Math.max(0, Math.min(20, v));
     const innerR = chartR;
@@ -990,7 +992,11 @@ export function renderPosterSvg(req: PosterRequest): string {
     return isPointInsideStarSafeRadius(p.x, p.y, pointRadius);
   });
 
-  const chartLayer = `<g clip-path="url(#clipCircle)">
+  const moonOnlyLayer = `<g clip-path="url(#clipCircle)">
+    <image href="${svgAttrEscape(moonPhaseImageUrl)}" x="${(chartCx - chartR).toFixed(2)}" y="${(chartCy - chartR).toFixed(2)}" width="${(chartR * 2).toFixed(2)}" height="${(chartR * 2).toFixed(2)}" preserveAspectRatio="xMidYMid slice"${mirrorMoonPhaseByHemisphere ? ` transform="translate(${(2 * chartCx).toFixed(2)} 0) scale(-1 1)"` : ''} data-moon-phase-index="${moonPhaseBucketIndex}" data-moon-hemisphere="${mirrorMoonPhaseByHemisphere ? 'south' : 'north'}"/>
+  </g>`;
+
+  const chartLayer = showMoonPhaseOnly ? moonOnlyLayer : `<g clip-path="url(#clipCircle)">
     <g transform="${transform}">
       ${geom.coordinateGridPaths.length
       ? `<path d="${geom.coordinateGridPaths.join(' ')}" fill="none" stroke="${layerMutedInk}" stroke-width="0.9" stroke-linecap="round" opacity="0.85"/>`
