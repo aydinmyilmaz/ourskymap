@@ -20,9 +20,14 @@ type SizePreset = {
 type DesignSize = 'us-letter' | 'a4' | '11x14' | 'a3' | '12x12' | '12x16' | '16x20' | 'a2' | '18x24' | '20x20' | 'a1' | '24x32';
 type CompanionSubtype = 'moon-phase' | 'sky-photo';
 type PosterType = 'single' | 'companion' | 'galaxy' | 'moon-phase';
-type BackgroundSourceMode = 'palette' | 'upload';
+type BackgroundSourceMode = 'palette' | 'preset' | 'upload';
 type InkPresetKey = 'gold' | 'silver';
 type FontPresetKey = 'calligraphy' | 'signature' | 'serif' | 'gothic' | 'times';
+type GalaxyBackgroundPresetKey =
+  | 'ssc2019-15b-med'
+  | 'cena-lic-lp-nature-cropped'
+  | 'm31-layered-uv-and-optical'
+  | 'ssc2006-02a-0';
 
 type GeocodeResult = {
   lat: number;
@@ -65,9 +70,19 @@ const POSTER_PALETTES: { key: PosterParams['palette']; label: string; bg: string
   { key: 'deep-teal', label: 'Teal', bg: '#2c4d42', tone: 'dark' },
   { key: 'minimal-white', label: 'Minimal White', bg: '#ffffff', tone: 'light' }
 ];
+const GALAXY_BACKGROUND_PRESETS: { key: GalaxyBackgroundPresetKey; label: string; url: string }[] = [
+  { key: 'ssc2019-15b-med', label: 'Nebula Field', url: '/galaxy-backgrounds/ssc2019-15b-med.jpg' },
+  { key: 'cena-lic-lp-nature-cropped', label: 'Nature Nebula', url: '/galaxy-backgrounds/cena-lic-lp-nature-cropped.jpg' },
+  { key: 'm31-layered-uv-and-optical', label: 'M31 Layered', url: '/galaxy-backgrounds/m31-layered-uv-and-optical.jpg' },
+  { key: 'ssc2006-02a-0', label: 'Deep Space', url: '/galaxy-backgrounds/ssc2006-02a-0.jpg' }
+];
 
 function findPalette(paletteKey: PosterParams['palette']) {
   return POSTER_PALETTES.find((p) => p.key === paletteKey) ?? POSTER_PALETTES[0];
+}
+
+function findGalaxyBackgroundPreset(key: GalaxyBackgroundPresetKey) {
+  return GALAXY_BACKGROUND_PRESETS.find((item) => item.key === key) ?? GALAXY_BACKGROUND_PRESETS[0];
 }
 
 const INK_PRESETS: { key: InkPresetKey; label: string; hex: string }[] = [
@@ -515,11 +530,13 @@ export default function DesignPage() {
   const [showNames, setShowNames] = useState(true);
   const [showGraticule, setShowGraticule] = useState(false);
   const [showRuler, setShowRuler] = useState(false);
-  const [galaxyBackgroundSource, setGalaxyBackgroundSource] = useState<BackgroundSourceMode>('palette');
+  const [galaxyBackgroundSource, setGalaxyBackgroundSource] = useState<BackgroundSourceMode>('preset');
+  const [galaxyBackgroundPreset, setGalaxyBackgroundPreset] = useState<GalaxyBackgroundPresetKey>('ssc2019-15b-med');
   const [galaxyBackgroundDataUrl, setGalaxyBackgroundDataUrl] = useState('');
   const [galaxyBackgroundInfo, setGalaxyBackgroundInfo] = useState('');
   const [galaxyBackgroundBusy, setGalaxyBackgroundBusy] = useState(false);
   const [galaxyBackgroundError, setGalaxyBackgroundError] = useState('');
+  const [galaxyRectSpread, setGalaxyRectSpread] = useState(62);
   const [title, setTitle] = useState('We met under this sky');
   const [fontPreset, setFontPreset] = useState<FontPresetKey>('calligraphy');
   const [names, setNames] = useState('Sarah & John');
@@ -559,6 +576,10 @@ export default function DesignPage() {
   const effectiveInkLabel = isMinimalWhitePalette ? 'Black' : selectedInk.label;
   const selectedFont = useMemo(() => FONT_PRESETS.find((item) => item.key === fontPreset) ?? FONT_PRESETS[0], [fontPreset]);
   const selectedSizePreset = useMemo(() => SIZE_PRESETS.find((item) => item.key === size), [size]);
+  const selectedGalaxyBgPreset = useMemo(
+    () => findGalaxyBackgroundPreset(galaxyBackgroundPreset),
+    [galaxyBackgroundPreset]
+  );
   const effectiveTheme = selectedPalette.tone;
   const sizeOptions = STANDARD_SIZE_PRESETS;
   const isSkyPhotoUI = posterType === 'companion' && companionSubtype === 'sky-photo';
@@ -848,10 +869,15 @@ export default function DesignPage() {
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
       const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon_gold.png';
       const formulaOverrides = usesCompanionCircle ? buildPosterFormulaOverrides(size) : null;
-      const galaxyBackgroundMode =
-        isGalaxyPoster && galaxyBackgroundSource === 'upload' && galaxyBackgroundDataUrl
-          ? 'image'
-          : 'solid';
+      const galaxyBackgroundImageUrl =
+        !isGalaxyPoster
+          ? ''
+          : galaxyBackgroundSource === 'upload'
+            ? galaxyBackgroundDataUrl
+            : galaxyBackgroundSource === 'preset'
+              ? selectedGalaxyBgPreset.url
+              : '';
+      const galaxyBackgroundMode = galaxyBackgroundImageUrl ? 'image' : 'solid';
 
       const poster: PosterParams = {
         ...defaultPoster,
@@ -878,8 +904,10 @@ export default function DesignPage() {
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
         showRuler,
         posterVariant: isGalaxyPoster ? 'galaxy' : 'classic',
+        chartShape: isGalaxyPoster ? 'rect' : 'circle',
+        rectSpread: isGalaxyPoster ? galaxyRectSpread : undefined,
         backgroundMode: galaxyBackgroundMode,
-        backgroundImageUrl: galaxyBackgroundMode === 'image' ? galaxyBackgroundDataUrl : undefined,
+        backgroundImageUrl: galaxyBackgroundMode === 'image' ? galaxyBackgroundImageUrl : undefined,
       };
 
       const posterRes = await fetch('/api/skymap', {
@@ -913,7 +941,10 @@ export default function DesignPage() {
     companionPhotoMeta,
     companionPhotoDataUrl,
     galaxyBackgroundSource,
+    galaxyBackgroundPreset,
     galaxyBackgroundDataUrl,
+    galaxyRectSpread,
+    selectedGalaxyBgPreset,
     constellationLanguage,
     date,
     fontPreset,
@@ -1023,10 +1054,15 @@ export default function DesignPage() {
       const nextMetaLine = locationLine.trim() || fallbackLocationLine;
       const moonPhaseImageUrl = selectedInk.key === 'silver' ? '/moon_silver.png' : '/moon_gold.png';
       const formulaOverrides = usesCompanionCircle ? buildPosterFormulaOverrides(size) : null;
-      const galaxyBackgroundMode =
-        isGalaxyPoster && galaxyBackgroundSource === 'upload' && galaxyBackgroundDataUrl
-          ? 'image'
-          : 'solid';
+      const galaxyBackgroundImageUrl =
+        !isGalaxyPoster
+          ? ''
+          : galaxyBackgroundSource === 'upload'
+            ? galaxyBackgroundDataUrl
+            : galaxyBackgroundSource === 'preset'
+              ? selectedGalaxyBgPreset.url
+              : '';
+      const galaxyBackgroundMode = galaxyBackgroundImageUrl ? 'image' : 'solid';
 
       const basePoster: PosterParams = {
         ...defaultPoster,
@@ -1053,8 +1089,10 @@ export default function DesignPage() {
         companionPhotoImageUrl: isSkyPhoto ? companionPhotoDataUrl : undefined,
         showRuler,
         posterVariant: isGalaxyPoster ? 'galaxy' : 'classic',
+        chartShape: isGalaxyPoster ? 'rect' : 'circle',
+        rectSpread: isGalaxyPoster ? galaxyRectSpread : undefined,
         backgroundMode: galaxyBackgroundMode,
-        backgroundImageUrl: galaxyBackgroundMode === 'image' ? galaxyBackgroundDataUrl : undefined
+        backgroundImageUrl: galaxyBackgroundMode === 'image' ? galaxyBackgroundImageUrl : undefined
       };
 
       const renderRequest = {
@@ -1124,7 +1162,10 @@ export default function DesignPage() {
     companionPhotoMeta,
     companionPhotoDataUrl,
     galaxyBackgroundSource,
+    galaxyBackgroundPreset,
     galaxyBackgroundDataUrl,
+    galaxyRectSpread,
+    selectedGalaxyBgPreset,
     date,
     effectiveTheme,
     fontPreset,
@@ -1414,6 +1455,7 @@ export default function DesignPage() {
                   onChange={(e) => setGalaxyBackgroundSource(e.target.value as BackgroundSourceMode)}
                 >
                   <option value="palette">Use selected background color</option>
+                  <option value="preset">Use preset galaxy image</option>
                   <option value="upload">Upload custom background</option>
                 </select>
                 {galaxyBackgroundSource === 'upload' ? (
@@ -1464,9 +1506,48 @@ export default function DesignPage() {
                     {galaxyBackgroundInfo ? <p className="microHint">{galaxyBackgroundInfo}</p> : null}
                     {galaxyBackgroundError ? <p className="inlineError">{galaxyBackgroundError}</p> : null}
                   </>
+                ) : galaxyBackgroundSource === 'preset' ? (
+                  <>
+                    <div className="galaxyPresetGrid">
+                      {GALAXY_BACKGROUND_PRESETS.map((item) => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          className={galaxyBackgroundPreset === item.key ? 'galaxyPresetBtn active' : 'galaxyPresetBtn'}
+                          onClick={() => {
+                            setGalaxyBackgroundPreset(item.key);
+                            setGalaxyBackgroundError('');
+                          }}
+                          title={item.label}
+                        >
+                          <img src={item.url} alt={item.label} />
+                        </button>
+                      ))}
+                    </div>
+                    <div className="galaxyBgPreview">
+                      <img src={selectedGalaxyBgPreset.url} alt={`${selectedGalaxyBgPreset.label} preview`} />
+                    </div>
+                    <p className="microHint">Preset images are automatically fit to the selected poster size.</p>
+                  </>
                 ) : (
                   <p className="microHint">Pick a background color above, or switch to upload mode.</p>
                 )}
+                <div className="rangeField">
+                  <label htmlFor="galaxyRectSpread">Star Spread</label>
+                  <div className="rangeRow">
+                    <input
+                      id="galaxyRectSpread"
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={galaxyRectSpread}
+                      onChange={(e) => setGalaxyRectSpread(Number(e.target.value))}
+                    />
+                    <span className="rangeValue">{galaxyRectSpread}%</span>
+                  </div>
+                  <p className="microHint">Higher values push stars toward rectangle edges.</p>
+                </div>
               </div>
             ) : null}
 
@@ -2190,6 +2271,37 @@ export default function DesignPage() {
           color: #6d7076;
         }
 
+        .rangeField {
+          margin-top: 10px;
+          display: grid;
+          gap: 6px;
+        }
+
+        .rangeField > label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #4b5565;
+        }
+
+        .rangeRow {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .rangeRow input[type='range'] {
+          width: 100%;
+        }
+
+        .rangeValue {
+          min-width: 46px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #374151;
+          text-align: right;
+        }
+
         .uploadInputHidden {
           display: none;
         }
@@ -2198,6 +2310,35 @@ export default function DesignPage() {
           display: flex;
           align-items: center;
           gap: 8px;
+        }
+
+        .galaxyPresetGrid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .galaxyPresetBtn {
+          border: 1px solid #bcc7d8;
+          border-radius: 10px;
+          padding: 0;
+          overflow: hidden;
+          background: #0f1220;
+          cursor: pointer;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+          height: 74px;
+        }
+
+        .galaxyPresetBtn img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .galaxyPresetBtn.active {
+          border-color: #ffbe4c;
+          box-shadow: 0 0 0 1px rgba(255, 190, 76, 0.44);
         }
 
         .galaxyBgPreview {

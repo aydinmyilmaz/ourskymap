@@ -19,6 +19,7 @@ type LabelCandidate = {
   priority: number;
 };
 type LabelRect = { left: number; top: number; right: number; bottom: number };
+type ChartShape = 'circle' | 'rect';
 
 export type ChartGeometry = {
   W: number;
@@ -151,6 +152,34 @@ function starSizeFromMag(mag: number, magLimit: number, sMin: number, sMax: numb
   return sMin + (sMax - sMin) * y;
 }
 
+function remapUnitDiskToSquare(x: number, y: number, rectSpread: number): { x: number; y: number } {
+  const r = Math.hypot(x, y);
+  if (r <= 1e-9) return { x: 0, y: 0 };
+  const m = Math.max(Math.abs(x), Math.abs(y));
+  if (m <= 1e-9) return { x: 0, y: 0 };
+  // Rect mode should not look center-heavy; user can control edge spread.
+  const spread = Math.max(0, Math.min(100, rectSpread));
+  const exponent = 1 - (spread / 100) * 0.35; // 0 -> 1.00, 100 -> 0.65
+  const edgeBoostedR = Math.pow(r, exponent);
+  const scale = edgeBoostedR / m;
+  return {
+    x: Math.max(-1, Math.min(1, x * scale)),
+    y: Math.max(-1, Math.min(1, y * scale))
+  };
+}
+
+function projectAltAzToUnit(
+  altDeg: number,
+  azDeg: number,
+  mirrorX: number,
+  chartShape: ChartShape,
+  rectSpread: number
+): { x: number; y: number } {
+  const polar = altAzToXY(altDeg, azDeg);
+  const projected = chartShape === 'rect' ? remapUnitDiskToSquare(polar.x, polar.y, rectSpread) : polar;
+  return { x: projected.x * mirrorX, y: projected.y };
+}
+
 function clampNum(v: number, min: number, max: number, fallback: number): number {
   if (!Number.isFinite(v)) return fallback;
   return Math.max(min, Math.min(max, v));
@@ -235,10 +264,27 @@ function rectsOverlap(a: LabelRect, b: LabelRect): boolean {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
 
-function isInsideChart(x: number, y: number, chartCx: number, chartCy: number, chartR: number): boolean {
+function isInsideChart(
+  x: number,
+  y: number,
+  chartCx: number,
+  chartCy: number,
+  chartR: number,
+  chartShape: ChartShape
+): boolean {
   const dx = x - chartCx;
   const dy = y - chartCy;
+  if (chartShape === 'rect') {
+    return Math.abs(dx) <= chartR && Math.abs(dy) <= chartR;
+  }
   return dx * dx + dy * dy <= chartR * chartR;
+}
+
+function chartNormalizedDistance(dx: number, dy: number, chartR: number, chartShape: ChartShape): number {
+  if (chartShape === 'rect') {
+    return Math.max(Math.abs(dx), Math.abs(dy)) / Math.max(1, chartR);
+  }
+  return Math.hypot(dx, dy) / Math.max(1, chartR);
 }
 
 function buildOffsetCandidates(maxShift: number): { dx: number; dy: number }[] {
@@ -291,8 +337,9 @@ function placeLabelCandidates(opts: {
   chartCx: number;
   chartCy: number;
   chartR: number;
+  chartShape: ChartShape;
 }): LabelCandidate[] {
-  const { candidates, strategy, collisionPadding, maxShift, obstacles, chartCx, chartCy, chartR } = opts;
+  const { candidates, strategy, collisionPadding, maxShift, obstacles, chartCx, chartCy, chartR, chartShape } = opts;
   if (!candidates.length) return [];
   if (strategy === 'none') return candidates;
 
@@ -300,7 +347,7 @@ function placeLabelCandidates(opts: {
   const occupied: LabelRect[] = obstacles ? [...obstacles] : [];
   const placed: LabelCandidate[] = [];
   const sorted = [...candidates].sort((a, b) => b.priority - a.priority || a.text.localeCompare(b.text));
-  const inChartR = chartR * 0.985;
+  const inChartR = chartR * (chartShape === 'rect' ? 0.97 : 0.985);
 
   for (const label of sorted) {
     let best: LabelCandidate | null = null;
@@ -308,7 +355,7 @@ function placeLabelCandidates(opts: {
     for (const off of offsets) {
       const x = label.x + off.dx;
       const y = label.y + off.dy;
-      if (!isInsideChart(x, y, chartCx, chartCy, inChartR)) continue;
+      if (!isInsideChart(x, y, chartCx, chartCy, inChartR, chartShape)) continue;
       const rect = buildLabelRect(label, x, y, collisionPadding);
       if (occupied.some((taken) => rectsOverlap(taken, rect))) continue;
       best = { ...label, x, y };
@@ -331,9 +378,11 @@ function buildCoordinateGridPaths(opts: {
   chartCy: number;
   chartR: number;
   mirrorX: number;
+  chartShape: ChartShape;
+  rectSpread: number;
   stepDeg: number;
 }): string[] {
-  const { latitude, longitude, date, chartCx, chartCy, chartR, mirrorX } = opts;
+  const { latitude, longitude, date, chartCx, chartCy, chartR, mirrorX, chartShape, rectSpread } = opts;
   const stepDeg = Math.max(5, Math.min(60, Math.round(opts.stepDeg)));
 
   const paths: string[] = [];
@@ -352,9 +401,9 @@ function buildCoordinateGridPaths(opts: {
   const decSample = 2; // degrees
   const poleAltDeg = Math.abs(latitude);
   const poleAzDeg = latitude >= 0 ? 0 : 180;
-  const poleXY = altAzToXY(poleAltDeg, poleAzDeg);
+  const poleXY = projectAltAzToUnit(poleAltDeg, poleAzDeg, mirrorX, chartShape, rectSpread);
   const poleAnchor = {
-    x: chartCx + poleXY.x * mirrorX * chartR,
+    x: chartCx + poleXY.x * chartR,
     y: chartCy - poleXY.y * chartR
   };
 
@@ -369,8 +418,7 @@ function buildCoordinateGridPaths(opts: {
         seg = [];
         continue;
       }
-      const { x: x0, y } = altAzToXY(altDeg, azDeg);
-      const x = x0 * mirrorX;
+      const { x, y } = projectAltAzToUnit(altDeg, azDeg, mirrorX, chartShape, rectSpread);
       seg.push({ x: chartCx + x * chartR, y: chartCy - y * chartR });
     }
     pushSegment(seg);
@@ -387,8 +435,7 @@ function buildCoordinateGridPaths(opts: {
         seg = [];
         continue;
       }
-      const { x: x0, y } = altAzToXY(altDeg, azDeg);
-      const x = x0 * mirrorX;
+      const { x, y } = projectAltAzToUnit(altDeg, azDeg, mirrorX, chartShape, rectSpread);
       seg.push({ x: chartCx + x * chartR, y: chartCy - y * chartR });
     }
     if (seg.length >= 2) meridianSegments.push(seg);
@@ -425,9 +472,13 @@ export function buildChartGeometry(args: {
   date: Date;
   params: RenderParams;
   layout?: 'a4' | 'square';
+  chartShape?: ChartShape;
+  rectSpread?: number;
 }): ChartGeometry {
   const { latitude, longitude, date, params } = args;
   const mirrorX = params.mirrorHorizontal ? -1 : 1;
+  const chartShape = args.chartShape ?? 'circle';
+  const rectSpread = args.rectSpread ?? 62;
 
   const layout = args.layout ?? 'a4';
   const W = layout === 'square' ? 1024 : 595;
@@ -467,6 +518,8 @@ export function buildChartGeometry(args: {
         chartCy,
         chartR,
         mirrorX,
+        chartShape,
+        rectSpread,
         stepDeg: params.coordinateGridStepDeg
       })
       : [];
@@ -475,8 +528,7 @@ export function buildChartGeometry(args: {
   for (const s of starList) {
     const { altDeg, azDeg } = raDecToAltAz(s.ra_deg, s.dec_deg, latitude, longitude, date);
     if (altDeg <= 0) continue;
-    const { x: x0, y } = altAzToXY(altDeg, azDeg);
-    const x = x0 * mirrorX;
+    const { x, y } = projectAltAzToUnit(altDeg, azDeg, mirrorX, chartShape, rectSpread);
     const size = starSizeFromMag(s.mag, params.magnitudeLimit, params.starSizeMin, params.starSizeMax, params.starSizeGamma);
     if (size < params.minStarSize) continue;
     starPoints.push({
@@ -499,8 +551,7 @@ export function buildChartGeometry(args: {
       if (!s) continue;
       const { altDeg, azDeg } = raDecToAltAz(s.ra_deg, s.dec_deg, latitude, longitude, date);
       if (altDeg <= 0) continue;
-      const { x: x0, y } = altAzToXY(altDeg, azDeg);
-      const x = x0 * mirrorX;
+      const { x, y } = projectAltAzToUnit(altDeg, azDeg, mirrorX, chartShape, rectSpread);
       hipToXY.set(hip, { x: chartCx + x * chartR, y: chartCy - y * chartR, mag: s.mag });
     }
   }
@@ -541,8 +592,7 @@ export function buildChartGeometry(args: {
     const decDeg = (Math.asin(zq) * 180) / Math.PI;
     const { altDeg, azDeg } = raDecToAltAz(raDeg, decDeg, latitude, longitude, date);
     if (altDeg <= 0) continue;
-    const { x: x0, y } = altAzToXY(altDeg, azDeg);
-    const x = x0 * mirrorX;
+    const { x, y } = projectAltAzToUnit(altDeg, azDeg, mirrorX, chartShape, rectSpread);
     eclipticPoints.push(`${(chartCx + x * chartR).toFixed(2)},${(chartCy - y * chartR).toFixed(2)}`);
   }
 
@@ -578,8 +628,7 @@ export function buildChartGeometry(args: {
       const eq = Equator(item.body, t, obs, true, true);
       const hor = Horizon(t, obs, eq.ra, eq.dec);
       if (hor.altitude <= 0) continue;
-      const { x: x0, y } = altAzToXY(hor.altitude, hor.azimuth);
-      const x = x0 * mirrorX;
+      const { x, y } = projectAltAzToUnit(hor.altitude, hor.azimuth, mirrorX, chartShape, rectSpread);
       const px = chartCx + x * chartR;
       const py = chartCy - y * chartR;
       labelObstacles.push(circleToRect(px, py, item.r + PLANET_OBSTACLE_PAD));
@@ -608,7 +657,7 @@ export function buildChartGeometry(args: {
       const anchor = improveConstellationAnchor(pts, mx, my);
       const dx = anchor.x - chartCx;
       const dy = anchor.y - chartCy;
-      const radial = Math.sqrt(dx * dx + dy * dy) / Math.max(1, chartR);
+      const radial = chartNormalizedDistance(dx, dy, chartR, chartShape);
       if (radial > 0.92) continue;
       const priority = 120 - radial * 40 + Math.min(20, pts.length * 0.8);
       const translatedName = translateConstellationName(c.label, language);
@@ -638,13 +687,12 @@ export function buildChartGeometry(args: {
       if (s.mag > Math.max(1.8, Math.min(3.0, params.magnitudeLimit))) continue;
       const { altDeg, azDeg } = raDecToAltAz(s.ra_deg, s.dec_deg, latitude, longitude, date);
       if (altDeg <= 0) continue;
-      const { x: x0, y } = altAzToXY(altDeg, azDeg);
-      const x = x0 * mirrorX;
+      const { x, y } = projectAltAzToUnit(altDeg, azDeg, mirrorX, chartShape, rectSpread);
       const sx = chartCx + x * chartR;
       const sy = chartCy - y * chartR;
       const dx = sx - chartCx;
       const dy = sy - chartCy;
-      const radial = Math.sqrt(dx * dx + dy * dy) / Math.max(1, chartR);
+      const radial = chartNormalizedDistance(dx, dy, chartR, chartShape);
       if (radial > 0.93) continue;
       const priority = 220 - s.mag * 36 - radial * 28;
       starLabelCandidates.push({
@@ -672,7 +720,8 @@ export function buildChartGeometry(args: {
     obstacles: labelObstacles,
     chartCx,
     chartCy,
-    chartR
+    chartR,
+    chartShape
   });
 
   const constellationLabels: { x: number; y: number; text: string }[] = placedLabels
@@ -702,8 +751,7 @@ export function buildChartGeometry(args: {
       const hor = Horizon(t, obs, eq.ra, eq.dec);
       const altDeg = hor.altitude;
       const azDeg = hor.azimuth;
-      const { x: x0, y: y0 } = altAzToXY(altDeg, azDeg);
-      const x = x0 * mirrorX;
+      const { x, y: y0 } = projectAltAzToUnit(altDeg, azDeg, mirrorX, chartShape, rectSpread);
       return {
         altDeg,
         azDeg,
@@ -718,8 +766,7 @@ export function buildChartGeometry(args: {
       const altDeg = hor.altitude;
       const azDeg = hor.azimuth;
       if (altDeg <= 0) return;
-      const { x: x0, y } = altAzToXY(altDeg, azDeg);
-      const x = x0 * mirrorX;
+      const { x, y } = projectAltAzToUnit(altDeg, azDeg, mirrorX, chartShape, rectSpread);
       solarSystem.push({
         x: chartCx + x * chartR,
         y: chartCy - y * chartR,
@@ -757,8 +804,7 @@ export function buildChartGeometry(args: {
     for (const o of deepSky as unknown as Row[]) {
       const { altDeg, azDeg } = raDecToAltAz(o.ra_deg, o.dec_deg, latitude, longitude, date);
       if (altDeg <= 0) continue;
-      const { x: x0, y } = altAzToXY(altDeg, azDeg);
-      const x = x0 * mirrorX;
+      const { x, y } = projectAltAzToUnit(altDeg, azDeg, mirrorX, chartShape, rectSpread);
       deepSkyPoints.push({
         x: chartCx + x * chartR,
         y: chartCy - y * chartR,

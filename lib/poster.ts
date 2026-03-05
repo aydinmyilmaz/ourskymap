@@ -396,7 +396,19 @@ function renderGalaxyPosterSvg(req: PosterRequest, showRuler: boolean): string {
   const layout = getPosterLayout(size);
   const W = layout.width;
   const H = layout.height;
-  const geom = buildChartGeometry({ latitude, longitude, date, params, layout: layout.layout });
+  const galaxyChartShape = poster.chartShape ?? 'rect';
+  const galaxyRectSpread = typeof poster.rectSpread === 'number'
+    ? Math.max(0, Math.min(100, poster.rectSpread))
+    : 62;
+  const geom = buildChartGeometry({
+    latitude,
+    longitude,
+    date,
+    params,
+    layout: layout.layout,
+    chartShape: galaxyChartShape,
+    rectSpread: galaxyRectSpread
+  });
 
   const palette = getPalette(poster.palette);
   const inkRgb = hexToRgb(poster.inkColor || '');
@@ -438,19 +450,36 @@ function renderGalaxyPosterSvg(req: PosterRequest, showRuler: boolean): string {
   };
 
   const topAreaY = Math.round(H * 0.665);
-  // Galaxy variant: slightly zoom out to expose more sky/stars in top texture area.
+  // Galaxy map uses a dedicated rectangular panel in the top section.
+  const mapPadX = Math.max(26, W * 0.06);
+  const mapPadTop = Math.max(18, topAreaY * 0.08);
+  const mapPadBottom = Math.max(20, topAreaY * 0.11);
+  const mapLeft = mapPadX;
+  const mapRight = W - mapPadX;
+  const mapTop = mapPadTop;
+  const mapBottom = Math.max(mapTop + 24, topAreaY - mapPadBottom);
+  const mapHalfW = Math.max(1, (mapRight - mapLeft) / 2);
+  const mapHalfH = Math.max(1, (mapBottom - mapTop) / 2);
+  const mapCx = (mapLeft + mapRight) / 2;
+  const mapCy = (mapTop + mapBottom) / 2;
+
+  // Small sizes keep a slight zoom-out to avoid cramped edges.
   const longEdge = Math.max(W, H);
-  // Small poster sizes need extra zoom-out; large sizes stay near base ratio.
   const smallSizeZoomOut = Math.max(0.78, Math.min(1, longEdge / 1728));
-  const mapR = longEdge * 0.45 * smallSizeZoomOut;
-  const mapCx = W / 2;
-  const mapCy = topAreaY * 0.48;
+  const mapHalfX =
+    galaxyChartShape === 'rect'
+      ? mapHalfW * Math.max(0.88, Math.min(1, longEdge / 1728))
+      : Math.min(mapHalfW, mapHalfH) * smallSizeZoomOut;
+  const mapHalfY =
+    galaxyChartShape === 'rect'
+      ? mapHalfH * Math.max(0.88, Math.min(1, longEdge / 1728))
+      : Math.min(mapHalfW, mapHalfH) * smallSizeZoomOut;
   const boundaryBandTop = topAreaY - 18;
   const boundaryDarkBandH = 40;
   const boundaryPaperBandTop = topAreaY - 6;
   const boundaryPaperBandH = 44;
-  const sx = mapR / geom.chartR;
-  const sy = mapR / geom.chartR;
+  const sx = mapHalfX / geom.chartR;
+  const sy = mapHalfY / geom.chartR;
   const tx = mapCx - geom.chartCx * sx;
   const ty = mapCy - geom.chartCy * sy;
   const transform = `matrix(${sx.toFixed(6)} 0 0 ${sy.toFixed(6)} ${tx.toFixed(3)} ${ty.toFixed(3)})`;
@@ -496,7 +525,7 @@ function renderGalaxyPosterSvg(req: PosterRequest, showRuler: boolean): string {
 
   const bgImageUrl = poster.backgroundMode === 'image' ? (poster.backgroundImageUrl || '').trim() : '';
   const bgImageLayer = bgImageUrl
-    ? `<image href="${svgAttrEscape(bgImageUrl)}" x="0" y="0" width="${W}" height="${topAreaY}" preserveAspectRatio="xMidYMid slice" opacity="1"/>`
+    ? `<image href="${svgAttrEscape(bgImageUrl)}" x="0" y="0" width="${W}" height="${topAreaY}" preserveAspectRatio="none" opacity="1"/>`
     : '';
 
   const frame = poster.border
@@ -507,6 +536,7 @@ function renderGalaxyPosterSvg(req: PosterRequest, showRuler: boolean): string {
     ? `<g id="measurement-ruler-galaxy">
     <line x1="${(W / 2).toFixed(2)}" y1="0" x2="${(W / 2).toFixed(2)}" y2="${H}" stroke="#00FFFF" stroke-width="2" opacity="0.8"/>
     <line x1="0" y1="${topAreaY.toFixed(2)}" x2="${W}" y2="${topAreaY.toFixed(2)}" stroke="#00FFFF" stroke-width="2" opacity="0.8"/>
+    <rect x="${mapLeft.toFixed(2)}" y="${mapTop.toFixed(2)}" width="${(mapRight - mapLeft).toFixed(2)}" height="${(mapBottom - mapTop).toFixed(2)}" fill="none" stroke="#00FFFF" stroke-width="1.8" opacity="0.75"/>
     <text x="${(W - 16).toFixed(2)}" y="${(H - 18).toFixed(2)}" font-size="12" fill="#00FFFF" text-anchor="end" font-family="monospace" opacity="0.95" stroke="#000" stroke-width="2.2" paint-order="stroke">Galaxy Top: ${(topAreaY / 72).toFixed(3)}"</text>
   </g>`
     : '';
@@ -520,6 +550,9 @@ function renderGalaxyPosterSvg(req: PosterRequest, showRuler: boolean): string {
   <defs>
     <clipPath id="galaxyTopClip">
       <rect x="0" y="0" width="${W}" height="${topAreaY}"/>
+    </clipPath>
+    <clipPath id="galaxyMapClip">
+      <rect x="${mapLeft.toFixed(2)}" y="${mapTop.toFixed(2)}" width="${(mapRight - mapLeft).toFixed(2)}" height="${(mapBottom - mapTop).toFixed(2)}"/>
     </clipPath>
     <linearGradient id="galaxyBoundaryDarkFade" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="rgba(4,8,15,0.34)"/>
@@ -538,28 +571,31 @@ function renderGalaxyPosterSvg(req: PosterRequest, showRuler: boolean): string {
   <g clip-path="url(#galaxyTopClip)">
     ${bgImageLayer}
     <rect x="0" y="0" width="${W}" height="${topAreaY}" fill="rgba(4,8,15,0.38)"/>
-    <g transform="${transform}">
-      ${geom.coordinateGridPaths.length
+    <g clip-path="url(#galaxyMapClip)">
+      <g transform="${transform}">
+        ${geom.coordinateGridPaths.length
       ? `<path d="${geom.coordinateGridPaths.join(' ')}" fill="none" stroke="${layerMutedInk}" stroke-width="0.9" stroke-linecap="round" opacity="0.80"/>`
       : ''}
-      ${geom.linePaths.length ? `<path d="${geom.linePaths.join(' ')}" fill="none" stroke="${layerInk}" stroke-width="${params.constellationLineWidth}" opacity="${params.constellationLineAlpha}" stroke-linecap="round"/>` : ''}
-      <g opacity="${clamp01(params.starAlpha)}">
-        ${geom.starPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.55).toFixed(2)}" fill="${layerInk}"/>`).join('')}
-      </g>
-      <g opacity="${clamp01(params.vertexAlpha)}">
-        ${geom.vertexPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.6).toFixed(2)}" fill="${layerInk}"/>`).join('')}
-      </g>
-      <g>
-        ${geom.starLabels
+        ${geom.linePaths.length ? `<path d="${geom.linePaths.join(' ')}" fill="none" stroke="${layerInk}" stroke-width="${params.constellationLineWidth}" opacity="${params.constellationLineAlpha}" stroke-linecap="round"/>` : ''}
+        <g opacity="${clamp01(params.starAlpha)}">
+          ${geom.starPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.55).toFixed(2)}" fill="${layerInk}"/>`).join('')}
+        </g>
+        <g opacity="${clamp01(params.vertexAlpha)}">
+          ${geom.vertexPoints.map((p) => `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${(Math.sqrt(p.size) * 0.6).toFixed(2)}" fill="${layerInk}"/>`).join('')}
+        </g>
+        <g>
+          ${geom.starLabels
       .map((l) => `<text x="${(l.x + 5).toFixed(2)}" y="${(l.y + 2).toFixed(2)}" font-size="8" fill="${layerMutedInk}" opacity="0.8" stroke="${mapLabelHalo}" stroke-width="2.2" paint-order="stroke" text-anchor="start" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
       .join('')}
-      </g>
-      <g>
-        ${geom.constellationLabels
+        </g>
+        <g>
+          ${geom.constellationLabels
       .map((l) => `<text x="${l.x.toFixed(2)}" y="${l.y.toFixed(2)}" font-size="10" fill="${layerMutedInk}" opacity="0.84" stroke="${mapLabelHalo}" stroke-width="2.8" paint-order="stroke" text-anchor="middle" dominant-baseline="middle" font-family="${mapLabelFont}">${svgEscape(l.text)}</text>`)
       .join('')}
+        </g>
       </g>
     </g>
+    <rect x="${mapLeft.toFixed(2)}" y="${mapTop.toFixed(2)}" width="${(mapRight - mapLeft).toFixed(2)}" height="${(mapBottom - mapTop).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.32)" stroke-width="1.3"/>
   </g>
   <rect x="0" y="${topAreaY}" width="${W}" height="${(H - topAreaY).toFixed(2)}" fill="#f3f3f1"/>
   <g filter="url(#galaxyBoundaryBlur)" opacity="0.92">

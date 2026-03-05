@@ -134,6 +134,8 @@ export type PosterParams = {
   companionPhotoImageUrl?: string;
   showRuler?: boolean;
   posterVariant?: 'classic' | 'galaxy';
+  chartShape?: 'circle' | 'rect';
+  rectSpread?: number;
   backgroundMode?: 'solid' | 'image';
   backgroundImageUrl?: string;
 };
