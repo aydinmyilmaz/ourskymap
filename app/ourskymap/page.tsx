@@ -418,6 +418,9 @@ function mapFontPresetToPoster(fontPreset: FontPresetKey): Pick<PosterParams, 't
   if (fontPreset === 'gothic') {
     return { titleFont: 'sans', namesFont: 'sans', metaFont: 'sans' };
   }
+  if (fontPreset === 'times') {
+    return { titleFont: 'times', namesFont: 'times', metaFont: 'times' };
+  }
   return { titleFont: 'serif', namesFont: 'serif', metaFont: 'serif' };
 }
 

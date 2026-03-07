@@ -437,6 +437,8 @@ function renderGalaxyPosterSvg(req: PosterRequest, showRuler: boolean): string {
         return "'Allura', 'Great Vibes', cursive, ui-serif, Georgia, 'Times New Roman', serif";
       case 'signika':
         return "'Signika', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      case 'times':
+        return "'Times New Roman', Times, 'Liberation Serif', ui-serif, Georgia, serif";
       case 'mono':
         return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
       case 'sans':
@@ -821,6 +823,8 @@ export function renderPosterSvg(req: PosterRequest): string {
         return "'Allura', 'Great Vibes', cursive, ui-serif, Georgia, 'Times New Roman', serif";
       case 'signika':
         return "'Signika', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      case 'times':
+        return "'Times New Roman', Times, 'Liberation Serif', ui-serif, Georgia, serif";
       case 'mono':
         return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
       case 'sans':

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { CheckoutDraft } from '../../../lib/checkout';
 import {
   buildOrderExportBundle,
+  createDirectOrderCode,
   isValidEmail,
   normalizeExportMode,
   prepareOrderSvg,
@@ -11,29 +12,14 @@ import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 
-type OrderRow = {
-  id: string;
-  order_code: string;
-  status: 'pending' | 'completed';
-  used_at: string | null;
-  pdf_url: string | null;
-};
-
-function isSimulationCoupon(orderCode: string): boolean {
-  const simulationEnabled = (process.env.ETSY_SIMULATION_MODE ?? 'true').trim().toLowerCase() === 'true';
-  if (!simulationEnabled) return false;
-  const allowAny = (process.env.ETSY_SIMULATION_ALLOW_ANY ?? 'true').trim().toLowerCase() === 'true';
-  if (allowAny) return true;
-  const prefix = (process.env.ETSY_SIMULATION_PREFIX ?? 'SIM-').trim();
-  return prefix.length > 0 && orderCode.toUpperCase().startsWith(prefix.toUpperCase());
-}
-
-function buildOrderUpdate(input: {
+function buildOrderInsert(input: {
+  orderCode: string;
   draft: CheckoutDraft;
   email: string;
   fileUrl: string;
 }) {
   return {
+    order_code: input.orderCode,
     status: 'completed',
     used_at: new Date().toISOString(),
     customer_email: input.email,
@@ -80,22 +66,16 @@ async function uploadPreparedAsset(input: {
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
-      couponCode?: string;
       email?: string;
       draft?: CheckoutDraft;
       exportMode?: string;
     };
 
-    const couponCode = (body.couponCode || '').trim();
     const email = (body.email || '').trim().toLowerCase();
     const draft = body.draft;
     const exportMode = normalizeExportMode(body.exportMode);
-    const ordersTable = (process.env.SUPABASE_ORDERS_TABLE ?? 'orders').trim();
-    const storageBucket = (process.env.SUPABASE_STORAGE_BUCKET ?? 'generated-maps').trim();
+    const orderCode = createDirectOrderCode();
 
-    if (!couponCode) {
-      return NextResponse.json({ success: false, message: 'Coupon code is required.' }, { status: 400 });
-    }
     if (!email || !isValidEmail(email)) {
       return NextResponse.json({ success: false, message: 'Please enter a valid email address.' }, { status: 400 });
     }
@@ -113,85 +93,32 @@ export async function POST(req: Request) {
     }
 
     const supabase = getSupabaseAdminClient();
-
-    let order: OrderRow | null = null;
-    const lookup = await supabase
-      .from(ordersTable)
-      .select('id,order_code,status,used_at,pdf_url')
-      .eq('order_code', couponCode)
-      .maybeSingle();
-
-    if (lookup.error) {
-      throw new Error(`Failed to validate coupon: ${lookup.error.message}`);
-    }
-    order = lookup.data as OrderRow | null;
-
-    if (!order && isSimulationCoupon(couponCode)) {
-      const seeded = await supabase
-        .from(ordersTable)
-        .insert({
-          order_code: couponCode,
-          status: 'pending'
-        })
-        .select('id,order_code,status,used_at,pdf_url')
-        .single();
-
-      if (seeded.error) {
-        throw new Error(`Failed to create simulated order: ${seeded.error.message}`);
-      }
-      order = seeded.data as OrderRow;
-    }
-
-    if (!order) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid coupon code. Please check your Etsy order confirmation.' },
-        { status: 400 }
-      );
-    }
-
-    const allowSimulationRerender = order.status === 'completed' && isSimulationCoupon(couponCode);
-
-    if (order.status === 'completed' && !allowSimulationRerender) {
-      const usedOn = order.used_at ? new Date(order.used_at).toLocaleString('en-US') : 'a previous date';
-      return NextResponse.json(
-        {
-          success: false,
-          message: `This coupon was already used on ${usedOn}.`,
-          orderCode: order.order_code,
-          downloadUrl: order.pdf_url
-        },
-        { status: 400 }
-      );
-    }
-
+    const ordersTable = (process.env.SUPABASE_ORDERS_TABLE ?? 'orders').trim();
+    const storageBucket = (process.env.SUPABASE_STORAGE_BUCKET ?? 'generated-maps').trim();
     const fileUrl = await uploadPreparedAsset({
       supabase,
       storageBucket,
-      orderCode: couponCode,
+      orderCode,
       draft,
       exportMode
     });
 
-    const update = await supabase
-      .from(ordersTable)
-      .update(buildOrderUpdate({ draft, email, fileUrl }))
-      .eq('order_code', couponCode);
-
-    if (update.error) {
-      throw new Error(`Failed to update order: ${update.error.message}`);
+    const insert = await supabase.from(ordersTable).insert(buildOrderInsert({ orderCode, draft, email, fileUrl }));
+    if (insert.error) {
+      throw new Error(`Failed to create order: ${insert.error.message}`);
     }
 
     return NextResponse.json({
       success: true,
-      message: exportMode === 'browser' ? 'Coupon validated. Browser export is ready.' : 'Your map is ready.',
-      orderCode: couponCode,
+      message: exportMode === 'browser' ? 'Browser export is ready.' : 'Your map is ready.',
+      orderCode,
       downloadUrl: fileUrl
     });
   } catch (e: any) {
     return NextResponse.json(
       {
         success: false,
-        message: e?.message ?? 'Failed to process coupon.'
+        message: e?.message ?? 'Failed to prepare order.'
       },
       { status: 500 }
     );

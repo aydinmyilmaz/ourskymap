@@ -7,6 +7,7 @@ import { calculatePrintTotals, formatMoney } from '../../lib/print-pricing';
 import type { PricingPayload, PrintCurrency, PrintOptionKey, PrintSizeKey } from '../../lib/print-types';
 import { buildDevZipBlob, loadDevDownloadDraft, triggerBlobDownload } from '../../lib/dev-download';
 import { buildOrderFileToken, mapDesignSizeToPrintSize } from '../../lib/print-size-utils';
+import { CHECKOUT_DRAFT_KEY, type CheckoutDraft, type CheckoutExportMode } from '../../lib/checkout';
 
 type OrderStatusResponse = {
   success: boolean;
@@ -80,11 +81,205 @@ async function extractPreviewPng(zipUrl: string): Promise<string | null> {
   }
 }
 
+function PrintOrderStateScreen(props: {
+  title: string;
+  message: string;
+  linkHref?: string;
+  linkLabel?: string;
+}) {
+  return (
+    <div className="statePage">
+      <div className="stateShell">
+        <div className="stateBrand">
+          <div className="stateBrandMark" aria-hidden="true">
+            <img src="/logo_ourskymap_v4.jpeg" alt="" />
+          </div>
+          <div className="stateBrandText">
+            <div className="stateBrandMain">STAR MAP</div>
+            <div className="stateBrandSub">STUDIO</div>
+          </div>
+        </div>
+
+        <div className="stateCard">
+          <div className="stateOrbit" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+          <h1>{props.title}</h1>
+          <p>{props.message}</p>
+          {props.linkHref && props.linkLabel ? (
+            <a href={props.linkHref} className="stateLink">
+              {props.linkLabel}
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      <style jsx>{`
+        .statePage {
+          min-height: 100vh;
+          display: grid;
+          place-items: center;
+          padding: 32px 20px;
+          background:
+            radial-gradient(circle at top, rgba(90, 118, 190, 0.22), transparent 38%),
+            linear-gradient(180deg, #eef2f8 0%, #e5eaf2 100%);
+          font-family: 'Signika', ui-sans-serif, system-ui;
+          color: #20242f;
+        }
+        .stateShell {
+          width: min(720px, 100%);
+          display: grid;
+          gap: 22px;
+        }
+        .stateBrand {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          color: #1b2a4d;
+        }
+        .stateBrandMark {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          border: 2px solid rgba(27, 42, 77, 0.14);
+          overflow: hidden;
+          background: rgba(255, 255, 255, 0.72);
+          box-shadow: 0 10px 24px rgba(31, 47, 84, 0.12);
+        }
+        .stateBrandMark img {
+          width: 84%;
+          height: 84%;
+          margin: 8%;
+          display: block;
+          object-fit: contain;
+        }
+        .stateBrandMain {
+          font-size: 22px;
+          line-height: 1;
+          letter-spacing: 0.1em;
+          font-weight: 700;
+        }
+        .stateBrandSub {
+          margin-top: 3px;
+          font-size: 10px;
+          line-height: 1;
+          letter-spacing: 0.28em;
+          opacity: 0.72;
+        }
+        .stateCard {
+          background: rgba(255, 255, 255, 0.94);
+          border: 1px solid rgba(27, 42, 77, 0.09);
+          border-radius: 24px;
+          padding: 38px 32px;
+          text-align: center;
+          box-shadow: 0 26px 70px rgba(32, 44, 73, 0.12);
+        }
+        .stateOrbit {
+          width: 84px;
+          height: 84px;
+          margin: 0 auto 18px;
+          position: relative;
+          border-radius: 50%;
+          border: 1px solid rgba(31, 63, 149, 0.16);
+          background: radial-gradient(circle at 50% 50%, rgba(31, 63, 149, 0.12) 0, rgba(31, 63, 149, 0.03) 54%, transparent 55%);
+        }
+        .stateOrbit span {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          border: 1px solid rgba(31, 63, 149, 0.18);
+          animation: orbitPulse 1.8s ease-in-out infinite;
+        }
+        .stateOrbit span:nth-child(2) {
+          inset: 10px;
+          animation-delay: 0.18s;
+        }
+        .stateOrbit span:nth-child(3) {
+          inset: 22px;
+          animation-delay: 0.36s;
+        }
+        .stateCard h1 {
+          margin: 0;
+          font-family: 'Prata', Georgia, serif;
+          font-size: clamp(28px, 4vw, 38px);
+          line-height: 1.15;
+          color: #111827;
+        }
+        .stateCard p {
+          margin: 12px auto 0;
+          max-width: 460px;
+          font-size: 16px;
+          line-height: 1.6;
+          color: #546072;
+        }
+        .stateLink {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 22px;
+          min-height: 46px;
+          padding: 0 18px;
+          border-radius: 999px;
+          background: linear-gradient(135deg, #1f3f95 0%, #182d67 100%);
+          color: #fff;
+          text-decoration: none;
+          font-size: 14px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+          box-shadow: 0 14px 30px rgba(31, 63, 149, 0.24);
+        }
+        @keyframes orbitPulse {
+          0%, 100% {
+            opacity: 0.34;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.9;
+            transform: scale(1.05);
+          }
+        }
+        @media (max-width: 640px) {
+          .stateCard {
+            padding: 30px 20px;
+            border-radius: 20px;
+          }
+          .stateBrandMain {
+            font-size: 18px;
+          }
+          .stateBrandSub {
+            font-size: 9px;
+          }
+          .stateCard p {
+            font-size: 15px;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function loadCheckoutDraftFromStorage(): CheckoutDraft | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(CHECKOUT_DRAFT_KEY) ?? window.sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CheckoutDraft;
+    if (!parsed?.previewSvg || !parsed?.renderRequest || !parsed?.mapData) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function PrintOrderPageBody() {
   const router = useRouter();
   const search = useSearchParams();
   const orderCode = (search.get('orderCode') || '').trim();
-  const isDevMode = search.get('dev') === '1';
+  const isLegacyDevMode = search.get('dev') === '1';
+  const exportMode: CheckoutExportMode = search.get('exportMode') === 'server' ? 'server' : 'browser';
 
   const [order, setOrder] = useState<OrderStatusResponse | null>(null);
   const [pricing, setPricing] = useState<PricingPayload | null>(null);
@@ -130,7 +325,7 @@ function PrintOrderPageBody() {
       return;
     }
 
-    if (isDevMode) {
+    if (isLegacyDevMode) {
       const draft = loadDevDownloadDraft();
       if (!draft || draft.orderCode !== orderCode) {
         setError('Missing dev order context. Return to checkout and use Dev Quick Download again.');
@@ -154,6 +349,53 @@ function PrintOrderPageBody() {
       setPreviewImageDataUrl('');
       setPreviewSvgMarkup(absolutizeMoonAssetRefs(draft.previewSvg));
       setLoading(false);
+      return;
+    }
+
+    if (exportMode === 'browser') {
+      const checkoutDraft = loadCheckoutDraftFromStorage();
+      if (!checkoutDraft) {
+        setError('Missing browser export context. Return to checkout and try again.');
+        setLoading(false);
+        return;
+      }
+
+      setOrder({
+        success: true,
+        orderCode,
+        status: 'completed',
+        customerEmail: null
+      });
+      const localSourceSize = mapDesignSizeToPrintSize(checkoutDraft.mapData.size);
+      if (localSourceSize) {
+        setSourcePrintSize(localSourceSize);
+      }
+      setPreviewImageDataUrl('');
+      setPreviewSvgMarkup(absolutizeMoonAssetRefs(checkoutDraft.previewSvg));
+
+      const run = async () => {
+        setLoading(true);
+        setError('');
+        try {
+          const orderRes = await fetch(`/api/order-status?orderCode=${encodeURIComponent(orderCode)}`, { cache: 'no-store' });
+          const orderJson = (await orderRes.json()) as OrderStatusResponse;
+          if (orderRes.ok && orderJson.success) {
+            setOrder(orderJson);
+            if (orderJson.sourcePrintSize) {
+              setSourcePrintSize(orderJson.sourcePrintSize);
+            }
+            if (orderJson.customerEmail) {
+              setCustomerEmail(orderJson.customerEmail);
+            }
+          }
+        } catch {
+          // Browser export can still proceed from the local draft.
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      void run();
       return;
     }
 
@@ -190,7 +432,7 @@ function PrintOrderPageBody() {
     };
 
     void run();
-  }, [isDevMode, orderCode]);
+  }, [exportMode, isLegacyDevMode, orderCode]);
 
   useEffect(() => {
     const run = async () => {
@@ -278,13 +520,19 @@ function PrintOrderPageBody() {
     setDownloadingZip(true);
     setDownloadError('');
     try {
-      if (isDevMode) {
-        const draft = loadDevDownloadDraft();
-        if (!draft || draft.orderCode !== order.orderCode) {
-          throw new Error('Missing dev download context. Return to checkout and retry.');
+      if (isLegacyDevMode || exportMode === 'browser') {
+        const legacyDraft = isLegacyDevMode ? loadDevDownloadDraft() : null;
+        const checkoutDraft = loadCheckoutDraftFromStorage();
+        const previewSvg = legacyDraft?.previewSvg || checkoutDraft?.previewSvg || '';
+        if (!previewSvg) {
+          throw new Error('Missing browser export context. Return to checkout and retry.');
         }
-        const zipBlob = await buildDevZipBlob(draft.previewSvg, draft.orderCode, draft.sourcePrintSize || null);
-        const token = buildOrderFileToken(draft.orderCode, draft.sourcePrintSize || null);
+        const resolvedSourceSize =
+          sourcePrintSize ||
+          legacyDraft?.sourcePrintSize ||
+          mapDesignSizeToPrintSize(checkoutDraft?.mapData.size || null);
+        const zipBlob = await buildDevZipBlob(previewSvg, order.orderCode, resolvedSourceSize || null);
+        const token = buildOrderFileToken(order.orderCode, resolvedSourceSize || null);
         triggerBlobDownload(zipBlob, `ourskymap-${token}.zip`);
         return;
       }
@@ -320,7 +568,7 @@ function PrintOrderPageBody() {
       return;
     }
 
-    if (isDevMode) {
+    if (isLegacyDevMode) {
       const devPrintOrderCode = `DEV-PO-${Date.now()}`;
       router.push(
         `/print-order/success?printOrderCode=${encodeURIComponent(devPrintOrderCode)}&sourceOrderCode=${encodeURIComponent(order.orderCode)}&currency=${currency}&total=${encodeURIComponent(totals.total.toFixed(2))}&dev=1`
@@ -368,15 +616,22 @@ function PrintOrderPageBody() {
   }
 
   if (loading) {
-    return <div className="state">Loading print checkout...</div>;
+    return (
+      <PrintOrderStateScreen
+        title="Preparing your print checkout"
+        message="We are loading your artwork, delivery options, and download details."
+      />
+    );
   }
 
   if (error && !order) {
     return (
-      <div className="state">
-        <p>{error}</p>
-        <a href="/checkout">Back to checkout</a>
-      </div>
+      <PrintOrderStateScreen
+        title="We could not open this print checkout"
+        message={error}
+        linkHref="/checkout"
+        linkLabel="Back to checkout"
+      />
     );
   }
 
@@ -424,7 +679,7 @@ function PrintOrderPageBody() {
           </div>
 
           <div className="mockupStrip">
-            {isDevMode ? <span className="mockupDevHint">Replace files in /public/mockups/print-order</span> : null}
+            {isLegacyDevMode ? <span className="mockupDevHint">Replace files in /public/mockups/print-order</span> : null}
             <div className="mockupRow">
               {MOCKUP_SCENES.map((scene) => (
                 <figure key={scene.title} className="mockupThumb">
@@ -1237,7 +1492,14 @@ function PrintOrderPageBody() {
 
 export default function PrintOrderPage() {
   return (
-    <Suspense fallback={<div className="state">Loading print checkout...</div>}>
+    <Suspense
+      fallback={
+        <PrintOrderStateScreen
+          title="Opening your print checkout"
+          message="We are preparing the page and syncing your order details."
+        />
+      }
+    >
       <PrintOrderPageBody />
     </Suspense>
   );

@@ -4,6 +4,7 @@ node_modules/
 out/
 dist/
 .vercel/
+tsconfig.tsbuildinfo
 
 # Logs
 *.log
@@ -16,6 +17,7 @@ pnpm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+.claude/
 
 # Python
 .venv/

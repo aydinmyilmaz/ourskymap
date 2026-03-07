@@ -49,10 +49,10 @@ export function parsePrintSizeFromZipName(input: string | null | undefined): Pri
     // Input may already be a plain path/filename.
   }
   decoded = decoded.toLowerCase();
-  const match = decoded.match(/(?:8x12|11x14|a3|12x12|12x16|16x20|a2|18x24|20x20|24x32)-\d+\.zip$/);
+  const match = decoded.match(/(?:8x12|11x14|a3|12x12|12x16|16x20|a2|18x24|20x20|24x32)-\d+\.(?:zip|svg|png|pdf)$/);
   if (!match) return null;
   const [token] = match;
-  const sizeToken = token.replace(/-\d+\.zip$/, '');
+  const sizeToken = token.replace(/-\d+\.(?:zip|svg|png|pdf)$/, '');
   return isPrintSizeKey(sizeToken) ? sizeToken : null;
 }
 

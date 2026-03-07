@@ -1,6 +1,8 @@
 import type { PosterRequest } from './types';
 
 export const CHECKOUT_DRAFT_KEY = 'ourskymap_checkout_draft_v2';
+export type CheckoutExportMode = 'browser' | 'server';
+export type CheckoutMode = 'with-coupon' | 'without-coupon';
 
 export type CheckoutMapData = {
   city: string;

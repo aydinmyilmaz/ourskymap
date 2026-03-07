@@ -2,12 +2,7 @@
 
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CHECKOUT_DRAFT_KEY, type CheckoutDraft } from '../../lib/checkout';
-import {
-  makeDevOrderCode,
-  saveDevDownloadDraft
-} from '../../lib/dev-download';
-import { mapDesignSizeToPrintSize } from '../../lib/print-size-utils';
+import { CHECKOUT_DRAFT_KEY, type CheckoutDraft, type CheckoutExportMode } from '../../lib/checkout';
 
 type RedeemResponse = {
   success: boolean;
@@ -24,8 +19,9 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [devDownloading, setDevDownloading] = useState(false);
+  const [directLoading, setDirectLoading] = useState(false);
   const [error, setError] = useState('');
+  const [exportMode, setExportMode] = useState<CheckoutExportMode>('browser');
 
   useEffect(() => {
     try {
@@ -53,6 +49,10 @@ export default function CheckoutPage() {
     return !!email.trim() && !!couponCode.trim() && !loading;
   }, [couponCode, email, loading]);
 
+  const canContinueWithoutCoupon = useMemo(() => {
+    return !!email.trim() && !directLoading;
+  }, [directLoading, email]);
+
   async function handleCouponSubmit(e: FormEvent) {
     e.preventDefault();
     if (!draft) return;
@@ -67,6 +67,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           couponCode: couponCode.trim(),
           email: email.trim(),
+          exportMode,
           draft: {
             ...draft,
             productType: 'sky'
@@ -79,7 +80,9 @@ export default function CheckoutPage() {
         return;
       }
 
-      router.push(`/print-order?orderCode=${encodeURIComponent(data.orderCode || couponCode.trim())}`);
+      router.push(
+        `/print-order?orderCode=${encodeURIComponent(data.orderCode || couponCode.trim())}&exportMode=${encodeURIComponent(exportMode)}&checkoutMode=with-coupon`
+      );
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -87,26 +90,35 @@ export default function CheckoutPage() {
     }
   }
 
-  async function handleDevQuickDownload() {
+  async function handleContinueWithoutCoupon() {
     if (!draft) return;
-    setDevDownloading(true);
+    setDirectLoading(true);
     setError('');
     try {
-      const orderCode = makeDevOrderCode();
-      const sourcePrintSize = mapDesignSizeToPrintSize(draft.mapData.size);
-      saveDevDownloadDraft({
-        orderCode,
-        email: email.trim(),
-        previewSvg: draft.previewSvg,
-        sourceDesignSize: draft.mapData.size,
-        sourcePrintSize,
-        createdAtIso: new Date().toISOString()
+      const res = await fetch('/api/prepare-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          exportMode,
+          draft: {
+            ...draft,
+            productType: 'sky'
+          }
+        })
       });
-      router.push(`/print-order?orderCode=${encodeURIComponent(orderCode)}&dev=1`);
+      const data = (await res.json()) as RedeemResponse;
+      if (!res.ok || !data.success || !data.orderCode) {
+        setError(data.message || 'Could not prepare your order.');
+        return;
+      }
+      router.push(
+        `/print-order?orderCode=${encodeURIComponent(data.orderCode)}&exportMode=${encodeURIComponent(exportMode)}&checkoutMode=without-coupon`
+      );
     } catch {
-      setError('Dev quick download failed. Please try again.');
+      setError('Could not prepare your order. Please try again.');
     } finally {
-      setDevDownloading(false);
+      setDirectLoading(false);
     }
   }
 
@@ -137,6 +149,28 @@ export default function CheckoutPage() {
         <section className="right">
           <h2>Complete Your Order</h2>
           <p className="sub">Enter your details to receive your custom sky map</p>
+          <div className="exportModeCard">
+            <div className="exportModeHeader">
+              <strong>Download Mode</strong>
+              <small>Quick uses your browser. High Quality uses backend rendering.</small>
+            </div>
+            <div className="exportModeSwitch" role="tablist" aria-label="Download mode">
+              <button
+                type="button"
+                className={exportMode === 'browser' ? 'modeBtn active' : 'modeBtn'}
+                onClick={() => setExportMode('browser')}
+              >
+                Quick
+              </button>
+              <button
+                type="button"
+                className={exportMode === 'server' ? 'modeBtn active' : 'modeBtn'}
+                onClick={() => setExportMode('server')}
+              >
+                High Quality
+              </button>
+            </div>
+          </div>
 
           <form onSubmit={handleCouponSubmit} className="form">
             <label>
@@ -169,8 +203,8 @@ export default function CheckoutPage() {
               {loading ? 'Processing...' : 'Continue with Coupon'}
             </button>
             {allowNoCouponFlow ? (
-              <button type="button" className="devBtn" onClick={() => void handleDevQuickDownload()} disabled={devDownloading}>
-                {devDownloading ? 'Preparing...' : 'Continue Without Coupon'}
+              <button type="button" className="devBtn" onClick={() => void handleContinueWithoutCoupon()} disabled={!canContinueWithoutCoupon}>
+                {directLoading ? 'Preparing...' : 'Continue Without Coupon'}
               </button>
             ) : null}
           </form>
@@ -275,6 +309,43 @@ export default function CheckoutPage() {
           margin: 6px 0 22px;
           color: #b5c5e8;
           font-size: 17px;
+        }
+        .exportModeCard {
+          margin-bottom: 18px;
+          padding: 14px;
+          border: 1px solid rgba(91, 118, 177, 0.55);
+          border-radius: 12px;
+          background: rgba(31, 48, 91, 0.62);
+        }
+        .exportModeHeader {
+          display: grid;
+          gap: 4px;
+          margin-bottom: 10px;
+        }
+        .exportModeHeader strong {
+          font-size: 14px;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+        }
+        .exportModeSwitch {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        .modeBtn {
+          height: 44px;
+          border-radius: 10px;
+          border: 1px solid rgba(112, 138, 193, 0.6);
+          background: rgba(38, 56, 98, 0.76);
+          color: #dce8ff;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .modeBtn.active {
+          background: linear-gradient(90deg, #4c36de 0%, #5d42f2 100%);
+          border-color: transparent;
+          color: #fff;
         }
         .form {
           display: grid;

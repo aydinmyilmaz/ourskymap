@@ -116,11 +116,11 @@ export type PosterParams = {
   ringInnerWidth: number;
   ringGap: number;
   ringOuterWidth: number;
-  titleFont: 'serif' | 'sans' | 'mono' | 'prata';
+  titleFont: 'serif' | 'sans' | 'mono' | 'prata' | 'times';
   titleFontSize: number;
-  namesFont: 'serif' | 'sans' | 'cursive' | 'jimmy-script';
+  namesFont: 'serif' | 'sans' | 'cursive' | 'jimmy-script' | 'times';
   namesFontSize: number;
-  metaFont: 'sans' | 'serif' | 'mono' | 'signika';
+  metaFont: 'sans' | 'serif' | 'mono' | 'signika' | 'times';
   metaFontSize: number;
   metaText: string;
   metaFontWeight: 400 | 500 | 700;
