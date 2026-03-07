@@ -54,11 +54,12 @@ async function uploadPreparedAsset(input: {
   orderCode: string;
   draft: CheckoutDraft;
   exportMode: ExportMode;
+  assetBaseUrl: string;
 }): Promise<string> {
   const ts = Date.now();
 
   if (input.exportMode === 'browser') {
-    const prepared = await prepareOrderSvg({ draft: input.draft, orderCode: input.orderCode });
+    const prepared = await prepareOrderSvg({ draft: input.draft, orderCode: input.orderCode, assetBaseUrl: input.assetBaseUrl });
     const fileName = `star-maps/${prepared.fileToken}-${ts}.svg`;
     const upload = await input.supabase.storage.from(input.storageBucket).upload(fileName, Buffer.from(prepared.exportSvg, 'utf-8'), {
       contentType: 'image/svg+xml; charset=utf-8',
@@ -68,7 +69,7 @@ async function uploadPreparedAsset(input: {
     return input.supabase.storage.from(input.storageBucket).getPublicUrl(fileName).data.publicUrl;
   }
 
-  const bundle = await buildOrderExportBundle({ draft: input.draft, orderCode: input.orderCode });
+  const bundle = await buildOrderExportBundle({ draft: input.draft, orderCode: input.orderCode, assetBaseUrl: input.assetBaseUrl });
   const fileName = `star-maps/${bundle.fileToken}-${ts}.zip`;
   const upload = await input.supabase.storage.from(input.storageBucket).upload(fileName, bundle.zipBuffer, {
     contentType: 'application/zip',
@@ -93,6 +94,7 @@ export async function POST(req: Request) {
     const exportMode = normalizeExportMode(body.exportMode);
     const ordersTable = (process.env.SUPABASE_ORDERS_TABLE ?? 'orders').trim();
     const storageBucket = (process.env.SUPABASE_STORAGE_BUCKET ?? 'generated-maps').trim();
+    const assetBaseUrl = new URL(req.url).origin;
 
     if (!couponCode) {
       return NextResponse.json({ success: false, message: 'Coupon code is required.' }, { status: 400 });
@@ -170,7 +172,8 @@ export async function POST(req: Request) {
       storageBucket,
       orderCode: couponCode,
       draft,
-      exportMode
+      exportMode,
+      assetBaseUrl
     });
 
     const update = await supabase

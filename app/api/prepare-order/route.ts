@@ -40,11 +40,12 @@ async function uploadPreparedAsset(input: {
   orderCode: string;
   draft: CheckoutDraft;
   exportMode: ExportMode;
+  assetBaseUrl: string;
 }): Promise<string> {
   const ts = Date.now();
 
   if (input.exportMode === 'browser') {
-    const prepared = await prepareOrderSvg({ draft: input.draft, orderCode: input.orderCode });
+    const prepared = await prepareOrderSvg({ draft: input.draft, orderCode: input.orderCode, assetBaseUrl: input.assetBaseUrl });
     const fileName = `star-maps/${prepared.fileToken}-${ts}.svg`;
     const upload = await input.supabase.storage.from(input.storageBucket).upload(fileName, Buffer.from(prepared.exportSvg, 'utf-8'), {
       contentType: 'image/svg+xml; charset=utf-8',
@@ -54,7 +55,7 @@ async function uploadPreparedAsset(input: {
     return input.supabase.storage.from(input.storageBucket).getPublicUrl(fileName).data.publicUrl;
   }
 
-  const bundle = await buildOrderExportBundle({ draft: input.draft, orderCode: input.orderCode });
+  const bundle = await buildOrderExportBundle({ draft: input.draft, orderCode: input.orderCode, assetBaseUrl: input.assetBaseUrl });
   const fileName = `star-maps/${bundle.fileToken}-${ts}.zip`;
   const upload = await input.supabase.storage.from(input.storageBucket).upload(fileName, bundle.zipBuffer, {
     contentType: 'application/zip',
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
     const draft = body.draft;
     const exportMode = normalizeExportMode(body.exportMode);
     const orderCode = createDirectOrderCode();
+    const assetBaseUrl = new URL(req.url).origin;
 
     if (email && !isValidEmail(email)) {
       return NextResponse.json({ success: false, message: 'Please enter a valid email address.' }, { status: 400 });
@@ -102,7 +104,8 @@ export async function POST(req: Request) {
       storageBucket,
       orderCode,
       draft,
-      exportMode
+      exportMode,
+      assetBaseUrl
     });
 
     const insert = await supabase.from(ordersTable).insert(buildOrderInsert({ orderCode, draft, email, fileUrl }));

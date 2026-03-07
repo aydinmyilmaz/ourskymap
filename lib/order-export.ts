@@ -62,27 +62,6 @@ function getPublicAssetAbsolutePath(relPath: string): string {
   return path.join(process.cwd(), 'public', relPath.replace(/^\/+/, ''));
 }
 
-function loadPublicAssetBytes(relPath: string): Buffer | null {
-  const normalizedRelPath = relPath.replace(/^\/+/, '');
-  const cacheKey = normalizedRelPath.toLowerCase();
-  if (Object.prototype.hasOwnProperty.call(publicAssetBytesCache, cacheKey)) {
-    return publicAssetBytesCache[cacheKey];
-  }
-  const absPath = getPublicAssetAbsolutePath(normalizedRelPath);
-  if (!existsSync(absPath)) {
-    publicAssetBytesCache[cacheKey] = null;
-    return null;
-  }
-  try {
-    const raw = readFileSync(absPath);
-    publicAssetBytesCache[cacheKey] = raw;
-    return raw;
-  } catch {
-    publicAssetBytesCache[cacheKey] = null;
-    return null;
-  }
-}
-
 function replaceAssetUrlRefs(svg: string, assetPath: string, replacement: string): string {
   return svg
     .replaceAll(`href="${assetPath}"`, `href="${replacement}"`)
@@ -95,23 +74,53 @@ function listMoonAssetPaths(svg: string): string[] {
   return [...new Set(svg.match(MOON_ASSET_PATH_REGEX) ?? [])];
 }
 
-function getMoonImageDataUri(assetPath: string): string | null {
-  const relPath = assetPath.replace(/^\/+/, '');
-  if (!SAFE_MOON_ASSET_REL_PATH_REGEX.test(relPath)) return null;
-  if (Object.prototype.hasOwnProperty.call(moonDataUriCache, relPath)) return moonDataUriCache[relPath];
-  const raw = loadPublicAssetBytes(relPath);
-  if (!raw) {
-    moonDataUriCache[relPath] = null;
-    return null;
-  }
-  moonDataUriCache[relPath] = `data:image/png;base64,${raw.toString('base64')}`;
-  return moonDataUriCache[relPath];
+function getAssetBaseCandidates(assetBaseUrl?: string): string[] {
+  const normalizedExplicit = String(assetBaseUrl || '').trim().replace(/\/+$/, '');
+  const normalizedEnv = String(process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/+$/, '');
+  return [...new Set([normalizedExplicit, normalizedEnv].filter(Boolean))];
 }
 
-function withEmbeddedMoonUrls(svg: string): string {
+async function loadPublicAssetBytesOverHttp(relPath: string, assetBaseUrl?: string): Promise<Buffer | null> {
+  const normalizedRelPath = relPath.replace(/^\/+/, '');
+  const cacheKey = `${getAssetBaseCandidates(assetBaseUrl).join('|')}|${normalizedRelPath}`.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(publicAssetBytesCache, cacheKey)) {
+    return publicAssetBytesCache[cacheKey];
+  }
+
+  for (const base of getAssetBaseCandidates(assetBaseUrl)) {
+    try {
+      const res = await fetch(`${base}/${normalizedRelPath}`, { cache: 'force-cache' });
+      if (!res.ok) continue;
+      const raw = Buffer.from(await res.arrayBuffer());
+      publicAssetBytesCache[cacheKey] = raw;
+      return raw;
+    } catch {
+      // Try next base candidate.
+    }
+  }
+
+  publicAssetBytesCache[cacheKey] = null;
+  return null;
+}
+
+async function getMoonImageDataUri(assetPath: string, assetBaseUrl?: string): Promise<string | null> {
+  const relPath = assetPath.replace(/^\/+/, '');
+  if (!SAFE_MOON_ASSET_REL_PATH_REGEX.test(relPath)) return null;
+  const cacheKey = `${getAssetBaseCandidates(assetBaseUrl).join('|')}|${relPath}`.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(moonDataUriCache, cacheKey)) return moonDataUriCache[cacheKey];
+  const raw = await loadPublicAssetBytesOverHttp(relPath, assetBaseUrl);
+  if (!raw) {
+    moonDataUriCache[cacheKey] = null;
+    return null;
+  }
+  moonDataUriCache[cacheKey] = `data:image/png;base64,${raw.toString('base64')}`;
+  return moonDataUriCache[cacheKey];
+}
+
+async function withEmbeddedMoonUrls(svg: string, assetBaseUrl?: string): Promise<string> {
   let result = svg;
   for (const assetPath of listMoonAssetPaths(svg)) {
-    const dataUri = getMoonImageDataUri(assetPath);
+    const dataUri = await getMoonImageDataUri(assetPath, assetBaseUrl);
     if (!dataUri) continue;
     result = replaceAssetUrlRefs(result, assetPath, dataUri);
   }
@@ -337,6 +346,7 @@ export function createDirectOrderCode(): string {
 export async function prepareOrderSvg(input: {
   draft: CheckoutDraft;
   orderCode: string;
+  assetBaseUrl?: string;
 }): Promise<{ exportSvg: string; fileToken: string; sourcePrintSize: PrintSizeKey | null }> {
   let svg = String(input.draft.previewSvg || '').trim();
   if (!svg.startsWith('<')) {
@@ -345,7 +355,8 @@ export async function prepareOrderSvg(input: {
   if (!svg.startsWith('<')) {
     throw new Error('Could not generate map output. Please try again.');
   }
-  const exportSvg = injectFontCssIntoSvg(withEmbeddedMoonUrls(svg), getEmbeddedPosterFontsCss());
+  const moonEmbeddedSvg = await withEmbeddedMoonUrls(svg, input.assetBaseUrl);
+  const exportSvg = injectFontCssIntoSvg(moonEmbeddedSvg, getEmbeddedPosterFontsCss());
   const sourcePrintSize = mapDesignSizeToPrintSize(input.draft.mapData.size);
   const fileToken = buildOrderFileToken(input.orderCode, sourcePrintSize);
   return { exportSvg, fileToken, sourcePrintSize };
@@ -354,6 +365,7 @@ export async function prepareOrderSvg(input: {
 export async function buildOrderExportBundle(input: {
   draft: CheckoutDraft;
   orderCode: string;
+  assetBaseUrl?: string;
 }): Promise<OrderExportBundle> {
   const { exportSvg, fileToken, sourcePrintSize } = await prepareOrderSvg(input);
   const { width: exportSvgW, height: exportSvgH } = getSvgSize(exportSvg);
