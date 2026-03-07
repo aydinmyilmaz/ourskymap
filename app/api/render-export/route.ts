@@ -10,7 +10,8 @@ export const runtime = 'nodejs';
 
 const TARGET_EXPORT_DPI = 300;
 const BASE_SVG_DPI = 72;
-const DEFAULT_MAX_EXPORT_PIXELS = Number.parseInt(process.env.EXPORT_MAX_PIXELS ?? '40000000', 10);
+// 24x32 at 300 DPI needs 69,120,000 pixels; keep a small buffer above that.
+const DEFAULT_MAX_EXPORT_PIXELS = Number.parseInt(process.env.EXPORT_MAX_PIXELS ?? '70000000', 10);
 const MAX_SVG_CHARS = 12_000_000;
 const RENDER_SHARED_SECRET = (process.env.RENDER_SHARED_SECRET ?? '').trim();
 
@@ -57,7 +58,7 @@ function getRasterScale(svgWidth: number, svgHeight: number, maxExportPixels: nu
   const basePixels = Math.max(1, svgWidth * svgHeight);
   const safeMaxPixels = Number.isFinite(maxExportPixels) && maxExportPixels > 1_000_000
     ? maxExportPixels
-    : 40_000_000;
+    : 70_000_000;
   const capByPixels = Math.sqrt(safeMaxPixels / basePixels);
   const scale = Math.max(1, Math.min(targetScale, capByPixels));
   return Number(scale.toFixed(3));

@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { renderPosterSvg } from '../../../lib/poster';
 import type { CheckoutDraft } from '../../../lib/checkout';
 import { LOCAL_FONT_ASSETS } from '../../../lib/local-font-assets';
-import type { PosterRequest } from '../../../lib/types';
 import { getSupabaseAdminClient } from '../../../lib/supabaseAdmin';
 import { buildOrderFileToken, mapDesignSizeToPrintSize } from '../../../lib/print-size-utils';
 import JSZip from 'jszip';
 import sharp from 'sharp';
 import { PDFDocument } from 'pdf-lib';
+import { renderPosterSvg } from '../../../lib/poster';
 
 export const runtime = 'nodejs';
 
@@ -21,7 +20,8 @@ type OrderRow = {
 
 const TARGET_EXPORT_DPI = 300;
 const BASE_SVG_DPI = 72;
-const MAX_EXPORT_PIXELS = 40_000_000;
+// 24x32 at 300 DPI needs 69,120,000 pixels; keep a small buffer above that.
+const MAX_EXPORT_PIXELS = 70_000_000;
 const EXPORT_ENGINE = (process.env.EXPORT_ENGINE ?? 'local').trim().toLowerCase();
 const RENDER_WORKER_URL = (process.env.FLY_RENDER_URL ?? '').trim().replace(/\/+$/, '');
 const RENDER_WORKER_SHARED_SECRET = (process.env.RENDER_SHARED_SECRET ?? '').trim();
@@ -436,11 +436,13 @@ export async function POST(req: Request) {
       console.info(`[coupon] simulation rerender enabled for completed order ${couponCode}`);
     }
 
-    let svg = '';
-    try {
-      svg = renderPosterSvg(draft.renderRequest as PosterRequest);
-    } catch {
-      throw new Error('Could not regenerate sky map for export. Please return to designer and try again.');
+    let svg = String(draft.previewSvg || '').trim();
+    if (!svg.startsWith('<')) {
+      try {
+        svg = renderPosterSvg(draft.renderRequest).trim();
+      } catch {
+        throw new Error('Could not regenerate sky map for export. Please return to designer and try again.');
+      }
     }
 
     if (!svg.trim().startsWith('<')) {
