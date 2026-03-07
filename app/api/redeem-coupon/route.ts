@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { CheckoutDraft } from '../../../lib/checkout';
 import {
   buildOrderExportBundle,
+  getExportEngineLabel,
   isValidEmail,
   normalizeExportMode,
   prepareOrderSvg,
@@ -185,7 +186,8 @@ export async function POST(req: Request) {
       success: true,
       message: exportMode === 'browser' ? 'Coupon validated. Browser export is ready.' : 'Your map is ready.',
       orderCode: couponCode,
-      downloadUrl: fileUrl
+      downloadUrl: fileUrl,
+      engineLabel: getExportEngineLabel(exportMode)
     });
   } catch (e: any) {
     return NextResponse.json(

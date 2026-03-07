@@ -86,7 +86,13 @@ function PrintOrderStateScreen(props: {
   message: string;
   linkHref?: string;
   linkLabel?: string;
+  debugLabel?: string;
 }) {
+  useEffect(() => {
+    if (!props.debugLabel) return;
+    console.info(`[print-order] preparing via ${props.debugLabel}`);
+  }, [props.debugLabel]);
+
   return (
     <div className="statePage">
       <div className="stateShell">
@@ -108,6 +114,7 @@ function PrintOrderStateScreen(props: {
           </div>
           <h1>{props.title}</h1>
           <p>{props.message}</p>
+          {props.debugLabel ? <div className="stateDebug">dev: {props.debugLabel}</div> : null}
           {props.linkHref && props.linkLabel ? (
             <a href={props.linkHref} className="stateLink">
               {props.linkLabel}
@@ -215,6 +222,15 @@ function PrintOrderStateScreen(props: {
           line-height: 1.6;
           color: #546072;
         }
+        .stateDebug {
+          margin-top: 14px;
+          font-size: 11px;
+          line-height: 1;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: rgba(27, 42, 77, 0.42);
+          user-select: text;
+        }
         .stateLink {
           display: inline-flex;
           align-items: center;
@@ -280,6 +296,7 @@ function PrintOrderPageBody() {
   const orderCode = (search.get('orderCode') || '').trim();
   const isLegacyDevMode = search.get('dev') === '1';
   const exportMode: CheckoutExportMode = search.get('exportMode') === 'server' ? 'server' : 'browser';
+  const engineLabel = (search.get('engineLabel') || '').trim() || (exportMode === 'browser' ? 'browser' : 'backend');
 
   const [order, setOrder] = useState<OrderStatusResponse | null>(null);
   const [pricing, setPricing] = useState<PricingPayload | null>(null);
@@ -620,6 +637,7 @@ function PrintOrderPageBody() {
       <PrintOrderStateScreen
         title="Preparing your print checkout"
         message="We are loading your artwork, delivery options, and download details."
+        debugLabel={engineLabel}
       />
     );
   }
@@ -631,6 +649,7 @@ function PrintOrderPageBody() {
         message={error}
         linkHref="/checkout"
         linkLabel="Back to checkout"
+        debugLabel={engineLabel}
       />
     );
   }
@@ -1497,6 +1516,7 @@ export default function PrintOrderPage() {
         <PrintOrderStateScreen
           title="Opening your print checkout"
           message="We are preparing the page and syncing your order details."
+          debugLabel="route-shell"
         />
       }
     >

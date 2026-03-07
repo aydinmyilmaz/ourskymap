@@ -10,6 +10,7 @@ import { buildOrderFileToken, mapDesignSizeToPrintSize } from './print-size-util
 import type { PrintSizeKey } from './print-types';
 
 export type ExportMode = 'browser' | 'server';
+export type ExportEngineLabel = 'browser' | 'fly-api' | 'vercel-api' | 'local-api';
 
 export type OrderExportBundle = {
   exportSvg: string;
@@ -316,6 +317,13 @@ async function renderViaFlyWorker(opts: {
 
 export function normalizeExportMode(value: string | null | undefined): ExportMode {
   return String(value || '').trim().toLowerCase() === 'server' ? 'server' : 'browser';
+}
+
+export function getExportEngineLabel(exportMode: ExportMode): ExportEngineLabel {
+  if (exportMode === 'browser') return 'browser';
+  if (EXPORT_ENGINE === 'fly') return 'fly-api';
+  if ((process.env.VERCEL || '').trim() === '1') return 'vercel-api';
+  return 'local-api';
 }
 
 export function isValidEmail(email: string): boolean {

@@ -3,6 +3,7 @@ import type { CheckoutDraft } from '../../../lib/checkout';
 import {
   buildOrderExportBundle,
   createDirectOrderCode,
+  getExportEngineLabel,
   isValidEmail,
   normalizeExportMode,
   prepareOrderSvg,
@@ -15,7 +16,7 @@ export const runtime = 'nodejs';
 function buildOrderInsert(input: {
   orderCode: string;
   draft: CheckoutDraft;
-  email: string;
+  email: string | null;
   fileUrl: string;
 }) {
   return {
@@ -71,12 +72,13 @@ export async function POST(req: Request) {
       exportMode?: string;
     };
 
-    const email = (body.email || '').trim().toLowerCase();
+    const rawEmail = (body.email || '').trim().toLowerCase();
+    const email = rawEmail ? rawEmail : null;
     const draft = body.draft;
     const exportMode = normalizeExportMode(body.exportMode);
     const orderCode = createDirectOrderCode();
 
-    if (!email || !isValidEmail(email)) {
+    if (email && !isValidEmail(email)) {
       return NextResponse.json({ success: false, message: 'Please enter a valid email address.' }, { status: 400 });
     }
     if (!draft?.renderRequest || !draft?.previewSvg || !draft?.mapData) {
@@ -112,7 +114,8 @@ export async function POST(req: Request) {
       success: true,
       message: exportMode === 'browser' ? 'Browser export is ready.' : 'Your map is ready.',
       orderCode,
-      downloadUrl: fileUrl
+      downloadUrl: fileUrl,
+      engineLabel: getExportEngineLabel(exportMode)
     });
   } catch (e: any) {
     return NextResponse.json(

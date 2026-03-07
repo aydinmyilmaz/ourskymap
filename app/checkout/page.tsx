@@ -9,6 +9,7 @@ type RedeemResponse = {
   message: string;
   orderCode?: string;
   downloadUrl?: string | null;
+  engineLabel?: string;
 };
 
 export default function CheckoutPage() {
@@ -50,8 +51,8 @@ export default function CheckoutPage() {
   }, [couponCode, email, loading]);
 
   const canContinueWithoutCoupon = useMemo(() => {
-    return !!email.trim() && !directLoading;
-  }, [directLoading, email]);
+    return !directLoading;
+  }, [directLoading]);
 
   async function handleCouponSubmit(e: FormEvent) {
     e.preventDefault();
@@ -81,7 +82,7 @@ export default function CheckoutPage() {
       }
 
       router.push(
-        `/print-order?orderCode=${encodeURIComponent(data.orderCode || couponCode.trim())}&exportMode=${encodeURIComponent(exportMode)}&checkoutMode=with-coupon`
+        `/print-order?orderCode=${encodeURIComponent(data.orderCode || couponCode.trim())}&exportMode=${encodeURIComponent(exportMode)}&checkoutMode=with-coupon&engineLabel=${encodeURIComponent(data.engineLabel || exportMode)}`
       );
     } catch {
       setError('Something went wrong. Please try again.');
@@ -113,7 +114,7 @@ export default function CheckoutPage() {
         return;
       }
       router.push(
-        `/print-order?orderCode=${encodeURIComponent(data.orderCode)}&exportMode=${encodeURIComponent(exportMode)}&checkoutMode=without-coupon`
+        `/print-order?orderCode=${encodeURIComponent(data.orderCode)}&exportMode=${encodeURIComponent(exportMode)}&checkoutMode=without-coupon&engineLabel=${encodeURIComponent(data.engineLabel || exportMode)}`
       );
     } catch {
       setError('Could not prepare your order. Please try again.');
@@ -180,9 +181,8 @@ export default function CheckoutPage() {
                 placeholder="your.email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
               />
-              <small>We&apos;ll associate your order with this email</small>
+              <small>Required for coupon checkout. Optional for Continue Without Coupon.</small>
             </label>
 
             <label>
